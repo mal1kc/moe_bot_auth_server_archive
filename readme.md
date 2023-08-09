@@ -1,0 +1,7 @@
+# özellikler
+
+## sorunlar 
+
+
+## eksikler
+
