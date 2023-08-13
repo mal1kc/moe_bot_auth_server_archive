@@ -1,6 +1,5 @@
-from tkinter import StringVar, Button, Tk, Label, Canvas, Entry
-
 import multiprocessing
+from tkinter import Button, Canvas, Entry, Label, StringVar, Tk
 
 multiprocessing.freeze_support()
 

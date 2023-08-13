@@ -3,8 +3,8 @@ name = "moe-gthr-auth-server"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
-license = "LICENCE.md"
-readme = "README.md"
+license = "LICENCE"
+readme = "readme.md"
 packages = [{include = "moe_gthr_auth_server"}]
 
 [tool.poetry.dependencies]
@@ -16,6 +16,13 @@ ruff = "^0.0.283"
 pytest = "^7.4.0"
 black = "^23.7.0"
 requests = "^2.31.0"
+
+[tool.black]
+python = "^3.11"
+line-length = 135
+
+[tool.ruff]
+line-length = 135
 
 [build-system]
 requires = ["poetry-core"]

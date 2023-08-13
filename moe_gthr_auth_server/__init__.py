@@ -1,51 +1,37 @@
-from flask import Flask, abort,jsonify, request
-from .database_op import Admin, Kullanici, db, sha256_hash
-app = Flask("moe_gatherer_server")
-app.config.from_mapping(
-    SECRET_KEY="secret key",
-    SQLALCHEMY_DATABASE_URI="sqlite:///sunucu.db"
-)
+import os
 
-@app.cli.command("initdb")
-def initdb_command():
-  print("Veritabanı oluşturuluyor")
-  db.create_all()
-  print("Veritabanı oluşturuldu")
-  if Kullanici.query.filter_by(k_adi="mal1kc").first() is None:
-    db.session.add(Kullanici(k_adi="mal1kc",k_sifre_hash=sha256_hash("admin")))
-  print("Admin eklendi")
-  db.session.commit()
-  print("Veritabanı oluşturuldu")
+from .config import flask as conf_flask
+from .config import secret_key as conf_secret_key
+from flask import Flask
 
-db.init_app(app)
-@app.route("/",methods=["GET","POST"])
-def anasayfa():
-  return jsonify({"status":"OK"})
+from . import paths
+from .database_ops import db
+from .routes import main_blueprint
 
-@app.route("/kayit",methods=["GET","POST"])
-def kayit(model:Kullanici=None):
-  if request.method == "POST":
-    print(request.form)
 
-  else:
-    
-    all_users = Kullanici.query.all()
-    return jsonify({"status":"ok","users":all_users})
+def _ensure_secret_key() -> None:
+    """Ensure that a secret key exists."""
+    if os.path.exists(paths.SECRET_KEY_PATH):
+        return
+    conf_secret_key.write(conf_secret_key.generate_secret_key())
 
-def not_found():
-  return jsonify({"status":"not_found"}),404
 
-def is_admin(f):
-  def wrapper(*args,**kwargs):
-    if request.headers.get("Authorization") is None:
-      return jsonify({"status":"not_authorized"}),401
-    else:
-      admin = Admin.query.filter_by(a_adi=request.authorization.username).first()
-      if admin is None:
-        return not_found()
-      if request.authorization.password != admin.a_sifre_hash:
-        return not_found()
-      else:
-        return f(*args,**kwargs)
-  wrapper.__name__ = f.__name__
-  return wrapper
+def create() -> Flask:
+    app = Flask("moe_gatherer_server")
+    register_modifications(app)
+    register_extensions(app)
+    register_blueprints(app)
+    return app
+
+
+def register_blueprints(app: Flask) -> None:
+    app.register_blueprint(main_blueprint)
+
+
+def register_extensions(app: Flask, db=db) -> None:
+    db.init_app(app)
+
+
+def register_modifications(app: Flask) -> None:
+    app.config.from_object(conf_flask)
+    app.secret_key = conf_secret_key.read()
