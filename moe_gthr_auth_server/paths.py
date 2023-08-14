@@ -24,3 +24,4 @@ DATA_DIR = if_not_exists_make_dir(os.path.join(os.path.dirname(__file__), "data"
 CONFIG_DIR = if_not_exists_make_dir(os.path.join(os.path.dirname(__file__), "config"))
 DB_PATH = os.path.join(DATA_DIR, "moe_gthr_auth_srvr.db")
 SECRET_KEY_PATH = os.path.join(CONFIG_DIR, "secret_key")
+LOG_PATH = os.path.join(DATA_DIR, "moe_gthr_auth_srvr.log")

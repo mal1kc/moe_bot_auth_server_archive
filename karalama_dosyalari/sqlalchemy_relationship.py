@@ -6,9 +6,9 @@ from string import ascii_letters
 from typing import List, Set
 
 from sqlalchemy import ForeignKey, create_engine
+
 # from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import (Mapped, declarative_base, mapped_column,
-                            relationship, sessionmaker)
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, sessionmaker
 
 Base = declarative_base()
 
