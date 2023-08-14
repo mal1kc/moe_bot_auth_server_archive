@@ -1,10 +1,10 @@
 import os
 
-from .config import flask as conf_flask
-from .config import secret_key as conf_secret_key
 from flask import Flask
 
 from . import paths
+from .config import flask as conf_flask
+from .config import secret_key as conf_secret_key
 from .database_ops import db
 from .routes import main_blueprint
 

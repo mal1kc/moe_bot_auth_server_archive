@@ -25,7 +25,10 @@ def _init_db():
 
 @fixture
 def user() -> Kullanici:
-    return Kullanici(k_adi=test_user_data["k_adi"], k_sifre_hash=sha256(test_user_data["k_adi"].encode()).hexdigest())
+    return Kullanici(
+        k_adi=test_user_data["k_adi"],
+        k_sifre_hash=sha256(test_user_data["k_adi"].encode()).hexdigest(),
+    )
 
 
 @fixture
@@ -35,7 +38,10 @@ def session():
 
 def test_user_add(user, session):
     add_user(user, session)
-    assert user == session.query(Kullanici).filter_by(k_adi=test_user_data["k_adi"]).first()
+    assert (
+        user
+        == session.query(Kullanici).filter_by(k_adi=test_user_data["k_adi"]).first()
+    )
     session.close()
 
 
@@ -55,7 +61,10 @@ def test_get_user_by_id(user, session):
 
 @fixture
 def admin() -> Admin:
-    return Admin(a_adi=test_admin_data["a_adi"], a_sifre_hash=sha256(test_admin_data["a_adi"].encode()).hexdigest())
+    return Admin(
+        a_adi=test_admin_data["a_adi"],
+        a_sifre_hash=sha256(test_admin_data["a_adi"].encode()).hexdigest(),
+    )
 
 
 def test_admin_add(session, admin):
@@ -100,7 +109,11 @@ def paket_icerik(paket, session):
     session.add(paket)
     session.commit()
     paket = session.query(Paket).filter_by(p_ad=paket.p_ad).first()
-    return PaketIcerik(p_paket_id=paket.p_id, p_icerikAd="test_paket_icerik", p_icerikDeger=pIcerik.moe_gatherer)
+    return PaketIcerik(
+        p_paket_id=paket.p_id,
+        p_icerikAd="test_paket_icerik",
+        p_icerikDeger=pIcerik.moe_gatherer,
+    )
 
 
 def test_paket_icerik_add(session, paket, paket_icerik):
@@ -117,7 +130,11 @@ def test_paket_add_random_paket_icerik(session, paket):
     session.add(paket)
     session.commit()
     p_icerik_deger = random.choice([pi for pi in pIcerik])
-    paket_icerik = PaketIcerik(p_paket_id=paket.p_id, p_icerikAd=f"test_paket_icerik_{p_icerik_deger}", p_icerikDeger=p_icerik_deger)
+    paket_icerik = PaketIcerik(
+        p_paket_id=paket.p_id,
+        p_icerikAd=f"test_paket_icerik_{p_icerik_deger}",
+        p_icerikDeger=p_icerik_deger,
+    )
     q_paket_icerik = session.query(PaketIcerik).filter_by(p_id=paket.p_id).first()
     assert q_paket_icerik == paket_icerik
     session.close()
