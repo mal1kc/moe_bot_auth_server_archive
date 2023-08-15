@@ -34,6 +34,7 @@ def _init_db():
 
 
 @fixture
+
 def session():
     return sessionmaker(bind=test_db_engine)()
 
@@ -44,6 +45,7 @@ def test_check_database_empty(session):
     assert session.query(Paket).all() == []
     assert session.query(PaketIcerik).all() == []
     session.close()
+
 
 
 @fixture
@@ -61,6 +63,7 @@ def user(user_data) -> Kullanici:
 
 def test_user_add(user, session, user_data):
     add_user(user, session)
+
     assert user == session.query(Kullanici).filter_by(k_adi=user_data["k_adi"]).first()
     session.close()
 
@@ -144,6 +147,7 @@ def paket_icerik(paket, session):
     session.commit()
     paket = session.query(Paket).filter_by(p_ad=paket.p_ad).first()
     return PaketIcerik(
+
         p_paketId=paket.p_id,
         p_icerikAd="test_paket_icerik",
         p_icerikDeger=random.choice([pi for pi in pIcerik]),

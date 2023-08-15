@@ -6,6 +6,7 @@ from logging import getLogger
 from typing import List
 
 from flask_sqlalchemy import SQLAlchemy
+
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, scoped_session
 from sqlalchemy.orm.decl_api import DeclarativeMeta
@@ -44,9 +45,21 @@ class DBOperationResult(enum.Enum):
     model_not_deleted = enum.auto()
 
 
+class DBOperationResult(enum.Enum):
+    success = True
+    unknown_error = enum.auto()
+    model_already_exists = enum.auto()
+    model_not_found = enum.auto()
+    model_not_created = enum.auto()
+    model_not_updated = enum.auto()
+    model_not_deleted = enum.auto()
+
+
 class PaketIcerik(Base):
     __tablename__ = "paket_icerikleri"
-    p_icerikId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, unique=True)
+    p_icerikId: Mapped[int] = mapped_column(
+        primary_key=True, autoincrement=True, unique=True
+    )
     p_icerikAd: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     p_icerikDeger: Mapped[str] = mapped_column(Enum(*[e for e in pIcerik]), nullable=False)
     p_paketId: Mapped[int | None] = mapped_column(ForeignKey("paketler.p_id"), nullable=True)
@@ -69,9 +82,25 @@ class Paket(Base):
     __tablename__ = "paketler"
     p_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     p_ad: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
-    p_icerikler: Mapped[List[PaketIcerik]] = relationship("PaketIcerik", back_populates="p_paketler")
+    p_icerikler: Mapped[List[PaketIcerik]] = relationship(
+        "PaketIcerik", back_populates="p_paketler"
+    )
     p_gun: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
-    p_aciklama: Mapped[str] = mapped_column(String(256), nullable=False, default="paket_aciklama")
+    p_aciklama: Mapped[str] = mapped_column(
+        String(256), nullable=False, default="paket_aciklama"
+    )
+
+    def __repr__(self):
+        return f"<Paket {self.p_id} {self.p_ad} {self.p_gun} {self.p_aciklama}>"
+
+    def __json__(self):
+        return {
+            "p_id": self.p_id,
+            "p_ad": self.p_ad,
+            "p_icerikler": self.p_icerikler,
+            "p_gun": self.p_gun,
+            "p_aciklama": self.p_aciklama,
+        }
 
     def __repr__(self):
         return f"<Paket {self.p_id} {self.p_ad} {self.p_gun} {self.p_aciklama}>"
@@ -90,9 +119,25 @@ class K_Paket(Base):
     __tablename__ = "kullanici_paketleri"
     k_pId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     k_pTur: Mapped[int] = mapped_column(ForeignKey("paketler.p_id"), nullable=False)
-    k_pBaslangic: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    k_pBaslangic: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
     k_pBitis: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    k_pKullanici: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
+    k_pKullanici: Mapped[int] = mapped_column(
+        ForeignKey("kullanicilar.k_id"), nullable=False
+    )
+
+    def __repr__(self):
+        return f"<K_Paket {self.k_pId} {self.k_pTur} {self.k_pBaslangic} {self.k_pBitis} {self.k_pKullanici}>"
+
+    def __json__(self):
+        return {
+            "k_pId": self.k_pId,
+            "k_pTur": self.k_pTur,
+            "k_pBaslangic": self.k_pBaslangic,
+            "k_pBitis": self.k_pBitis,
+            "k_pKullanici": self.k_pKullanici,
+        }
 
     def __repr__(self):
         return f"<K_Paket {self.k_pId} {self.k_pTur} {self.k_pBaslangic} {self.k_pBitis} {self.k_pKullanici}>"
@@ -142,8 +187,12 @@ class Kullanici(Base):
                 db.session.delete(u_paket)
                 db.session.commit()
                 return girisHata.paket_suresi_bitti
-            p_icerikleri = Paket.query.filter_by(p_turId=u_paket.k_pTur).first().p_icerikler
-            extra_user_quota = p_icerikleri.filter_by(p_icerikDeger=pIcerik.extra_user).all()
+            p_icerikleri = (
+                Paket.query.filter_by(p_turId=u_paket.k_pTur).first().p_icerikler
+            )
+            extra_user_quota = p_icerikleri.filter_by(
+                p_icerikDeger=pIcerik.extra_user
+            ).all()
             max_oturum = 1 + len(extra_user_quota)
             if self.k_acik_oturumlar is None:
                 self.k_acik_oturumlar = []
@@ -228,6 +277,7 @@ def add_paket(paket: Paket, session: scoped_session = db.session) -> DBOperation
         session.commit()
         return DBOperationResult.success
     except Exception as e:
+
         db_logger.error("error accured while adding paket to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
             db_logger.error("paket already exists")

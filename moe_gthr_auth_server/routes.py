@@ -7,7 +7,6 @@ from .err_handlrs import bad_request, not_found, unsupported_media_type
 from .database_ops import Admin, DBOperationResult, Kullanici, Paket, PaketIcerik, add_user, db, girisHata, sha256_hash, try_login
 
 from werkzeug.exceptions import UnsupportedMediaType
-import sys
 
 main_blueprint = Blueprint("page", __name__)
 

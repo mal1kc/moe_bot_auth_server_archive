@@ -5,6 +5,7 @@ from hashlib import sha256
 import pytest
 from flask import Flask
 
+
 from moe_gthr_auth_server import register_blueprints, register_error_handlers
 from moe_gthr_auth_server.database_ops import Admin, Kullanici, db
 
@@ -14,7 +15,6 @@ URLS = {
 }
 
 LOGGER = logging.getLogger(__name__)
-
 
 @pytest.fixture
 def app():
@@ -51,7 +51,6 @@ def init_db(app, admin_data):
 
     LOGGER.debug("init_db done")
 
-
 @pytest.fixture
 def client(app):
     return app.test_client()
@@ -66,15 +65,13 @@ def runner(app):
 def user_data():
     return {"k_adi": "test_user", "k_sifre": sha256("test_user".encode()).hexdigest()}
 
-
 @pytest.fixture
 def user_data2():
     return {"k_adi": "test_user2", "k_sifre": sha256("test_user2".encode()).hexdigest()}
 
-
 @pytest.fixture
-def admin_data():
-    return {"a_adi": "test_admin", "a_sifre": sha256("test_admin".encode()).hexdigest()}
+def admin(admin_data):
+    return tuple(admin_data.values())
 
 
 @pytest.fixture
@@ -109,7 +106,6 @@ def test_register_get(client, admin):
     assert client.get(URLS["register"]).status_code == 400
     assert client.get(URLS["register"], auth=admin).status_code == 200
 
-
 def test_register_post_get(client, user_data, admin_data, admin, app_ctx):
     LOGGER.debug("test_register: post")
     response = client.post(URLS["register"], json=user_data, auth=admin)
@@ -138,6 +134,7 @@ def test_register_post_get(client, user_data, admin_data, admin, app_ctx):
             with app_ctx:
                 db_users = Kullanici.query.all()
             assert json_data[key] == [db_u.__json__() for db_u in db_users]
+
 
 
 def test_register_post_user_already_exits(client, user_data2, admin):
