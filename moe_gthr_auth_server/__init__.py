@@ -7,6 +7,7 @@ from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
 from .database_ops import db
 from .routes import main_blueprint
+from .err_handlrs import bad_request, error_blueprint, not_found, unsupported_media_type
 
 
 def _ensure_secret_key() -> None:
@@ -18,6 +19,7 @@ def _ensure_secret_key() -> None:
 
 def create() -> Flask:
     app = Flask("moe_gatherer_server")
+    _ensure_secret_key()
     register_modifications(app)
     register_extensions(app)
     register_blueprints(app)
@@ -25,11 +27,18 @@ def create() -> Flask:
 
 
 def register_blueprints(app: Flask) -> None:
+    app.register_blueprint(error_blueprint)
     app.register_blueprint(main_blueprint)
 
 
 def register_extensions(app: Flask, db=db) -> None:
     db.init_app(app)
+
+
+def register_error_handlers(app: Flask):
+    app.register_error_handler(400, bad_request)
+    app.register_error_handler(404, not_found)
+    app.register_error_handler(415, unsupported_media_type)
 
 
 def register_modifications(app: Flask) -> None:

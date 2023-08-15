@@ -3,8 +3,7 @@ from random import randint
 from string import ascii_letters
 
 from sqlalchemy import Column, Integer, String, create_engine
-from sqlalchemy.orm import (Mapped, declarative_base, mapped_column,
-                            sessionmaker)
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, sessionmaker
 
 engine = create_engine("sqlite:///gecici.db", echo=True)
 
@@ -32,9 +31,7 @@ def main():
         session.add(
             PaketIcerik(
                 p_icerikId=i,
-                p_icerikAdi="".join(
-                    [ascii_letters[randint(0, 51)] for i in range(256)]
-                ),
+                p_icerikAdi="".join([ascii_letters[randint(0, 51)] for i in range(256)]),
             )
         )
     session.commit()
