@@ -1,9 +1,9 @@
 from __future__ import annotations
-
 import enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import getLogger
-from typing import List
+from typing import Any, Callable, List
+from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -33,16 +33,6 @@ class girisHata(enum.IntEnum):
     paket_bulunamadi = 3
     paket_suresi_bitti = 4
     ip_adresi_bulunamadi = 5
-
-
-class DBOperationResult(enum.Enum):
-    success = True
-    unknown_error = enum.auto()
-    model_already_exists = enum.auto()
-    model_not_found = enum.auto()
-    model_not_created = enum.auto()
-    model_not_updated = enum.auto()
-    model_not_deleted = enum.auto()
 
 
 class DBOperationResult(enum.Enum):
@@ -96,40 +86,17 @@ class Paket(Base):
             "p_aciklama": self.p_aciklama,
         }
 
-    def __repr__(self):
-        return f"<Paket {self.p_id} {self.p_ad} {self.p_gun} {self.p_aciklama}>"
-
-    def __json__(self):
-        return {
-            "p_id": self.p_id,
-            "p_ad": self.p_ad,
-            "p_icerikler": self.p_icerikler,
-            "p_gun": self.p_gun,
-            "p_aciklama": self.p_aciklama,
-        }
-
 
 class K_Paket(Base):
     __tablename__ = "kullanici_paketleri"
     k_pId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_pTur: Mapped[int] = mapped_column(ForeignKey("paketler.p_id"), nullable=False)
+    k_pTurId: Mapped[int] = mapped_column(ForeignKey("paketler.p_id"), nullable=False)
+    k_pTur: Mapped[Paket] = relationship("Paket", uselist=False, backref="p_kullaniciPaketleri")
     k_pBaslangic: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     k_pBitis: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    k_pKullanici: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
+    k_pKullaniciId: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
 
-    def __repr__(self):
-        return f"<K_Paket {self.k_pId} {self.k_pTur} {self.k_pBaslangic} {self.k_pBitis} {self.k_pKullanici}>"
-
-    def __json__(self):
-        return {
-            "k_pId": self.k_pId,
-            "k_pTur": self.k_pTur,
-            "k_pBaslangic": self.k_pBaslangic,
-            "k_pBitis": self.k_pBitis,
-            "k_pKullanici": self.k_pKullanici,
-        }
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<K_Paket {self.k_pId} {self.k_pTur} {self.k_pBaslangic} {self.k_pBitis} {self.k_pKullanici}>"
 
     def __json__(self):
@@ -145,61 +112,125 @@ class K_Paket(Base):
 class K_Oturum(Base):
     __tablename__ = "kullanici_oturumlari"
     k_oId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_oKullanici: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
+    k_oKullaniciId: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
     k_oBaslangic: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     k_oBitis: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     k_oIp: Mapped[str] = mapped_column(String(256), nullable=False)
     k_oErisim: Mapped[bool] = mapped_column(nullable=False, default=True)
 
+    def __repr__(self) -> str:
+        return f"<K_Oturum {self.k_oId} {self.k_oKullanici} {self.k_oBaslangic} {self.k_oBitis} {self.k_oIp} {self.k_oErisim}>"
+
+    def __json__(self):
+        return {
+            "k_oId": self.k_oId,
+            "k_oKullanici": self.k_oKullanici,
+            "k_oBaslangic": self.k_oBaslangic,
+            "k_oBitis": self.k_oBitis,
+            "k_oIp": self.k_oIp,
+            "k_oErisim": self.k_oErisim,
+        }
+
+    def oturumu_uzat(self) -> None:
+        self.k_oBitis = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
+        self.k_oErisim = True
+        db.session.commit()
+
 
 class Kullanici(Base):
     __tablename__ = "kullanicilar"
     k_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_adi: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    k_ad: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     k_sifre_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
-    k_paket: Mapped[int] = relationship("K_Paket", backref="kullanicilar")
-    k_son_oturum_kontrol: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    k_acik_oturumlar: Mapped[List[K_Oturum]] = relationship("K_Oturum", backref="kullanici")
+    k_paket: Mapped[K_Paket] = relationship("K_Paket", uselist=False, cascade="all, delete", backref="k_pKullanici")
+    k_oturumlar: Mapped[List[K_Oturum]] = relationship("K_Oturum", backref="k_oKullanici")
+    # k_acik_oturumlar: Mapped[List[K_Oturum]] = relationship("K_Oturum", backref="k_oKullanici")
     # 162623161333055489 gibi 18 karakterli str # TODO: ileride discord id ile oturum + discord botu ile entegre edilebilir
     k_discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
 
     def __repr__(self):
-        return "<Kullanici (id:%s, k_adi:%s, k_sifre_hash:%s)>" % (
+        return "<Kullanici (id:%s, k_ad:%s, k_sifre_hash:%s)>" % (
             self.k_id,
-            self.k_adi,
+            self.k_ad,
             self.k_sifre_hash,
         )
 
     def oturum_ac(self, ip_addr: str) -> girisHata | bool:
-        u_paket = db.session.query(K_Paket).filter_by(k_pId=self.k_pler).first()
+        self.k_oturumlar.sort(key=lambda x: x.k_oBitis)
+        self.k_acik_oturumlar = list(filter(lambda x: x.k_oErisim, self.k_oturumlar))
+        u_paket = self.k_paket
         if u_paket is not None:
             if u_paket.k_pBitis < datetime.utcnow():
                 db.session.delete(u_paket)
                 db.session.commit()
                 return girisHata.paket_suresi_bitti
-            p_icerikleri = Paket.query.filter_by(p_turId=u_paket.k_pTur).first().p_icerikler
-            extra_user_quota = p_icerikleri.filter_by(p_icerikDeger=pIcerik.extra_user).all()
-            max_oturum = 1 + len(extra_user_quota)
-            if self.k_acik_oturumlar is None:
-                self.k_acik_oturumlar = []
+            p_icerikleri = u_paket.k_pTur.p_icerikler
+            extra_user_quota = list(filter(lambda x: x.p_icerikDeger == pIcerik.extra_user, p_icerikleri))
+            max_oturum = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
+            ayni_ip_sbitmis_oturum = self._suresi_bitmis_acik_oturumlari_ele(ip_addr)
+
             if len(self.k_acik_oturumlar) >= max_oturum:
                 return girisHata.maksimum_online_kullanici
-            self.k_son_oturum_kontrol = datetime.utcnow()
-            self.k_acik_oturumlar.append(
-                K_Oturum(
-                    k_oKullanici=self.k_id,
-                    k_oBaslangic=datetime.utcnow(),
-                    k_oBitis=datetime.utcnow(),
-                    k_oIp=ip_addr,
-                    k_oErisim=True,
-                )
-            )
+            if ayni_ip_sbitmis_oturum is not None:
+                ayni_ip_sbitmis_oturum.oturumu_uzat()
+                db_logger.info("kullanici oturum uzatildi: id:%s, k_ad:%s, ip:%s" % (self.k_id, self.k_ad, ip_addr))
+                return True
+            self._acik_oturum_ekle(ip_addr)
             db.session.commit()
+            db_logger.info("kullanici oturum acildi: id:%s, k_ad:%s" % (self.k_id, self.k_ad))
             return True
         return girisHata.paket_bulunamadi
 
+    def _acik_oturum_ekle(self, ip_addr: str) -> None:
+        yeni_oturum = K_Oturum(
+            k_oKullaniciId=self.k_id,
+            k_oBitis=datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT),
+            k_oIp=ip_addr,
+        )
+        self.k_oturumlar.append(yeni_oturum)
+        self.k_acik_oturumlar.append(yeni_oturum)
+        db.session.commit()
+
+    def _suresi_bitmis_acik_oturumlari_ele(self, ip_addr: str) -> None | K_Oturum:
+        """
+        acik oturumlar listesini gunceller
+        if ayni ip adresinden birden fazla oturum varsa en yeni olanı döndürür
+        :param ip_addr: ip adresi
+        :return: None | K_Oturum
+        """
+        suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oBitis < datetime.utcnow(), self.k_acik_oturumlar)
+        ayni_ip_suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oIp == ip_addr, suresi_bitmis_oturumlar)
+        diger_ip_suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oIp != ip_addr, suresi_bitmis_oturumlar)
+        self._oturumlari_kapat(diger_ip_suresi_bitmis_oturumlar)
+
+        if len(ayni_ip_suresi_bitmis_oturumlar) > 1:
+            ayni_ip_suresi_bitmis_oturumlar.sort(key=lambda x: x.k_oBitis)
+            secilimis_oturum = ayni_ip_suresi_bitmis_oturumlar[0]
+            self.ayni_ip_suresi_bitmis_oturumlar.remove(secilimis_oturum)
+            self._oturumlari_kapat(ayni_ip_suresi_bitmis_oturumlar)
+            return secilimis_oturum
+        return None
+
+    def _oturumu_kapat(self, oturum: K_Oturum) -> None:
+        oturum.k_oErisim = False
+        db_logger.info("kullanici oturum kapatildi: id:%s, k_ad:%s" % (self.k_id, self.k_ad))
+        self.k_acik_oturumlar.remove(oturum)
+        self.k_oturumlar.append(oturum)
+
+    def _oturumlari_kapat(self, oturumlar: List[K_Oturum]) -> None:
+        if oturumlar is not None:
+            for oturum in oturumlar:
+                self._oturumu_kapat(oturum)
+        db.session.commit()
+
+    def tum_oturumlari_kapat(self) -> None:
+        if self.k_oturumlar is not None:
+            for oturum in self.k_oturumlar:
+                self._oturumu_kapat(oturum)
+        db.session.commit()
+
     def __json__(self):
-        return {"k_id": self.k_id, "k_adi": self.k_adi}
+        return {"k_id": self.k_id, "k_ad": self.k_ad}
 
 
 class Admin(Base):
@@ -304,15 +335,15 @@ def update_user(k_id: str, new_kullanici: Kullanici, session: scoped_session = d
     :param session: db session
     :return: DBOperationResult
     ---
-    only update k_adi, k_sifre_hash, k_discord_id, k_pler
+    only update k_ad, k_sifre_hash, k_discord_id, k_pler
     ---
     """
     try:
         db_kullanici = session.query(Kullanici).filter_by(k_id=k_id).first()
         if db_kullanici is None:
             return DBOperationResult.model_not_found
-        if new_kullanici.k_adi is not None:
-            db_kullanici.k_adi = new_kullanici.k_adi
+        if new_kullanici.k_ad is not None:
+            db_kullanici.k_ad = new_kullanici.k_ad
         if new_kullanici.k_sifre_hash is not None:
             db_kullanici.password_hash = new_kullanici.password_hash
         if new_kullanici.k_discord_id is not None:
@@ -327,8 +358,8 @@ def update_user(k_id: str, new_kullanici: Kullanici, session: scoped_session = d
     return DBOperationResult.unknown_error
 
 
-def get_user(k_adi: str, session: scoped_session = db.session) -> Kullanici:
-    return session.query(Kullanici).filter_by(k_adi=k_adi).first()
+def get_user(k_ad: str, session: scoped_session = db.session) -> Kullanici:
+    return session.query(Kullanici).filter_by(k_ad=k_ad).first()
 
 
 def get_admin(a_adi: str, session: scoped_session = db.session) -> Admin:
@@ -349,3 +380,7 @@ def try_login(user: Kullanici, ip_addr: str | None) -> girisHata | bool:
     if user is not None:
         return user.oturum_ac(ip_addr)
     return girisHata.kullanici_bulunamadi
+
+
+def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[Any]:
+    return list(filter(function, input_list))

@@ -48,34 +48,34 @@ def test_check_database_empty(session):
 
 @fixture
 def user_data():
-    return {"k_adi": "test_user", "k_sifre": sha256("test_user".encode()).hexdigest()}
+    return {"k_ad": "test_user", "k_sifre": sha256("test_user".encode()).hexdigest()}
 
 
 @fixture
 def user(user_data) -> Kullanici:
     return Kullanici(
-        k_adi=user_data["k_adi"],
-        k_sifre_hash=sha256(user_data["k_adi"].encode()).hexdigest(),
+        k_ad=user_data["k_ad"],
+        k_sifre_hash=sha256(user_data["k_ad"].encode()).hexdigest(),
     )
 
 
 def test_user_add(user, session, user_data):
     add_user(user, session)
 
-    assert user == session.query(Kullanici).filter_by(k_adi=user_data["k_adi"]).first()
+    assert user == session.query(Kullanici).filter_by(k_ad=user_data["k_ad"]).first()
     session.close()
 
 
 def test_user_password_hash(user, session, user_data):
     add_user(user, session)
-    q_user = session.query(Kullanici).filter_by(k_adi=user_data["k_adi"]).first()
-    assert q_user.k_sifre_hash == sha256(user_data["k_adi"].encode()).hexdigest()
+    q_user = session.query(Kullanici).filter_by(k_ad=user_data["k_ad"]).first()
+    assert q_user.k_sifre_hash == sha256(user_data["k_ad"].encode()).hexdigest()
     session.close()
 
 
 def test_get_user_by_id(user, session, user_data):
     add_user(user, session)
-    q_user = session.query(Kullanici).filter_by(k_adi=user_data["k_adi"]).first()
+    q_user = session.query(Kullanici).filter_by(k_ad=user_data["k_ad"]).first()
     assert q_user == session.query(Kullanici).filter_by(k_id=q_user.k_id).first()
     session.close()
 

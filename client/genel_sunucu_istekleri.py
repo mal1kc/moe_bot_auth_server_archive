@@ -5,7 +5,7 @@ from requests import post
 
 def kullanici_olustur():
     data = {
-        "k_adi": "user1",
+        "k_ad": "user1",
         "k_sifre": sha256("user1".encode()).hexdigest(),
     }
     print(f"Kullanıcı oluşturuluyor: {data}")

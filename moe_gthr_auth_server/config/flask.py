@@ -4,7 +4,12 @@ LOGGING_LEVEL = "INFO"
 
 SQLALCHEMY_DATABASE_URI = "sqlite:///" + paths.DB_PATH
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-
+USER_SESSION_TIMEOUT = 20  # in minutes
+USER_OLDEST_SESSION_TIMEOUT = 2  # in days
+# USER_IP_SESSION_LIMIT
+# # must be bigger than (USER_OLDEST_SESSION_TIMEOUT * 24 * 60 / USER_SESSION_TIMEOUT) + 1
+# # otherwise, user can't login again after USER_OLDEST_SESSION_TIMEOUT
+USER_IP_SESSION_LIMIT = 150
 LOGGING_CONFIG = {
     "version": 1,
     "formatters": {
