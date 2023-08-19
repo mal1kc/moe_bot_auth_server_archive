@@ -3,7 +3,7 @@ import click
 import logging
 from flask import Blueprint, Response, jsonify, request, Flask
 
-from .err_handlrs import bad_request, unauthorized, not_found, unsupported_media_type
+from .err_handlrs import bad_request, unauthorized, not_found, unsupported_media_type, req_data_incomplete, req_data_is_none_or_empty
 
 from .database_ops import (
     Admin,
@@ -20,6 +20,7 @@ from .database_ops import (
     pIcerik,
     sha256_hash,
     try_login,
+    validate_data_schema,
 )
 
 from werkzeug.exceptions import UnsupportedMediaType
@@ -137,7 +138,38 @@ def p_kayit() -> tuple[Response, int]:
     paket and paket_icerik kayıt
 
     """
-    ...
+    if request.method == "POST":
+        if admin := is_admin(request=request):
+            if admin == bad_request():
+                return bad_request()
+            try:
+                req_data = request.get_json(cache=False)
+                if not req_data:
+                    raise ReqDataErrors.req_data_is_none_or_empty()
+                if "m_type" not in req_data or "model" not in req_data:
+                    raise ReqDataErrors.req_data_incomplete()
+                if req_data["m_type"] is None or req_data["model"] is None:
+                    raise ReqDataErrors.req_data_is_none_or_empty()
+                if req_data["m_type"] == "" or req_data["model"] == "":
+                    raise ReqDataErrors.req_data_is_none_or_empty()
+                if req_data["m_type"] == "paket":
+                    model = Paket.from_json(req_data["model"])
+                    add_paket(model)
+                    return jsonify({"status": "success", "message": "paket_created"}), 200
+                elif req_data["m_type"] == "paket_icerik":
+                    model = PaketIcerik.from_json(req_data["model"])
+                    add_paket_icerik(model)
+                    return jsonify({"status": "success", "message": "paket_icerik_created"}), 200
+                else:
+                    return bad_request("invalid_model_type")
+            except ReqDataErrors.req_data_incomplete:
+                return req_data_incomplete()
+            except ReqDataErrors.req_data_is_none_or_empty:
+                return req_data_is_none_or_empty()
+            except Exception as e:
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
 
 
 @main_blueprint.route("/k_kayit", methods=["GET", "POST"])
@@ -158,9 +190,9 @@ def k_kayit() -> tuple[Response, int]:
                     raise ReqDataErrors.req_data_is_none_or_empty()
 
             except ReqDataErrors.req_data_incomplete:
-                return jsonify({"status": "error", "message": "req_data_incomplete"}), 400
+                return req_data_incomplete()
             except ReqDataErrors.req_data_is_none_or_empty:
-                return jsonify({"status": "error", "message": "req_data_is_none_or_empty"}), 400
+                return req_data_is_none_or_empty()
             except Exception as e:
                 if type(e) is UnsupportedMediaType:
                     return unsupported_media_type()

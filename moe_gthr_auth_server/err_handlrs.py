@@ -23,3 +23,11 @@ def not_found(error=None) -> tuple[Response, int]:
 @error_blueprint.errorhandler(415)
 def unsupported_media_type(error=None) -> tuple[Response, int]:
     return jsonify({"status": "error", "message": "unsupported_media_type"}), 415
+
+
+def req_data_incomplete(error=None) -> tuple[Response, int]:
+    return jsonify({"status": "error", "message": "request_data_incomplete"}), 400
+
+
+def req_data_is_none_or_empty(error=None) -> tuple[Response, int]:
+    return jsonify({"status": "error", "message": "request_data_is_none_or_empty"}), 400

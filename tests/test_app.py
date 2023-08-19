@@ -12,6 +12,7 @@ from moe_gthr_auth_server.database_ops import Admin, K_Paket, Kullanici, Paket, 
 URLS = {
     "login": "/giris",
     "register": "/k_kayit",
+    "register_packet": "/p_kayit",
 }
 
 LOGGER = logging.getLogger(__name__)
@@ -196,13 +197,13 @@ def test_register_bad_request(client, user_data, admin_data, user, admin):
     LOGGER.debug("test_register_bad_request with incomplete data")
     response = client.post(URLS["register"], json={"k_ad": "test_user"}, auth=admin)
     assert response.status_code == 400
-    assert json.loads(response.data) == {"status": "error", "message": "req_data_incomplete"}
+    assert json.loads(response.data) == {"status": "error", "message": "request_data_incomplete"}
     LOGGER.debug("test_register_bad_request with incomplete data done")
 
     LOGGER.debug("test_register_bad_request with empty data")
     response = client.post(URLS["register"], json={}, auth=admin)
     assert response.status_code == 400
-    assert json.loads(response.data) == {"status": "error", "message": "req_data_is_none_or_empty"}
+    assert json.loads(response.data) == {"status": "error", "message": "request_data_is_none_or_empty"}
     LOGGER.debug("test_register_bad_request with empty data done")
 
     LOGGER.debug("test_register_bad_request with None data")
@@ -214,7 +215,7 @@ def test_register_bad_request(client, user_data, admin_data, user, admin):
     LOGGER.debug("test_register_bad_request with empty values data")
     response = client.post(URLS["register"], json={"k_ad": "", "k_sifre": ""}, auth=admin)
     assert response.status_code == 400
-    assert json.loads(response.data) == {"status": "error", "message": "req_data_is_none_or_empty"}
+    assert json.loads(response.data) == {"status": "error", "message": "request_data_is_none_or_empty"}
     LOGGER.debug("test_register_bad_request with empty values data done")
 
 
@@ -270,7 +271,7 @@ def expired_user_packet_data():
 
 
 @pytest.fixture
-def login_user_expired_package(expired_user_packet_data, packet_data, packet_content_data, login_user_data, app_ctx):
+def login_user_expired_packet(expired_user_packet_data, packet_data, packet_content_data, login_user_data, app_ctx):
     with app_ctx:
         if (user_exists := Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()) is None:
             user_exists = Kullanici(k_ad=login_user_data["k_ad"], k_sifre_hash=login_user_data["k_sifre"])
@@ -310,15 +311,15 @@ def login_user_expired_package(expired_user_packet_data, packet_data, packet_con
         return tuple(login_user_data.values())
 
 
-def test_login_post_packet_expired(client, login_user_expired_package):
-    LOGGER.debug("test_login_post_packet_expired: post,auth with expired_user_packet_data: %s " % ",".join(login_user_expired_package))
-    response = client.post(URLS["login"], auth=login_user_expired_package)
+def test_login_post_packet_expired(client, login_user_expired_packet):
+    LOGGER.debug("test_login_post_packet_expired: post,auth with expired_user_packet_data: %s " % ",".join(login_user_expired_packet))
+    response = client.post(URLS["login"], auth=login_user_expired_packet)
     assert response.status_code == 410
     assert json.loads(response.data) == {"status": "error", "message": "packet_time_expired"}
 
 
 @pytest.fixture
-def login_user_with_package(packet_data, packet_content_data, login_user_data, app_ctx):
+def login_user_with_packet(packet_data, packet_content_data, login_user_data, app_ctx):
     with app_ctx:
         if (user_exists := Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()) is None:
             user_exists = Kullanici(k_ad=login_user_data["k_ad"], k_sifre_hash=login_user_data["k_sifre"])
@@ -358,13 +359,13 @@ def login_user_with_package(packet_data, packet_content_data, login_user_data, a
         return tuple(login_user_data.values())
 
 
-def test_login_post_max_online_user1(client, login_user_with_package):
-    LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_package: %s " % ",".join(login_user_with_package))
-    response = client.post(URLS["login"], auth=login_user_with_package)
+def test_login_post_max_online_user1(client, login_user_with_packet):
+    LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
+    response = client.post(URLS["login"], auth=login_user_with_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
-    LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_package: %s " % ",".join(login_user_with_package))
-    response = client.post(URLS["login"], auth=login_user_with_package)
+    LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
+    response = client.post(URLS["login"], auth=login_user_with_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
 
@@ -375,7 +376,7 @@ def packet_content_extra_user():
 
 
 @pytest.fixture
-def login_user_with_extra_user_package(packet_data, packet_content_extra_user, login_user_data, app_ctx):
+def login_user_with_extra_user_packet(packet_data, packet_content_extra_user, login_user_data, app_ctx):
     with app_ctx:
         if (user_exists := Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()) is None:
             user_exists = Kullanici(k_ad=login_user_data["k_ad"], k_sifre_hash=login_user_data["k_sifre"])
@@ -415,33 +416,33 @@ def login_user_with_extra_user_package(packet_data, packet_content_extra_user, l
         return tuple(login_user_data.values())
 
 
-def test_login_post_max_online_user2(client, login_user_with_extra_user_package):
+def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
     LOGGER.debug(
-        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_package: %s "
-        % ",".join(login_user_with_extra_user_package)
+        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
+        % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug(
-        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_package: %s "
-        % ",".join(login_user_with_extra_user_package)
+        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
+        % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
 
     LOGGER.debug(
-        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_package: %s "
-        % ",".join(login_user_with_extra_user_package)
+        "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
+        % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
 
 
 @pytest.fixture
-def login_user_with_2_extra_user_package(packet_data, packet_content_extra_user, login_user_data, app_ctx):
+def login_user_with_2_extra_user_packet(packet_data, packet_content_extra_user, login_user_data, app_ctx):
     with app_ctx:
         if (user_exists := Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()) is None:
             user_exists = Kullanici(k_ad=login_user_data["k_ad"], k_sifre_hash=login_user_data["k_sifre"])
@@ -481,23 +482,64 @@ def login_user_with_2_extra_user_package(packet_data, packet_content_extra_user,
         return tuple(login_user_data.values())
 
 
-def test_login_post_max_online_user3(client, login_user_with_extra_user_package):
+def test_login_post_max_online_user3(client, login_user_with_extra_user_packet):
     LOGGER.debug("test_login_post_max_online_user3, post 1")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug("test_login_post_max_online_user3, post 2")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug("test_login_post_max_online_user3, post 3")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
     LOGGER.debug("test_login_post_max_online_user3, post 4")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+
+
+@pytest.fixture
+def register_packet_data(packet_data, packet_content_data):
+    return {
+        "m_type": "paket",
+        "model": {
+            "p_ad": packet_data["p_ad"],
+            "p_gun": packet_data["p_gun"],
+            "p_aciklama": packet_data["p_aciklama"],
+            "p_icerikler": [],
+        },
+    }
+
+
+def test_register_packet(client, register_packet_data, admin):
+    LOGGER.debug("test_register_packet: post")
+    response = client.post(URLS["register_packet"], json=register_packet_data)
+    assert json.loads(response.data) == {"status": "success", "message": "paket_created"}
+    assert response.status_code == 200
+
+
+@pytest.fixture
+def register_packet_content_data(packet_content_data):
+    return {
+        "m_type": "paket_icerik",
+        "model": {
+            "p_icerikAd": packet_content_data["p_icerikAd"],
+            "p_icerikDeger": packet_content_data["p_icerikDeger"],
+        },
+    }
+
+
+def test_register_packet_content(client, register_packet_data, admin, register_packet_content_data):
+    LOGGER.debug("test_register_packet: post")
+    response = client.post(URLS["register_packet"], json=register_packet_data)
+    assert json.loads(response.data) == {"status": "success", "message": "paket_created"}
+    assert response.status_code == 200
+    response = client.post(URLS["register_packet"], json=register_packet_content_data)
+    assert json.loads(response.data) == {"status": "success", "message": "paket_icerik_created"}
+    assert response.status_code == 200
 
 
 if __name__ == "__main__":

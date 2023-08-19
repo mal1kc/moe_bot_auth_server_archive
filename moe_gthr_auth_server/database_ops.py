@@ -6,7 +6,7 @@ from typing import Any, Callable, List
 from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
 
 from flask_sqlalchemy import SQLAlchemy
-
+from schema import Schema, And, Use, Optional, SchemaError
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, scoped_session
 from sqlalchemy.orm.decl_api import DeclarativeMeta
@@ -75,6 +75,23 @@ class PaketIcerik(Base):
             "p_paketler": self.p_paketler,
         }
 
+    @staticmethod
+    def from_json(data: dict) -> PaketIcerik:
+        PaketIcerik.validate(data=data)
+        return PaketIcerik(
+            p_icerikAd=data["p_icerikAd"],
+            p_icerikDeger=data["p_icerikDeger"],
+        )
+
+    def validate(data: dict) -> None:
+        schema = Schema(
+            {
+                "p_icerikAd": And(str, len),
+                "p_icerikDeger": And(str, Use(pIcerik)),
+            }
+        )
+        schema.validate(data)
+
 
 class Paket(Base):
     __tablename__ = "paketler"
@@ -98,6 +115,27 @@ class Paket(Base):
             "p_aciklama": self.p_aciklama,
         }
 
+    @staticmethod
+    def from_json(data: dict) -> Paket:
+        Paket.validate(data=data)
+        return Paket(
+            p_ad=data["p_ad"],
+            p_gun=data["p_gun"],
+            p_aciklama=data["p_aciklama"],
+            p_icerikler=data["p_icerikler"] if "p_icerikler" in data else None,
+        )
+
+    def validate(data: dict) -> None:
+        schema = Schema(
+            {
+                "p_ad": And(str, len),
+                "p_gun": And(int, Use(lambda x: x in range(1, 366))),  # 1,30,90,365 gibi
+                "p_aciklama": And(str, len),
+                Optional("p_icerikler"): And(list, Use(lambda x: [PaketIcerik.validate(i) for i in x])),
+            }
+        )
+        schema.validate(data)
+
 
 class K_Paket(Base):
     __tablename__ = "kullanici_paketleri"
@@ -119,6 +157,20 @@ class K_Paket(Base):
             "k_pBitis": self.k_pBitis,
             "k_pKullanici": self.k_pKullanici,
         }
+
+    def validate(data: dict) -> None:
+        schema = Schema(
+            {
+                "k_pTurId": And(int, Use(paket_id_check)),
+                "k_pBaslangic": And(datetime),
+                "k_pBitis": And(datetime),
+                "k_pKullaniciId": And(
+                    int,
+                    Use(kullanici_id_check),
+                ),
+            }
+        )
+        schema.validate(data)
 
 
 class K_Oturum(Base):
@@ -143,6 +195,20 @@ class K_Oturum(Base):
             "k_oErisim": self.k_oErisim,
         }
 
+    def validate(data: dict) -> None:
+        schema = Schema(
+            {
+                "k_oKullaniciId": And(int, Use(kullanici_id_check)),
+                "k_oBaslangic": And(datetime),
+                "k_oBitis": And(
+                    datetime,
+                ),
+                "k_oIp": And(str, len),
+                "k_oErisim": And(bool),
+            }
+        )
+        schema.validate(data)
+
     def oturumu_uzat(self) -> None:
         self.k_oBitis = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
         self.k_oErisim = True
@@ -166,6 +232,24 @@ class Kullanici(Base):
             self.k_ad,
             self.k_sifre_hash,
         )
+
+    def __json__(self):
+        return {
+            "k_id": self.k_id,
+            "k_ad": self.k_ad,
+            "k_sifre_hash": self.k_sifre_hash,
+            "k_discord_id": self.k_discord_id,
+        }
+
+    def validate(data: dict) -> None:
+        schema = Schema(
+            {
+                "k_ad": And(str, len),
+                "k_sifre_hash": And(str, len),
+                Optional("k_discord_id"): And(str, len),
+            }
+        )
+        schema.validate(data)
 
     def oturum_ac(self, ip_addr: str) -> girisHata | bool:
         self.k_oturumlar.sort(key=lambda x: x.k_oBitis)
@@ -241,9 +325,6 @@ class Kullanici(Base):
                 self._oturumu_kapat(oturum)
         db.session.commit()
 
-    def __json__(self):
-        return {"k_id": self.k_id, "k_ad": self.k_ad}
-
 
 class Admin(Base):
     __tablename__ = "adminler"
@@ -260,6 +341,10 @@ class Admin(Base):
 
     def __json__(self):
         return {"a_id": self.a_id, "a_adi": self.a_adi}
+
+    def validate(data: dict) -> None:
+        schema = Schema({"a_adi": And(str, len), "a_sifre_hash": And(str, len)})
+        schema.validate(data)
 
 
 def sha256_hash(s: str) -> str:
@@ -396,3 +481,22 @@ def try_login(user: Kullanici, ip_addr: str | None) -> girisHata | bool:
 
 def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[Any]:
     return list(filter(function, input_list))
+
+
+def __paket_id_check(paket_id: int) -> bool:
+    if paket_id in [paket.p_id for paket in Paket.query.all()]:
+        return True
+    return False
+
+
+def __kullanici_id_check(kullanici_id: int) -> bool:
+    if kullanici_id in [kullanici.k_id for kullanici in Kullanici.query.all()]:
+        return True
+    return False
+
+
+def validate_data_schema(cls, data):
+    try:
+        cls.validate(data)
+    except SchemaError as e:
+        raise e
