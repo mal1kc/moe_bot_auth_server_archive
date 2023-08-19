@@ -11,7 +11,7 @@ from moe_gthr_auth_server.database_ops import Admin, K_Paket, Kullanici, Paket, 
 
 URLS = {
     "login": "/giris",
-    "register": "/kayit",
+    "register": "/k_kayit",
 }
 
 LOGGER = logging.getLogger(__name__)
@@ -101,14 +101,26 @@ def test_app(client):
 
 def test_login(client):
     LOGGER.debug("test_login")
-    assert client.get(URLS["login"]).status_code == 404
+    response = client.get(URLS["login"])
+    assert response.status_code == 401
+    assert json.loads(response.data) == {"status": "error", "message": "unauthorized"}
     LOGGER.debug("test_login done")
 
 
 def test_register_get(client, admin):
-    LOGGER.debug("test_register")
-    assert client.get(URLS["register"]).status_code == 400
-    assert client.get(URLS["register"], auth=admin).status_code == 200
+    LOGGER.debug("test_register: get")
+    response = client.get(URLS["register"])
+    assert response.status_code == 400
+    assert json.loads(response.data) == {"status": "error", "message": "bad_request"}
+    response = client.get(URLS["register"], auth=admin)
+    assert response.status_code == 200
+    assert json.loads(response.data) == {
+        "status": "success",
+        "message": "db_content",
+        "users": [],
+        "packets": [],
+        "packet_contents": [],
+    }
 
 
 def test_register_post_get(client, user_data, admin_data, admin, app_ctx):
@@ -423,6 +435,66 @@ def test_login_post_max_online_user2(client, login_user_with_extra_user_package)
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_package: %s "
         % ",".join(login_user_with_extra_user_package)
     )
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    assert response.status_code == 401
+    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+
+
+@pytest.fixture
+def login_user_with_2_extra_user_package(packet_data, packet_content_extra_user, login_user_data, app_ctx):
+    with app_ctx:
+        if (user_exists := Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()) is None:
+            user_exists = Kullanici(k_ad=login_user_data["k_ad"], k_sifre_hash=login_user_data["k_sifre"])
+            db.session.add(user_exists)
+            user_exists = Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()
+        if (packet_content_exists := PaketIcerik.query.filter_by(p_icerikAd=packet_content_extra_user["p_icerikAd"]).first()) is None:
+            packet_content_exists = PaketIcerik(
+                p_icerikAd=packet_content_extra_user["p_icerikAd"],
+                p_icerikDeger=packet_content_extra_user["p_icerikDeger"],
+            )
+            db.session.add(packet_content_exists)
+            packet_content_exists = PaketIcerik.query.filter_by(p_icerikAd=packet_content_extra_user["p_icerikAd"]).first()
+        if (packet_exists := Paket.query.filter_by(p_ad=packet_data["p_ad"]).first()) is None:
+            packet_exists = Paket(
+                p_ad=packet_data["p_ad"],
+                p_icerikler=[
+                    packet_content_exists,
+                ],
+                p_gun=packet_data["p_gun"],
+                p_aciklama=packet_data["p_aciklama"],
+            )
+            db.session.add(packet_exists)
+            packet_exists = Paket.query.filter_by(p_ad=packet_data["p_ad"]).first()
+        db.session.add(
+            K_Paket(
+                k_pTur=packet_exists,
+                k_pBaslangic=datetime.datetime.now(),
+                k_pBitis=datetime.datetime.now() + packet_exists.p_gun * datetime.timedelta(minutes=1),
+                k_pKullanici=user_exists,
+            )
+        )
+        db.session.commit()
+        db_user = Kullanici.query.filter_by(k_ad=login_user_data["k_ad"]).first()
+        db_packet = db_user.k_paket
+        assert db_packet.k_pBitis > datetime.datetime.now()
+        db.session.commit()
+        return tuple(login_user_data.values())
+
+
+def test_login_post_max_online_user3(client, login_user_with_extra_user_package):
+    LOGGER.debug("test_login_post_max_online_user3, post 1")
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    assert response.status_code == 200
+    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    LOGGER.debug("test_login_post_max_online_user3, post 2")
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    assert response.status_code == 200
+    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    LOGGER.debug("test_login_post_max_online_user3, post 3")
+    response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
+    assert response.status_code == 401
+    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+    LOGGER.debug("test_login_post_max_online_user3, post 4")
     response = client.post(URLS["login"], auth=login_user_with_extra_user_package)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}

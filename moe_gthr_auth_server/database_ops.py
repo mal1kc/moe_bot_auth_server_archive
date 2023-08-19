@@ -17,22 +17,23 @@ db_logger = getLogger("sqlalchemy_db")
 
 
 class pIcerik(enum.StrEnum):
-    moe_gatherer = "moe_gatherer"
-    moe_advantures = "moe_advantures"
-    moe_camp = "moe_camp"
-    moe_arena = "moe_arena"
-    moe_raid = "moe_raid"
-    extra_user = "extra_user"
-    discord = "discord_api"  # TODO: discord api kullanım hakkı
+    # TODO : maybe change in future for more flexibility
+    moe_gatherer = enum.auto()  # -> "moe_gatherer"
+    moe_advantures = enum.auto()
+    moe_camp = enum.auto()
+    moe_arena = enum.auto()
+    moe_raid = enum.auto()
+    extra_user = enum.auto()
+    discord = enum.auto()  # TODO: discord api kullanım hakkı
 
 
 class girisHata(enum.IntEnum):
-    sifre_veya_kullanici_adi_yanlis = 0
-    maksimum_online_kullanici = 1
-    kullanici_bulunamadi = 2
-    paket_bulunamadi = 3
-    paket_suresi_bitti = 4
-    ip_adresi_bulunamadi = 5
+    # sifre_veya_kullanici_adi_yanlis = enum.auto()
+    maksimum_online_kullanici = enum.auto()
+    kullanici_bulunamadi = enum.auto()
+    paket_bulunamadi = enum.auto()
+    paket_suresi_bitti = enum.auto()
+    ip_adresi_bulunamadi = enum.auto()
 
 
 class DBOperationResult(enum.Enum):
@@ -45,13 +46,22 @@ class DBOperationResult(enum.Enum):
     model_not_deleted = enum.auto()
 
 
+paket_icerik_paketler_bglnti_tablosu = db.Table(
+    "paket_icerik_paketler_bglnti",
+    db.Column("paket_icerik_id", db.Integer, db.ForeignKey("paket_icerikleri.p_icerikId")),
+    db.Column("paket_id", db.Integer, db.ForeignKey("paketler.p_id")),
+)
+
+
 class PaketIcerik(Base):
     __tablename__ = "paket_icerikleri"
-    p_icerikId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, unique=True)
+    p_icerikId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     p_icerikAd: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     p_icerikDeger: Mapped[str] = mapped_column(Enum(*[e for e in pIcerik]), nullable=False)
     p_paketId: Mapped[int | None] = mapped_column(ForeignKey("paketler.p_id"), nullable=True)
-    p_paketler: Mapped[List[Paket | None]] = relationship("Paket", back_populates="p_icerikler")
+    p_paketler: Mapped[List[Paket]] = relationship(
+        "Paket", secondary=paket_icerik_paketler_bglnti_tablosu, back_populates="p_icerikler"
+    )
 
     def __repr__(self):
         return f"<PaketIcerik ({self.p_icerikId} {self.p_icerikAd} {self.p_icerikDeger} {self.p_paketler})>"
@@ -70,7 +80,9 @@ class Paket(Base):
     __tablename__ = "paketler"
     p_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     p_ad: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
-    p_icerikler: Mapped[List[PaketIcerik]] = relationship("PaketIcerik", back_populates="p_paketler")
+    p_icerikler: Mapped[List[PaketIcerik]] = relationship(
+        "PaketIcerik", back_populates="p_paketler", secondary=paket_icerik_paketler_bglnti_tablosu
+    )
     p_gun: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
     p_aciklama: Mapped[str] = mapped_column(String(256), nullable=False, default="paket_aciklama")
 

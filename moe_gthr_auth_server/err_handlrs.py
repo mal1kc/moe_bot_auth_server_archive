@@ -10,6 +10,11 @@ def bad_request(error=None) -> tuple[Response, int]:
     return jsonify({"status": "error", "message": "bad_request"}), 400
 
 
+@error_blueprint.errorhandler(401)
+def unauthorized(error=None) -> tuple[Response, int]:
+    return jsonify({"status": "error", "message": "unauthorized"}), 401
+
+
 @error_blueprint.errorhandler(404)
 def not_found(error=None) -> tuple[Response, int]:
     return jsonify({"status": "error", "message": "not_found"}), 404
