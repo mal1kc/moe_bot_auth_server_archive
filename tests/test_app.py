@@ -11,7 +11,7 @@ from moe_gthr_auth_server.database_ops import Admin, Package, PackageContent, U_
 
 URLS = {
     "login": "/giris",
-    "register": "/kayit",
+    "register": "/k_kayit",
     "register_packet": "/p_kayit",
 }
 
@@ -111,8 +111,8 @@ def test_login(client):
 def test_register_get(client, admin):
     LOGGER.debug("test_register: get")
     response = client.get(URLS["register"])
-    assert response.status_code == 404
-    assert json.loads(response.data) == {"status": "error", "message": "not_found"}
+    assert response.status_code == 400
+    assert json.loads(response.data) == {"status": "error", "message": "bad_request"}
     response = client.get(URLS["register"], auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
@@ -120,11 +120,11 @@ def test_register_get(client, admin):
         "message": "db_content",
         "users": [],
         "packages": [],
-        "packages_contents": [],
+        "package_contents": [],
     }
 
-
 def test_register_post_get(client, user_data, admin, app_ctx):
+    # TODO: gives error check it
     LOGGER.debug("test_register: post")
     response = client.post(URLS["register"], json=user_data, auth=admin)
     assert response.status_code == 200
@@ -141,8 +141,8 @@ def test_register_post_get(client, user_data, admin, app_ctx):
             "message",
             "users",
             "token",
-            "packets",
-            "packet_contents",
+            "packages",
+            "package_contents",
         ]
         if key == "status":
             assert json_data[key] == "success"

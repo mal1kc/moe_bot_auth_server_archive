@@ -66,15 +66,15 @@ def initdb_command(recreate: bool = False):
     print(" ✅ veritabanı tablolari oluşturuldu ✅ ")
     print("veritabanı içeriği oluşturuluyor")
     print("admin ekleniyor")
-    add_admin(Admin(a_adi="mal1kc", a_sifre_hash=sha256_hash("admin")))
+    add_admin(Admin(name="mal1kc", password_hash=sha256_hash("admin")))
     print(" ☑ admin eklendi")
     db.session.commit()
 
     print("temel package icerikler ekleniyor")
     for package_content_deger in pContentEnum:
         p_icerik = PackageContent(
-            p_icerikAd=package_content_deger,
-            p_icerikDeger=pContentEnum[package_content_deger],
+            name=package_content_deger,
+            content_value=pContentEnum[package_content_deger],
         )
         add_package_content(p_icerik)
     print(" ☑ temel package icerikler eklendi")
@@ -82,20 +82,20 @@ def initdb_command(recreate: bool = False):
     add_package(
         Package(
             name="moe_gatherer",
-            p_icerikler=[
-                PackageContent.query.filter_by(p_icerikAd=pContentEnum.moe_gatherer).first(),
+            packagecontents=[
+                PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
             ],
-            p_gun=60,
+            days=60,
         )
     )
     add_package(
         Package(
             name="moe_gatherer+eksra_user",
-            p_icerikler=[
-                PackageContent.query.filter_by(p_icerikAd=pContentEnum.moe_gatherer).first(),
-                PackageContent.query.filter_by(p_icerikAd=pContentEnum.extra_user).first(),
+            packagecontents=[
+                PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
+                PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
             ],
-            p_gun=60,
+            days=60,
         ),
     )
     print(" ☑ temel package eklendi")
@@ -184,11 +184,11 @@ def k_kayit() -> tuple[Response, int]:
                 req_data = request.get_json(cache=False)
                 if not req_data:
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if "k_ad" not in req_data or "k_sifre" not in req_data:
+                if "name" not in req_data or "password_hash" not in req_data:
                     raise ReqDataErrors.req_data_incomplete()
-                if req_data["k_ad"] is None or req_data["k_sifre"] is None:
+                if req_data["name"] is None or req_data["password_hash"] is None:
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if req_data["k_ad"] == "" or req_data["k_sifre"] == "":
+                if req_data["name"] == "" or req_data["password_hash"] == "":
                     raise ReqDataErrors.req_data_is_none_or_empty()
 
             except ReqDataErrors.req_data_incomplete:
@@ -200,7 +200,7 @@ def k_kayit() -> tuple[Response, int]:
                     return unsupported_media_type()
                 return bad_request(e)
             else:
-                db_op_result = add_user(User(k_ad=req_data["name"], password_hash=req_data["password_hash"]))
+                db_op_result = add_user(User(name=req_data["name"], password_hash=req_data["password_hash"]))
                 match db_op_result:
                     case DBOperationResult.success:
                         return (
@@ -225,16 +225,16 @@ def k_kayit() -> tuple[Response, int]:
             if admin == "bad_request":
                 return bad_request()
             all_users = [kullanici.__json__() for kullanici in User.query.all()]
-            all_packets = [package.__json__() for package in Package.query.all()]
-            all_packet_contents = [package_content.__json__() for package_content in PackageContent.query.all()]
+            all_packages = [package.__json__() for package in Package.query.all()]
+            all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
             return (
                 jsonify(
                     {
                         "status": "success",
                         "message": "db_content",
                         "users": all_users,
-                        "packets": all_packets,
-                        "packet_contents": all_packet_contents,
+                        "packages": all_packages,
+                        "package_contents": all_packagecontents,
                     }
                 ),
                 200,

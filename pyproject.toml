@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "moe-gthr-auth-server"
-version = "0.1.0"
+version = "0.4.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "LICENCE"
-readme = "readme.md"
+readme = "readme.org"
 packages = [{include = "moe_gthr_auth_server"}]
 
 [tool.poetry.dependencies]

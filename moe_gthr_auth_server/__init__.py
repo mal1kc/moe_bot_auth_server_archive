@@ -23,6 +23,7 @@ def create_app() -> Flask:
     register_modifications(app)
     register_extensions(app)
     register_blueprints(app)
+    register_error_handlers(app)
     return app
 
 
