@@ -3,7 +3,7 @@ from hashlib import sha256
 from requests import post
 
 
-def kullanici_olustur():
+def user_olustur():
     data = {
         "k_ad": "user1",
         "k_sifre": sha256("user1".encode()).hexdigest(),
@@ -21,4 +21,4 @@ def kullanici_olustur():
 
 
 if __name__ == "__main__":
-    kullanici_olustur()
+    user_olustur()

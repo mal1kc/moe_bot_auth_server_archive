@@ -13,10 +13,10 @@ from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
-db_logger = getLogger("sqlalchemy_db")
+DB_LOGGER = getLogger("sqlalchemy_db")
 
 
-class pIcerik(enum.StrEnum):
+class pContentEnum(enum.StrEnum):
     # TODO : maybe change in future for more flexibility
     moe_gatherer = enum.auto()  # -> "moe_gatherer"
     moe_advantures = enum.auto()
@@ -27,13 +27,13 @@ class pIcerik(enum.StrEnum):
     discord = enum.auto()  # TODO: discord api kullanım hakkı
 
 
-class girisHata(enum.IntEnum):
-    # sifre_veya_kullanici_adi_yanlis = enum.auto()
-    maksimum_online_kullanici = enum.auto()
-    kullanici_bulunamadi = enum.auto()
-    paket_bulunamadi = enum.auto()
-    paket_suresi_bitti = enum.auto()
-    ip_adresi_bulunamadi = enum.auto()
+class loginError(enum.IntEnum):
+    # sifre_veya_user_adi_yanlis = enum.auto()
+    max_online_user = enum.auto()
+    user_not_found = enum.auto()
+    user_not_have_package = enum.auto()
+    user_package_expired = enum.auto()
+    not_found_client_ip = enum.auto()
 
 
 class DBOperationResult(enum.Enum):
@@ -46,304 +46,356 @@ class DBOperationResult(enum.Enum):
     model_not_deleted = enum.auto()
 
 
-paket_icerik_paketler_bglnti_tablosu = db.Table(
-    "paket_icerik_paketler_bglnti",
-    db.Column("paket_icerik_id", db.Integer, db.ForeignKey("paket_icerikleri.p_icerikId")),
-    db.Column("paket_id", db.Integer, db.ForeignKey("paketler.p_id")),
+pcontent_packages_conn_table = db.Table(
+    "pcontent_packages_conn_table",
+    db.Column("id", db.Integer, primary_key=True, autoincrement=True),
+    db.Column("package_content_id", db.Integer, db.ForeignKey("package_contents.id")),
+    db.Column("package_id", db.Integer, db.ForeignKey("packages.id")),
 )
 
 
-class PaketIcerik(Base):
-    __tablename__ = "paket_icerikleri"
-    p_icerikId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    p_icerikAd: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
-    p_icerikDeger: Mapped[str] = mapped_column(Enum(*[e for e in pIcerik]), nullable=False)
-    p_paketId: Mapped[int | None] = mapped_column(ForeignKey("paketler.p_id"), nullable=True)
-    p_paketler: Mapped[List[Paket]] = relationship(
-        "Paket", secondary=paket_icerik_paketler_bglnti_tablosu, back_populates="p_icerikler"
-    )
+class PackageContent(Base):
+    __tablename__ = "package_contents"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    content_value: Mapped[str] = mapped_column(Enum(*[e for e in pContentEnum]), nullable=False)
+    package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
+    packages: Mapped[List[Package]] = relationship("Package", secondary=pcontent_packages_conn_table, back_populates="packagecontents")
 
     def __repr__(self):
-        return f"<PaketIcerik ({self.p_icerikId} {self.p_icerikAd} {self.p_icerikDeger} {self.p_paketler})>"
+        return f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
 
     def __json__(self):
         return {
-            "p_icerikId": self.p_icerikId,
-            "p_icerikAd": self.p_icerikAd,
-            "p_icerikDeger": self.p_icerikDeger,
-            "p_paket_id": self.p_paketId,
-            "p_paketler": self.p_paketler,
+            "id": self.id,
+            "name": self.name,
+            "content_value": self.content_value,
+            "package_id": self.package_id,
+            "packages": self.packages,
         }
 
     @staticmethod
-    def from_json(data: dict) -> PaketIcerik:
-        PaketIcerik.validate(data=data)
-        return PaketIcerik(
-            p_icerikAd=data["p_icerikAd"],
-            p_icerikDeger=data["p_icerikDeger"],
+    def from_json(data: dict) -> PackageContent:
+        PackageContent.validate(data=data)
+        return PackageContent(
+            name=data["name"],
+            content_value=data["content_value"],
         )
 
+    @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "p_icerikAd": And(str, len),
-                "p_icerikDeger": And(str, Use(pIcerik)),
+                "name": And(str, len),
+                "content_value": And(str, Use(pContentEnum)),
             }
         )
         schema.validate(data)
 
 
-class Paket(Base):
-    __tablename__ = "paketler"
-    p_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    p_ad: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
-    p_icerikler: Mapped[List[PaketIcerik]] = relationship(
-        "PaketIcerik", back_populates="p_paketler", secondary=paket_icerik_paketler_bglnti_tablosu
+class Package(Base):
+    __tablename__ = "packages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+
+    days: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
+    detail: Mapped[str] = mapped_column(String(256), nullable=False, default="package_detail")
+
+    packagecontents: Mapped[List[PackageContent]] = relationship(
+        "PackageContent", back_populates="packages", secondary=pcontent_packages_conn_table
     )
-    p_gun: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
-    p_aciklama: Mapped[str] = mapped_column(String(256), nullable=False, default="paket_aciklama")
 
     def __repr__(self):
-        return f"<Paket {self.p_id} {self.p_ad} {self.p_gun} {self.p_aciklama}>"
+        return f"<Package {self.id} {self.name} {self.days} {self.detail}>"
 
     def __json__(self):
         return {
-            "p_id": self.p_id,
-            "p_ad": self.p_ad,
-            "p_icerikler": self.p_icerikler,
-            "p_gun": self.p_gun,
-            "p_aciklama": self.p_aciklama,
+            "id": self.id,
+            "name": self.name,
+            "days": self.days,
+            "detail": self.detail,
+            "packagecontents": self.packagecontents,
         }
 
     @staticmethod
-    def from_json(data: dict) -> Paket:
-        Paket.validate(data=data)
-        return Paket(
-            p_ad=data["p_ad"],
-            p_gun=data["p_gun"],
-            p_aciklama=data["p_aciklama"],
-            p_icerikler=data["p_icerikler"] if "p_icerikler" in data else None,
+    def from_json(data: dict) -> Package:
+        Package.validate(data=data)
+        return Package(
+            name=data["name"],
+            days=data["days"],
+            detail=data["detail"],
+            packagecontents=data["packagecontents"] if "packagecontents" in data else None,
         )
 
+    @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "p_ad": And(str, len),
-                "p_gun": And(int, Use(lambda x: x in range(1, 366))),  # 1,30,90,365 gibi
-                "p_aciklama": And(str, len),
-                Optional("p_icerikler"): And(list, Use(lambda x: [PaketIcerik.validate(i) for i in x])),
+                "name": And(str, len),
+                "days": And(int, Use(lambda x: (1 >= x) and (x < 366))),  # 1,30,90,365 gibi
+                "detail": And(str, len),
+                Optional("packagecontents"): And(list, Use(lambda x: [PackageContent.from_json(pc_data) for pc_data in x])),
             }
         )
         schema.validate(data)
 
 
-class K_Paket(Base):
-    __tablename__ = "kullanici_paketleri"
-    k_pId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_pTurId: Mapped[int] = mapped_column(ForeignKey("paketler.p_id"), nullable=False)
-    k_pTur: Mapped[Paket] = relationship("Paket", uselist=False, backref="p_kullaniciPaketleri")
-    k_pBaslangic: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    k_pBitis: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    k_pKullaniciId: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
+class U_Package(Base):
+    __tablename__ = "user_packages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    base_package_id: Mapped[int] = mapped_column(ForeignKey("packages.id"), nullable=False)
+    base_package: Mapped[Package] = relationship("Package", uselist=False, backref="user_packages")
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def __repr__(self) -> str:
-        return f"<K_Paket {self.k_pId} {self.k_pTur} {self.k_pBaslangic} {self.k_pBitis} {self.k_pKullanici}>"
+        return f"<{self.__class__.__class__.__class__.__name__} {self.id} \
+                    {self.base_package} {self.start_date} {self.end_date} {self.user}>"
 
     def __json__(self):
         return {
-            "k_pId": self.k_pId,
-            "k_pTur": self.k_pTur,
-            "k_pBaslangic": self.k_pBaslangic,
-            "k_pBitis": self.k_pBitis,
-            "k_pKullanici": self.k_pKullanici,
+            "id": self.id,
+            "base_package": self.base_package,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "user": self.user,
         }
 
+    @staticmethod
+    def from_json(data: dict) -> U_Package:
+        U_Package.validate(data=data)
+        return U_Package(
+            base_package=data["base_package"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            user=data["user"],
+        )
+
+    @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "k_pTurId": And(int, Use(paket_id_check)),
-                "k_pBaslangic": And(datetime),
-                "k_pBitis": And(datetime),
-                "k_pKullaniciId": And(
-                    int,
-                    Use(kullanici_id_check),
-                ),
+                "base_package": And(int, Use(__package_id_check)),
+                "start_date": And(datetime),
+                "end_date": And(datetime, Use(lambda x: (x > data["start_date"] and x < datetime.utcnow()))),
+                "user": And(int, Use(__user_id_check)),
             }
         )
         schema.validate(data)
 
 
-class K_Oturum(Base):
-    __tablename__ = "kullanici_oturumlari"
-    k_oId: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_oKullaniciId: Mapped[int] = mapped_column(ForeignKey("kullanicilar.k_id"), nullable=False)
-    k_oBaslangic: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    k_oBitis: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    k_oIp: Mapped[str] = mapped_column(String(256), nullable=False)
-    k_oErisim: Mapped[bool] = mapped_column(nullable=False, default=True)
+class U_Session(Base):
+    __tablename__ = "user_sessions"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ip: Mapped[str] = mapped_column(String(256), nullable=False)
+    access: Mapped[bool] = mapped_column(nullable=False, default=True)
 
     def __repr__(self) -> str:
-        return f"<K_Oturum {self.k_oId} {self.k_oKullanici} {self.k_oBaslangic} {self.k_oBitis} {self.k_oIp} {self.k_oErisim}>"
+        return f"<U_Session {self.id} {self.user_id} {self.start_date} {self.end_date} {self.ip} {self.access}>"
 
     def __json__(self):
         return {
-            "k_oId": self.k_oId,
-            "k_oKullanici": self.k_oKullanici,
-            "k_oBaslangic": self.k_oBaslangic,
-            "k_oBitis": self.k_oBitis,
-            "k_oIp": self.k_oIp,
-            "k_oErisim": self.k_oErisim,
+            "id": self.id,
+            "user_id": self.user_id,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "ip": self.ip,
+            "accesible": self.acces,
         }
 
+    @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "k_oKullaniciId": And(int, Use(kullanici_id_check)),
-                "k_oBaslangic": And(datetime),
-                "k_oBitis": And(
-                    datetime,
-                ),
-                "k_oIp": And(str, len),
-                "k_oErisim": And(bool),
+                "user_id": And(int, Use(__user_id_check)),
+                "start_date": And(datetime),
+                "end_date": And(datetime, Use(lambda x: (x > data["start_date"]))),
+                "ip": And(str, len),
+                "accesible": And(bool),
             }
         )
         schema.validate(data)
 
-    def oturumu_uzat(self) -> None:
-        self.k_oBitis = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
-        self.k_oErisim = True
+    def extend_session(self) -> None:
+        self.end_date = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
+        self.acces = True
         db.session.commit()
 
 
-class Kullanici(Base):
-    __tablename__ = "kullanicilar"
-    k_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    k_ad: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
-    k_sifre_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
-    k_paket: Mapped[K_Paket] = relationship("K_Paket", uselist=False, cascade="all, delete", backref="k_pKullanici")
-    k_oturumlar: Mapped[List[K_Oturum]] = relationship("K_Oturum", backref="k_oKullanici")
-    # k_acik_oturumlar: Mapped[List[K_Oturum]] = relationship("K_Oturum", backref="k_oKullanici")
-    # 162623161333055489 gibi 18 karakterli str # TODO: ileride discord id ile oturum + discord botu ile entegre edilebilir
-    k_discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
+class User(Base):
+    """
+    # tr: Kullanici
+    db model for users
+    """
 
-    def __repr__(self):
-        return "<Kullanici (id:%s, k_ad:%s, k_sifre_hash:%s)>" % (
-            self.k_id,
-            self.k_ad,
-            self.k_sifre_hash,
-        )
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
 
-    def __json__(self):
+    password_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
+
+    discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
+
+    package: Mapped[Package] = relationship("U_Package", cascade="all, delete", backref="user")
+    sessions: Mapped[List[U_Session]] = relationship("U_Session", backref="user")
+
+    def __repr__(self) -> str:
+        return f" <User (id:{self.id}, name:{self.name}, password_hash:{self.password_hash},  \
+        package:{self.package}, sessions:{self.sessions}, discord_id:{self.discord_id})>"
+
+    def __json__(self) -> dict[str, Any]:
         return {
-            "k_id": self.k_id,
-            "k_ad": self.k_ad,
-            "k_sifre_hash": self.k_sifre_hash,
-            "k_discord_id": self.k_discord_id,
+            "id": self.id,
+            "name": self.name,
+            "package": self.package,
+            "sessions": self.sessions,
+            "discord_id": self.discord_id,
         }
 
+    @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "k_ad": And(str, len),
-                "k_sifre_hash": And(str, len),
-                Optional("k_discord_id"): And(str, len),
+                "name": And(str, len),
+                "password_hash": And(str, len),
+                Optional("discord_id"): And(str, len),
+                Optional("package"): And(int, Use(__package_id_check)),
+            }
+        )
+
+        schema.validate(data)
+
+    @staticmethod
+    def validate_login_data(data: dict) -> None:
+        schema = Schema(
+            {
+                "name": And(str, len),
+                "password_hash": And(str, len),
             }
         )
         schema.validate(data)
 
-    def oturum_ac(self, ip_addr: str) -> girisHata | bool:
-        self.k_oturumlar.sort(key=lambda x: x.k_oBitis)
-        self.k_acik_oturumlar = list(filter(lambda x: x.k_oErisim, self.k_oturumlar))
-        u_paket = self.k_paket
-        if u_paket is not None:
-            if u_paket.k_pBitis < datetime.utcnow():
-                db.session.delete(u_paket)
+    def open_session(self, inamedr: str) -> loginError | bool:
+        self.sessions.sort(key=lambda x: x.end_date)
+        self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
+        package = self.package
+        if package is not None:
+            if package.end_date < datetime.utcnow():
+                db.session.delete(package)
                 db.session.commit()
-                return girisHata.paket_suresi_bitti
-            p_icerikleri = u_paket.k_pTur.p_icerikler
-            extra_user_quota = list(filter(lambda x: x.p_icerikDeger == pIcerik.extra_user, p_icerikleri))
-            max_oturum = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
-            ayni_ip_sbitmis_oturum = self._suresi_bitmis_acik_oturumlari_ele(ip_addr)
+                return loginError.user_package_expired
+            p_contents = package.base_package.packagecontents
+            extra_user_quota = list(filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents))
+            max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
+            same_ip_expired_session = self._eleminate_expired_accessible_sessions(inamedr)
 
-            if len(self.k_acik_oturumlar) >= max_oturum:
-                return girisHata.maksimum_online_kullanici
-            if ayni_ip_sbitmis_oturum is not None:
-                ayni_ip_sbitmis_oturum.oturumu_uzat()
-                db_logger.info("kullanici oturum uzatildi: id:%s, k_ad:%s, ip:%s" % (self.k_id, self.k_ad, ip_addr))
+            if len(self.u_accessible_sessions) >= max_sessions:
+                return loginError.max_online_user
+            if same_ip_expired_session is not None:
+                same_ip_expired_session.oturumuzat()
+                DB_LOGGER.info("user oturum uzatildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr))
                 return True
-            self._acik_oturum_ekle(ip_addr)
+            self._add_new_session(inamedr)
             db.session.commit()
-            db_logger.info("kullanici oturum acildi: id:%s, k_ad:%s" % (self.k_id, self.k_ad))
+            DB_LOGGER.info("user oturum acildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr))
             return True
-        return girisHata.paket_bulunamadi
+        return loginError.user_not_have_package
 
-    def _acik_oturum_ekle(self, ip_addr: str) -> None:
-        yeni_oturum = K_Oturum(
-            k_oKullaniciId=self.k_id,
-            k_oBitis=datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT),
-            k_oIp=ip_addr,
+    def _add_new_session(self, inamedr: str) -> None:
+        """
+        en: add new session to user (accessable)
+        tr: kullanıcıya yeni oturum ekle (erişilebilir)
+        :param inamedr: client ip
+        """
+        if self.u_accessible_sessions is None:
+            self.u_accessible_sessions = []
+        new_session = U_Session(
+            user_id=self.id,
+            end_date=datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT),
+            ip=inamedr,
         )
-        self.k_oturumlar.append(yeni_oturum)
-        self.k_acik_oturumlar.append(yeni_oturum)
+        self.sessions.append(new_session)
+        self.u_accessible_sessions.append(new_session)
         db.session.commit()
 
-    def _suresi_bitmis_acik_oturumlari_ele(self, ip_addr: str) -> None | K_Oturum:
+    def _eleminate_expired_accessible_sessions(self, inamedr: str) -> None | U_Session:
         """
-        acik oturumlar listesini gunceller
-        if ayni ip adresinden birden fazla oturum varsa en yeni olanı döndürür
-        :param ip_addr: ip adresi
-        :return: None | K_Oturum
+        en :eleminate expired sessions and return last session with same ip
+        tr: acik oturumlar listesini gunceller \
+            if ayni ip adresinden birden fazla oturum varsa en yeni olanı döndürür
+        :param inamedr: client ip
+        :return: None | U_Session
         """
-        suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oBitis < datetime.utcnow(), self.k_acik_oturumlar)
-        ayni_ip_suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oIp == ip_addr, suresi_bitmis_oturumlar)
-        diger_ip_suresi_bitmis_oturumlar = filter_list(lambda x: x.k_oIp != ip_addr, suresi_bitmis_oturumlar)
-        self._oturumlari_kapat(diger_ip_suresi_bitmis_oturumlar)
+        expired_sessions = filter_list(lambda x: x.end_date < datetime.utcnow(), self.u_accessible_sessions)
+        same_ip_expired_sessions = filter_list(lambda x: x.k_oIp == inamedr, expired_sessions)
+        other_ip_expired_sessions = filter_list(lambda x: x.k_oIp != inamedr, expired_sessions)
+        self._disable_multiple_sessions_acess(other_ip_expired_sessions)
 
-        if len(ayni_ip_suresi_bitmis_oturumlar) > 1:
-            ayni_ip_suresi_bitmis_oturumlar.sort(key=lambda x: x.k_oBitis)
-            secilimis_oturum = ayni_ip_suresi_bitmis_oturumlar[0]
-            self.ayni_ip_suresi_bitmis_oturumlar.remove(secilimis_oturum)
-            self._oturumlari_kapat(ayni_ip_suresi_bitmis_oturumlar)
-            return secilimis_oturum
+        if len(same_ip_expired_sessions) > 1:
+            same_ip_expired_sessions.sort(key=lambda x: x.end_date)
+
+            newest_same_ip_session = same_ip_expired_sessions[0]
+            same_ip_expired_sessions.remove(newest_same_ip_session)
+            self._disable_multiple_sessions_acess(same_ip_expired_sessions)
+            if not (newest_same_ip_session.end_date < datetime.utcnow() - timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)):
+                self._disable_session_access(newest_same_ip_session)
+                return newest_same_ip_session
+            return None
         return None
 
-    def _oturumu_kapat(self, oturum: K_Oturum) -> None:
-        oturum.k_oErisim = False
-        db_logger.info("kullanici oturum kapatildi: id:%s, k_ad:%s" % (self.k_id, self.k_ad))
-        self.k_acik_oturumlar.remove(oturum)
-        self.k_oturumlar.append(oturum)
+    def _disable_session_access(self, oturum: U_Session) -> None:
+        oturum.accessible = False
+        DB_LOGGER.info("user oturum kapatildi: id:%s, k_ad:%s" % (self.id, self.name))
+        self.u_accessible_sessions.remove(oturum)
+        self.sessions.append(oturum)
 
-    def _oturumlari_kapat(self, oturumlar: List[K_Oturum]) -> None:
+    def _disable_multiple_sessions_acess(self, oturumlar: List[U_Session]) -> None:
         if oturumlar is not None:
             for oturum in oturumlar:
-                self._oturumu_kapat(oturum)
+                self._disable_session_access(oturum)
         db.session.commit()
 
     def tum_oturumlari_kapat(self) -> None:
-        if self.k_oturumlar is not None:
-            for oturum in self.k_oturumlar:
-                self._oturumu_kapat(oturum)
+        if self.sessions is not None:
+            for oturum in self.sessions:
+                self._disable_session_access(oturum)
         db.session.commit()
 
 
 class Admin(Base):
-    __tablename__ = "adminler"
-    a_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    a_adi: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
-    a_sifre_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
+    __tablename__ = "admins"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
 
-    def __repr__(self):
-        return "<Admin (id:%s, a_adi:%s, a_sifre_hash:%s)>" % (
-            self.a_id,
-            self.a_adi,
-            self.a_sifre_hash,
-        )
+    def __repr__(self) -> str:
+        return "<Admin (id:%s, name:%s, password_hash:%s)>" % (self.id, self.name, self.password_hash)
 
-    def __json__(self):
-        return {"a_id": self.a_id, "a_adi": self.a_adi}
+    def __json__(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "password_hash": self.password_hash,
+        }
 
+    @staticmethod
     def validate(data: dict) -> None:
-        schema = Schema({"a_adi": And(str, len), "a_sifre_hash": And(str, len)})
+        schema = Schema(
+            {
+                "name": And(str, len),
+                "password_hash": And(str, len),
+            }
+        )
         schema.validate(data)
 
 
@@ -357,16 +409,16 @@ def check_password(sifre: str, hash: str) -> bool:
     return sha256_hash(sifre) == hash
 
 
-def add_user(kullanici: Kullanici, session: scoped_session = db.session) -> DBOperationResult:
+def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:
     try:
         with session.begin_nested():
-            session.add(kullanici)
+            session.add(user)
             session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while adding kullanici to database %s" % e)
+        DB_LOGGER.error("error accured while adding user to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            db_logger.error("kullanici already exists")
+            DB_LOGGER.error("user already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
 
@@ -378,119 +430,118 @@ def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperation
             session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while adding admin to database %s" % e)
+        DB_LOGGER.error("error accured while adding admin to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            db_logger.error("admin already exists")
+            DB_LOGGER.error("admin already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
 
 
-def add_paket(paket: Paket, session: scoped_session = db.session) -> DBOperationResult:
+def add_package(package: Package, session: scoped_session = db.session) -> DBOperationResult:
     try:
-        session.add(paket)
+        session.add(package)
         session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while adding paket to database %s" % e)
+        DB_LOGGER.error("error accured while adding package to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            db_logger.error("paket already exists")
+            DB_LOGGER.error("package already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
 
 
-def add_paket_icerik(paket_icerik: PaketIcerik, session: scoped_session = db.session) -> DBOperationResult:
+def add_package_content(package_content: PackageContent, session: scoped_session = db.session) -> DBOperationResult:
     try:
-        session.add(paket_icerik)
+        session.add(package_content)
         session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while adding paket_icerik to database %s" % e)
+        DB_LOGGER.error("error accured while adding package_icerik to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            db_logger.error("paket_icerik already exists")
+            DB_LOGGER.error("package_icerik already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
 
 
-def add_k_paket(k_paket: K_Paket, session: scoped_session = db.session) -> DBOperationResult:
+def add_u_package(u_package: U_Package, session: scoped_session = db.session) -> DBOperationResult:
     try:
-        session.add(k_paket)
+        session.add(u_package)
         session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while adding k_paket to database %s" % e)
+        DB_LOGGER.error("error accured while adding k_package to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            db_logger.error("k_paket already exists")
+            DB_LOGGER.error("k_package already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
 
 
-def update_user(k_id: str, new_kullanici: Kullanici, session: scoped_session = db.session) -> DBOperationResult:
+def update_user(u_id: str, new_user: User, session: scoped_session = db.session) -> DBOperationResult:
     """
-    update kullanici with k_id
-    :param k_id: id of kullanici to update
-    :param new_kullanici: new kullanici object
+    update user with k_id
+    :param k_id: id of user to update
+    :param new_user: new user object
     :param session: db session
     :return: DBOperationResult
     ---
-    only update k_ad, k_sifre_hash, k_discord_id, k_pler
+    only update k_ad, k_sifre_hash, k_discord_id, k_ps
     ---
     """
     try:
-        db_kullanici = session.query(Kullanici).filter_by(k_id=k_id).first()
-        if db_kullanici is None:
+        db_user = session.query(User).filter_by(k_id=u_id).first()
+        if db_user is None:
             return DBOperationResult.model_not_found
-        if new_kullanici.k_ad is not None:
-            db_kullanici.k_ad = new_kullanici.k_ad
-        if new_kullanici.k_sifre_hash is not None:
-            db_kullanici.password_hash = new_kullanici.password_hash
-        if new_kullanici.k_discord_id is not None:
-            db_kullanici.k_discord_id = new_kullanici.k_discord_id
-        if new_kullanici.k_pler is not None:
-            db_kullanici.k_pler = new_kullanici.k_pler
-        # TODO: check if this works
+        if new_user.name is not None:
+            db_user.name = new_user.name
+        if new_user.password_hash is not None:
+            db_user.password_hash = new_user.password_hash
+        if new_user.discord_id is not None:
+            db_user.discord_id = new_user.discord_id
+        if new_user.k_ps is not None:
+            db_user.k_ps = new_user.k_ps
         session.commit()
         return DBOperationResult.success
     except Exception as e:
-        db_logger.error("error accured while updating kullanici to database %s" % e)
+        DB_LOGGER.error("error accured while updating user to database %s" % e)
     return DBOperationResult.unknown_error
 
 
-def get_user(k_ad: str, session: scoped_session = db.session) -> Kullanici:
-    return session.query(Kullanici).filter_by(k_ad=k_ad).first()
+def get_user(u_name: str, session: scoped_session = db.session) -> User:
+    return session.query(User).filter_by(name=u_name).first()
 
 
-def get_admin(a_adi: str, session: scoped_session = db.session) -> Admin:
-    return session.query(Admin).filter_by(a_adi=a_adi).first()
+def get_admin(a_name: str, session: scoped_session = db.session) -> Admin:
+    return session.query(Admin).filter_by(name=a_name).first()
 
 
-def get_user_by_id(k_id: int, session: scoped_session = db.session) -> Kullanici:
-    return session.query(Kullanici).filter_by(k_id=k_id).first()
+def get_user_by_id(id: int, session: scoped_session = db.session) -> User:
+    return session.query(User).filter_by(id=id).first()
 
 
-def get_admin_by_id(a_id: int, session: scoped_session = db.session) -> Admin:
-    return session.query(Admin).filter_by(a_id=a_id).first()
+def get_admin_by_id(id: int, session: scoped_session = db.session) -> Admin:
+    return session.query(Admin).filter_by(id=id).first()
 
 
-def try_login(user: Kullanici, ip_addr: str | None) -> girisHata | bool:
+def try_login(user: User, ip_addr: str | None) -> loginError | bool:
     if ip_addr is None:
-        return girisHata.ip_adresi_bulunamadi
+        return loginError.not_found_client_ip
     if user is not None:
-        return user.oturum_ac(ip_addr)
-    return girisHata.kullanici_bulunamadi
+        return user.open_session(ip_addr)
+    return loginError.user_not_found
 
 
 def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[Any]:
     return list(filter(function, input_list))
 
 
-def __paket_id_check(paket_id: int) -> bool:
-    if paket_id in [paket.p_id for paket in Paket.query.all()]:
+def __package_id_check(package_id: int) -> bool:
+    if package_id in [package.id for package in Package.query.all()]:
         return True
     return False
 
 
-def __kullanici_id_check(kullanici_id: int) -> bool:
-    if kullanici_id in [kullanici.k_id for kullanici in Kullanici.query.all()]:
+def __user_id_check(user_id: int) -> bool:
+    if user_id in [user.id for user in User.query.all()]:
         return True
     return False
 

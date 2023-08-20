@@ -11,6 +11,7 @@ packages = [{include = "moe_gthr_auth_server"}]
 python = "^3.11"
 Flask-SQLAlchemy = "^3.0.5"
 schema = "^0.7.5"
+ruff-lsp = "^0.0.35"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.283"

@@ -1,8 +1,8 @@
 {
     "tr":{
-        "paket_aciklama" : "Paket Açıklama"
+        "package_aciklama" : "Package Açıklama"
     },
     "en":{
-        "paket_aciklama" : "Package Description"
+        "package_aciklama" : "Package Description"
     }
 }

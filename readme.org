@@ -1,0 +1,10 @@
+* özellikler
+
+** sorunlar
+
+
+** eksikler - TODO
+    - [X] login islemi gözden geçirilmesi lazım
+    - [X] logine test lazım
+    - [ ] ana uygulamaya logger
+    - [ ] route isimleri ingilizceye cevirilcek

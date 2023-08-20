@@ -1,28 +1,25 @@
 from typing import Literal
 import click
 import logging
-from flask import Blueprint, Response, jsonify, request, Flask
-
-from .err_handlrs import bad_request, unauthorized, not_found, unsupported_media_type, req_data_incomplete, req_data_is_none_or_empty
+from flask import Blueprint, Response, jsonify, request
+from .err_handlrs import bad_request, unauthorized, unsupported_media_type, req_data_incomplete, req_data_is_none_or_empty
 
 from .database_ops import (
     Admin,
     DBOperationResult,
-    Kullanici,
-    Paket,
-    PaketIcerik,
+    Package,
+    PackageContent,
+    User,
     add_admin,
-    add_paket,
-    add_paket_icerik,
+    add_package,
+    add_package_content,
     add_user,
     db,
-    girisHata,
-    pIcerik,
+    loginError,
+    pContentEnum,
     sha256_hash,
     try_login,
-    validate_data_schema,
 )
-
 from werkzeug.exceptions import UnsupportedMediaType
 
 main_blueprint = Blueprint("page", __name__, cli_group=None)
@@ -73,46 +70,46 @@ def initdb_command(recreate: bool = False):
     print(" ☑ admin eklendi")
     db.session.commit()
 
-    print("temel paket icerikler ekleniyor")
-    for paket_icerik_deger in pIcerik:
-        p_icerik = PaketIcerik(
-            p_icerikAd=paket_icerik_deger,
-            p_icerikDeger=pIcerik[paket_icerik_deger],
+    print("temel package icerikler ekleniyor")
+    for package_content_deger in pContentEnum:
+        p_icerik = PackageContent(
+            p_icerikAd=package_content_deger,
+            p_icerikDeger=pContentEnum[package_content_deger],
         )
-        add_paket_icerik(p_icerik)
-    print(" ☑ temel paket icerikler eklendi")
-    print("temel paketler ekleniyor")
-    add_paket(
-        Paket(
-            p_ad="moe_gatherer",
+        add_package_content(p_icerik)
+    print(" ☑ temel package icerikler eklendi")
+    print("temel packageler ekleniyor")
+    add_package(
+        Package(
+            name="moe_gatherer",
             p_icerikler=[
-                PaketIcerik.query.filter_by(p_icerikAd=pIcerik.moe_gatherer).first(),
+                PackageContent.query.filter_by(p_icerikAd=pContentEnum.moe_gatherer).first(),
             ],
             p_gun=60,
         )
     )
-    add_paket(
-        Paket(
-            p_ad="moe_gatherer+eksra_kullanici",
+    add_package(
+        Package(
+            name="moe_gatherer+eksra_user",
             p_icerikler=[
-                PaketIcerik.query.filter_by(p_icerikAd=pIcerik.moe_gatherer).first(),
-                PaketIcerik.query.filter_by(p_icerikAd=pIcerik.extra_user).first(),
+                PackageContent.query.filter_by(p_icerikAd=pContentEnum.moe_gatherer).first(),
+                PackageContent.query.filter_by(p_icerikAd=pContentEnum.extra_user).first(),
             ],
             p_gun=60,
         ),
     )
-    print(" ☑ temel paket eklendi")
+    print(" ☑ temel package eklendi")
     db.session.commit()
-    db_paketler = [paket.__json__() for paket in Paket.query.all()]
-    db_paket_icerikleri = [paket_icerik.__json__() for paket_icerik in PaketIcerik.query.all()]
-    db_kullanicilar = [kullanici.__json__() for kullanici in Kullanici.query.all()]
+    db_packageler = [package.__json__() for package in Package.query.all()]
+    db_package_contentleri = [package_content.__json__() for package_content in PackageContent.query.all()]
+    db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
     db_adminler = [admin.__json__() for admin in Admin.query.all()]
     print("veritabanı oluşturuldu")
     print("veritabanı içeriği : ")
-    print("paketler ->")
-    pprint(db_paketler)
-    print("paket İçerikleri ->")
-    pprint(db_paket_icerikleri)
+    print("packageler ->")
+    pprint(db_packageler)
+    print("package İçerikleri ->")
+    pprint(db_package_contentleri)
     print("kullanıcılar ->")
     pprint(db_kullanicilar)
     print("adminler ->")
@@ -135,7 +132,7 @@ def anasayfa():
 @main_blueprint.route("/p_kayit", methods=["GET", "POST"])
 def p_kayit() -> tuple[Response, int]:
     """
-    paket and paket_icerik kayıt
+    package and package_content kayıt
 
     """
     if request.method == "POST":
@@ -152,14 +149,14 @@ def p_kayit() -> tuple[Response, int]:
                     raise ReqDataErrors.req_data_is_none_or_empty()
                 if req_data["m_type"] == "" or req_data["model"] == "":
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if req_data["m_type"] == "paket":
-                    model = Paket.from_json(req_data["model"])
-                    add_paket(model)
-                    return jsonify({"status": "success", "message": "paket_created"}), 200
-                elif req_data["m_type"] == "paket_icerik":
-                    model = PaketIcerik.from_json(req_data["model"])
-                    add_paket_icerik(model)
-                    return jsonify({"status": "success", "message": "paket_icerik_created"}), 200
+                if req_data["m_type"] == "package":
+                    model = Package.from_json(req_data["model"])
+                    add_package(model)
+                    return jsonify({"status": "success", "message": "package_created"}), 200
+                elif req_data["m_type"] == "package_content":
+                    model = PackageContent.from_json(req_data["model"])
+                    add_package_content(model)
+                    return jsonify({"status": "success", "message": "package_content_created"}), 200
                 else:
                     return bad_request("invalid_model_type")
             except ReqDataErrors.req_data_incomplete:
@@ -170,6 +167,11 @@ def p_kayit() -> tuple[Response, int]:
                 if type(e) is UnsupportedMediaType:
                     return unsupported_media_type()
                 return bad_request(e)
+        else:
+            return unauthorized()
+    else:
+        # TODO:
+        return bad_request()
 
 
 @main_blueprint.route("/k_kayit", methods=["GET", "POST"])
@@ -198,7 +200,7 @@ def k_kayit() -> tuple[Response, int]:
                     return unsupported_media_type()
                 return bad_request(e)
             else:
-                db_op_result = add_user(Kullanici(k_ad=req_data["k_ad"], k_sifre_hash=req_data["k_sifre"]))
+                db_op_result = add_user(User(k_ad=req_data["name"], password_hash=req_data["password_hash"]))
                 match db_op_result:
                     case DBOperationResult.success:
                         return (
@@ -222,9 +224,9 @@ def k_kayit() -> tuple[Response, int]:
         if admin := is_admin(request=request):
             if admin == "bad_request":
                 return bad_request()
-            all_users = [kullanici.__json__() for kullanici in Kullanici.query.all()]
-            all_packets = [paket.__json__() for paket in Paket.query.all()]
-            all_packet_contents = [paket_icerik.__json__() for paket_icerik in PaketIcerik.query.all()]
+            all_users = [kullanici.__json__() for kullanici in User.query.all()]
+            all_packets = [package.__json__() for package in Package.query.all()]
+            all_packet_contents = [package_content.__json__() for package_content in PackageContent.query.all()]
             return (
                 jsonify(
                     {
@@ -245,22 +247,22 @@ def giris() -> tuple[Response, int]:
     if request.method == "POST":
         if (is_user := get_user_from_req(request)) is not None and is_user is not False:
             if (girisDurumu := try_login(is_user, ip_addr=request.remote_addr)) is not None:
-                if girisDurumu is girisHata.maksimum_online_kullanici:
+                if girisDurumu is loginError.max_online_user:
                     return (
                         jsonify({"status": "error", "message": "maximum_online_user_quota"}),
                         401,
                     )
-                elif girisDurumu is girisHata.kullanici_bulunamadi:
+                elif girisDurumu is loginError.user_not_found:
                     return (
                         jsonify({"status": "error", "message": "user_not_found"}),
                         404,
                     )
-                elif girisDurumu is girisHata.paket_bulunamadi:
+                elif girisDurumu is loginError.user_not_have_package:
                     return (
                         jsonify({"status": "error", "message": "packet_not_found"}),
                         404,
                     )
-                elif girisDurumu is girisHata.paket_suresi_bitti:
+                elif girisDurumu is loginError.user_package_expired:
                     return (
                         jsonify({"status": "error", "message": "packet_time_expired"}),
                         410,
@@ -275,14 +277,14 @@ def giris() -> tuple[Response, int]:
     return unauthorized()
 
 
-def get_user_from_req(request) -> bool | Kullanici | None:
+def get_user_from_req(request) -> bool | User | None:
     if request.headers.get("Authorization") is None:
         return None
     else:
-        user = Kullanici.query.filter_by(k_ad=request.authorization.username).first()
+        user = User.query.filter_by(name=request.authorization.username).first()
         if user is None:
             return False
-        if request.authorization.password != user.k_sifre_hash:
+        if request.authorization.password != user.password_hash:
             return False
         else:
             return user
@@ -292,10 +294,10 @@ def is_admin(request) -> bool | Literal["bad_request"]:
     if request.headers.get("Authorization") is None:
         return "bad_request"
     else:
-        admin = Admin.query.filter_by(a_adi=request.authorization.username).first()
+        admin = Admin.query.filter_by(name=request.authorization.username).first()
         if admin is None:
             return False
-        if request.authorization.password != admin.a_sifre_hash:
+        if request.authorization.password != admin.password_hash:
             return False
         else:
             return True
