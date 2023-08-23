@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moe-gthr-auth-server"
-version = "0.4.0"
+version = "0.7.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "LICENCE"
@@ -12,6 +12,7 @@ python = "^3.11"
 Flask-SQLAlchemy = "^3.0.5"
 schema = "^0.7.5"
 ruff-lsp = "^0.0.35"
+gunicorn = "^21.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.283"

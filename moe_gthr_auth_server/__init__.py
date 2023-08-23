@@ -6,7 +6,7 @@ from . import paths
 from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
 from .database_ops import db
-from .err_handlrs import bad_request, error_blueprint, not_found, unauthorized, unsupported_media_type
+from .err_handlrs import bad_request, error_blueprint, method_not_allowed, not_found, unauthorized, unsupported_media_type
 from .main_app import main_blueprint
 
 
@@ -18,6 +18,10 @@ def _ensure_secret_key() -> None:
 
 
 def create_app() -> Flask:
+    # print("args: ", args)
+    # print("kwargs: ")
+    # for kw in kwargs:
+    #     print(f"{kw}: {kwargs[kw]}")
     app = Flask("moe_gatherer_server")
     _ensure_secret_key()
     register_modifications(app)
@@ -41,6 +45,7 @@ def register_error_handlers(app: Flask):
     app.register_error_handler(401, unauthorized)
     app.register_error_handler(404, not_found)
     app.register_error_handler(415, unsupported_media_type)
+    app.register_error_handler(405, method_not_allowed)
 
 
 def register_modifications(app: Flask) -> None:

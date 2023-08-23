@@ -6,7 +6,7 @@ from typing import Any, Callable, List
 from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
 
 from flask_sqlalchemy import SQLAlchemy
-from schema import Schema, And, Use, Optional, SchemaError
+from schema import Or, Schema, And, Use, Optional, SchemaError
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, scoped_session
 from sqlalchemy.orm.decl_api import DeclarativeMeta
@@ -67,13 +67,11 @@ class PackageContent(Base):
     def __repr__(self):
         return f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
 
-    def __json__(self):
+    def __json__(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "content_value": self.content_value,
-            "package_id": self.package_id,
-            "packages": self.packages,
         }
 
     @staticmethod
@@ -88,8 +86,11 @@ class PackageContent(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
+                Optional("id"): And(int, Use(lambda x: x in [p_content.id for p_content in PackageContent.query.all()])),
                 "name": And(str, len),
                 "content_value": And(str, Use(pContentEnum)),
+                Optional("packages"): And(list, Use(lambda x: [Package.from_json(package_data) for package_data in x])),
+                Optional("package_id"): And(Or(int, None), Use(_package_id_check)),
             }
         )
         schema.validate(data)
@@ -111,13 +112,15 @@ class Package(Base):
     def __repr__(self):
         return f"<Package {self.id} {self.name} {self.days} {self.detail}>"
 
-    def __json__(self):
+    def __json__(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "days": self.days,
             "detail": self.detail,
-            "packagecontents": self.packagecontents,
+            "packagecontents": [package_content.__json__() for package_content in self.packagecontents]
+            if self.packagecontents is not None
+            else None,
         }
 
     @staticmethod
@@ -127,13 +130,14 @@ class Package(Base):
             name=data["name"],
             days=data["days"],
             detail=data["detail"],
-            packagecontents=data["packagecontents"] if "packagecontents" in data else None,
+            packagecontents=[PackageContent.from_json(pc_data) for pc_data in data["packagecontents"]],
         )
 
     @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
+                Optional("id"): And(int, Use(lambda x: x in [package.id for package in Package.query.all()])),
                 "name": And(str, len),
                 "days": And(int, Use(lambda x: (1 >= x) and (x < 366))),  # 1,30,90,365 gibi
                 "detail": And(str, len),
@@ -156,16 +160,16 @@ class U_Package(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__class__.__class__.__name__} {self.id} \
+        return f"<{self.__class__.__name__} {self.id} \
                     {self.base_package} {self.start_date} {self.end_date} {self.user}>"
 
-    def __json__(self):
+    def __json__(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "base_package": self.base_package,
             "start_date": self.start_date,
             "end_date": self.end_date,
-            "user": self.user,
+            "user": self.user.__json__(),
         }
 
     @staticmethod
@@ -182,10 +186,11 @@ class U_Package(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "base_package": And(int, Use(__package_id_check)),
+                Optional("id"): And(int, Use(lambda x: x in [u_package.id for u_package in U_Package.query.all()])),
+                "base_package": And(int, Use(_package_id_check)),
                 "start_date": And(datetime),
                 "end_date": And(datetime, Use(lambda x: (x > data["start_date"] and x < datetime.utcnow()))),
-                "user": And(int, Use(__user_id_check)),
+                "user": And(int, Use(_user_id_check)),
             }
         )
         schema.validate(data)
@@ -203,7 +208,7 @@ class U_Session(Base):
     def __repr__(self) -> str:
         return f"<U_Session {self.id} {self.user_id} {self.start_date} {self.end_date} {self.ip} {self.access}>"
 
-    def __json__(self):
+    def __json__(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -217,7 +222,8 @@ class U_Session(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "user_id": And(int, Use(__user_id_check)),
+                Optional("id"): And(int, Use(lambda x: x in [u_session.id for u_session in U_Session.query.all()])),
+                "user_id": And(int, Use(_user_id_check)),
                 "start_date": And(datetime),
                 "end_date": And(datetime, Use(lambda x: (x > data["start_date"]))),
                 "ip": And(str, len),
@@ -246,19 +252,18 @@ class User(Base):
 
     discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
 
-    package: Mapped[Package] = relationship("U_Package", cascade="all, delete", backref="user")
+    package: Mapped[U_Package] = relationship("U_Package", cascade="all, delete", backref="user")
     sessions: Mapped[List[U_Session]] = relationship("U_Session", backref="user")
 
     def __repr__(self) -> str:
-        return f" <User (id:{self.id}, name:{self.name}, password_hash:{self.password_hash},  \
-        package:{self.package}, sessions:{self.sessions}, discord_id:{self.discord_id})>"
+        return "<User (id:%s, name:%s, password_hash:%s, discord_id:%s)>" % (self.id, self.name, self.password_hash, self.discord_id)
 
     def __json__(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "package": self.package,
-            "sessions": self.sessions,
+            "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
             "discord_id": self.discord_id,
         }
 
@@ -266,10 +271,11 @@ class User(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
+                Optional("id"): And(int, Use(_user_id_check)),
                 "name": And(str, len),
                 "password_hash": And(str, len),
                 Optional("discord_id"): And(str, len),
-                Optional("package"): And(int, Use(__package_id_check)),
+                Optional("package"): And(Or(int, None), Use(_package_id_check)),
             }
         )
 
@@ -534,16 +540,12 @@ def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[
     return list(filter(function, input_list))
 
 
-def __package_id_check(package_id: int) -> bool:
-    if package_id in [package.id for package in Package.query.all()]:
-        return True
-    return False
+def _package_id_check(package_id: int) -> bool:
+    return package_id in [package.id for package in Package.query.all()]
 
 
-def __user_id_check(user_id: int) -> bool:
-    if user_id in [user.id for user in User.query.all()]:
-        return True
-    return False
+def _user_id_check(user_id: int) -> bool:
+    return user_id in [user.id for user in User.query.all()]
 
 
 def validate_data_schema(cls, data):

@@ -1,8 +1,19 @@
+import json
 from typing import Literal
 import click
 import logging
 from flask import Blueprint, Response, jsonify, request
-from .err_handlrs import bad_request, unauthorized, unsupported_media_type, req_data_incomplete, req_data_is_none_or_empty
+from schema import And, Schema, SchemaError
+
+from .err_handlrs import (
+    bad_request,
+    method_not_allowed,
+    not_found,
+    unauthorized,
+    unsupported_media_type,
+    req_data_incomplete,
+    req_data_is_none_or_empty,
+)
 
 from .database_ops import (
     Admin,
@@ -33,7 +44,7 @@ class ReqDataErrors(Exception):
         pass
 
 
-LOGGER = logging.getLogger("main_blueprint")
+LOGGER = logging.getLogger(__name__)
 
 
 @main_blueprint.cli.command("initdb")
@@ -133,12 +144,13 @@ def anasayfa():
 def p_kayit() -> tuple[Response, int]:
     """
     package and package_content kayıt
-
     """
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
-        if admin := is_admin(request=request):
-            if admin == bad_request():
-                return bad_request()
+        _is_admin = is_admin(request=request)
+        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+        if _is_admin:
             try:
                 req_data = request.get_json(cache=False)
                 if not req_data:
@@ -147,18 +159,28 @@ def p_kayit() -> tuple[Response, int]:
                     raise ReqDataErrors.req_data_incomplete()
                 if req_data["m_type"] is None or req_data["model"] is None:
                     raise ReqDataErrors.req_data_is_none_or_empty()
+                json_schema = Schema(
+                    {
+                        "m_type": str,
+                        "model": dict,
+                    }
+                )
+
+                json_schema.validate(req_data)
                 if req_data["m_type"] == "" or req_data["model"] == "":
                     raise ReqDataErrors.req_data_is_none_or_empty()
                 if req_data["m_type"] == "package":
-                    model = Package.from_json(req_data["model"])
-                    add_package(model)
+                    try:
+                        model = Package.from_json(req_data["model"])
+                        add_package(model)
+                    except Exception as SchemaError:
+                        return bad_request(SchemaError)
                     return jsonify({"status": "success", "message": "package_created"}), 200
                 elif req_data["m_type"] == "package_content":
                     model = PackageContent.from_json(req_data["model"])
                     add_package_content(model)
                     return jsonify({"status": "success", "message": "package_content_created"}), 200
-                else:
-                    return bad_request("invalid_model_type")
+                return bad_request("invalid_model_type")
             except ReqDataErrors.req_data_incomplete:
                 return req_data_incomplete()
             except ReqDataErrors.req_data_is_none_or_empty:
@@ -167,40 +189,67 @@ def p_kayit() -> tuple[Response, int]:
                 if type(e) is UnsupportedMediaType:
                     return unsupported_media_type()
                 return bad_request(e)
-        else:
-            return unauthorized()
+        return unauthorized()
+    elif request.method == "GET":
+        _is_admin = is_admin(request=request)
+        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+        if _is_admin:
+            all_packages = [package.__json__() for package in Package.query.all()]
+            all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
+            return (
+                jsonify(
+                    {
+                        "status": "success",
+                        "message": "db_content",
+                        "packages": all_packages,
+                        "package_contents": all_packagecontents,
+                    }
+                ),
+                200,
+            )
+        return unauthorized()
     else:
-        # TODO:
-        return bad_request()
+        return method_not_allowed()
+    return bad_request()
 
 
 @main_blueprint.route("/k_kayit", methods=["GET", "POST"])
 def k_kayit() -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
-        if admin := is_admin(request=request):
-            if admin == "bad_request":
-                return bad_request()
+        _is_admin = is_admin(request=request)
+        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+        if _is_admin:
             try:
+                LOGGER.debug(f"{req_id} - trying to get json data")
                 req_data = request.get_json(cache=False)
-                if not req_data:
-                    raise ReqDataErrors.req_data_is_none_or_empty()
-                if "name" not in req_data or "password_hash" not in req_data:
-                    raise ReqDataErrors.req_data_incomplete()
-                if req_data["name"] is None or req_data["password_hash"] is None:
-                    raise ReqDataErrors.req_data_is_none_or_empty()
-                if req_data["name"] == "" or req_data["password_hash"] == "":
-                    raise ReqDataErrors.req_data_is_none_or_empty()
-
-            except ReqDataErrors.req_data_incomplete:
-                return req_data_incomplete()
-            except ReqDataErrors.req_data_is_none_or_empty:
-                return req_data_is_none_or_empty()
+                LOGGER.debug(f"{req_id} - req_data : {req_data}")
+                json_schema = Schema({"name": And(str, len), "password_hash": And(str, len)})
+                json_schema.validate(req_data)
+            except SchemaError as schErr:
+                LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
+                # TODO : i dont like this
+                #  - future add enum for error codes or rewrite schema lib (prob. second)
+                if schErr.code.startswith("Missing key"):
+                    if schErr.code[11] == "s":  # 11 is len("Missing key")
+                        return req_data_is_none_or_empty()
+                    return req_data_incomplete()
+                if schErr.code.startswith("Key"):
+                    return req_data_is_none_or_empty()
+                return bad_request(schErr)
+            except AttributeError as e:
+                LOGGER.debug(f"{req_id} - catched attribute error : {e}")
+                return bad_request(e)
             except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
                 if type(e) is UnsupportedMediaType:
                     return unsupported_media_type()
                 return bad_request(e)
             else:
+                LOGGER.debug(f"{req_id} - trying to add user")
                 db_op_result = add_user(User(name=req_data["name"], password_hash=req_data["password_hash"]))
+                LOGGER.debug(f"{req_id} - db_op_result : {db_op_result}")
                 match db_op_result:
                     case DBOperationResult.success:
                         return (
@@ -219,11 +268,12 @@ def k_kayit() -> tuple[Response, int]:
                         )
                     case _:
                         return jsonify({"status": "error", "message": "unknown_error"}), 200
+        LOGGER.debug(f"{req_id} - admin is None or False")
         return unauthorized()
-    else:
-        if admin := is_admin(request=request):
-            if admin == "bad_request":
-                return bad_request()
+    elif request.method == "GET":
+        _is_admin = is_admin(request=request)
+        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+        if _is_admin:
             all_users = [kullanici.__json__() for kullanici in User.query.all()]
             all_packages = [package.__json__() for package in Package.query.all()]
             all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
@@ -239,14 +289,21 @@ def k_kayit() -> tuple[Response, int]:
                 ),
                 200,
             )
+        return unauthorized()
     return bad_request()
 
 
 @main_blueprint.route("/giris", methods=["GET", "POST"])
 def giris() -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
-        if (is_user := get_user_from_req(request)) is not None and is_user is not False:
+        is_user = get_user_from_req(request)
+        LOGGER.debug(f"{req_id} - is_user : {is_user}")
+        if isinstance(is_user, User):
+            LOGGER.debug(f"{req_id} - trying to login")
             if (girisDurumu := try_login(is_user, ip_addr=request.remote_addr)) is not None:
+                LOGGER.debug(f"{req_id} - login result : {girisDurumu}")
                 if girisDurumu is loginError.max_online_user:
                     return (
                         jsonify({"status": "error", "message": "maximum_online_user_quota"}),
@@ -259,7 +316,7 @@ def giris() -> tuple[Response, int]:
                     )
                 elif girisDurumu is loginError.user_not_have_package:
                     return (
-                        jsonify({"status": "error", "message": "packet_not_found"}),
+                        jsonify({"status": "error", "message": "package_not_found"}),
                         404,
                     )
                 elif girisDurumu is loginError.user_package_expired:
@@ -280,24 +337,26 @@ def giris() -> tuple[Response, int]:
 def get_user_from_req(request) -> bool | User | None:
     if request.headers.get("Authorization") is None:
         return None
-    else:
-        user = User.query.filter_by(name=request.authorization.username).first()
-        if user is None:
-            return False
-        if request.authorization.password != user.password_hash:
-            return False
-        else:
-            return user
+    user = User.query.filter_by(name=request.authorization.username).first()
+    if user is None:
+        return False
+    if request.authorization.password != user.password_hash:
+        return False
+    return user
 
 
-def is_admin(request) -> bool | Literal["bad_request"]:
+def is_admin(request) -> bool | None:
     if request.headers.get("Authorization") is None:
-        return "bad_request"
-    else:
-        admin = Admin.query.filter_by(name=request.authorization.username).first()
-        if admin is None:
-            return False
-        if request.authorization.password != admin.password_hash:
-            return False
-        else:
-            return True
+        return None
+    admin = Admin.query.filter_by(name=request.authorization.username).first()
+    if admin is None:
+        return False
+    if request.authorization.password != admin.password_hash:
+        return False
+    return True
+
+
+def generate_req_id(remote_addr: str | None) -> str:
+    from uuid import uuid4
+
+    return str(remote_addr) + "_" + str(uuid4())

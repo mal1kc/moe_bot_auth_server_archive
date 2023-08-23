@@ -1,18 +1,21 @@
 from hashlib import sha256
 
-from requests import post
+from requests import get, post
+
+port = 2402
+baseURL = f"http://0.0.0.0:{port}"
+
+admin_auth = ("mal1kc", sha256("admin".encode()).hexdigest())
 
 
 def user_olustur():
-    data = {
-        "k_ad": "user1",
-        "k_sifre": sha256("user1".encode()).hexdigest(),
+    json_data = {
+        "name": "user1",
+        "password_hash": sha256("user1".encode()).hexdigest(),
     }
-    print(f"Kullanıcı oluşturuluyor: {data}")
-    auth = ("mal1kc", sha256("admin".encode()).hexdigest())
-    print(f"auth : {auth}")
-    r = post("http://localhost:5000/kayit", data=data, auth=auth)
-    # r = post("http://localhost:5000/kayit", data=data)
+    print(f"Kullanıcı oluşturuluyor: {json_data}")
+    print(f"auth : {admin_auth}")
+    r = post(baseURL + "/k_kayit", json=json_data, auth=admin_auth)
     print(r.text)
     if r.status_code == 200:
         print("Kullanıcı oluşturuldu, status code: 200")
@@ -20,5 +23,15 @@ def user_olustur():
         print("Kullanıcı oluşturulamadı , status code: ", r.status_code)
 
 
+def k_kayit_get():
+    r = get(baseURL + "/k_kayit", auth=admin_auth)
+    print(r.text)
+
+
+def p_kayit_get():
+    r = get(baseURL + "/p_kayit", auth=admin_auth)
+    print(r.text)
+
+
 if __name__ == "__main__":
-    user_olustur()
+    k_kayit_get()
