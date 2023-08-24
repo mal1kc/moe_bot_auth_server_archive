@@ -1,9 +1,8 @@
 from __future__ import annotations
-from typing import Callable, Any, Dict, Iterable, Union, List, Tuple, Optional, Type
-from moe_gthr_auth_server.data_schema_validation import Schema, And, Or, SchemaValidationError
+from typing import Any, Dict
+from moe_gthr_auth_server.data_schema_validation import Schema, And, SchemaValidationError
 from pytest import fixture
 import logging
-import random
 
 LOGGER = logging.getLogger(__name__)
 

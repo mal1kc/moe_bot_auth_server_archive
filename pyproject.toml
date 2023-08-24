@@ -19,6 +19,7 @@ ruff = "^0.0.283"
 pytest = "^7.4.0"
 black = "^23.7.0"
 requests = "^2.31.0"
+pre-commit = "^3.3.3"
 
 [tool.black]
 python = "^3.11"

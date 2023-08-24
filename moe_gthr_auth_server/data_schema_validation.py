@@ -23,9 +23,8 @@ TODO:
 TODO: add more tests
 """
 from __future__ import annotations
-from typing import Callable, Any, Dict, Iterable, Union, Optional, Type, Set
+from typing import Callable, Any, Iterable, Type, Set
 import logging
-import typeguard
 
 LOGGER = logging.getLogger(__name__)
 

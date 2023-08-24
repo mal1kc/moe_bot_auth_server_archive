@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from pprint import pprint
-from random import choice, randint
-from string import ascii_letters
+from random import randint
 from typing import List, Set
 
 from sqlalchemy import ForeignKey, create_engine

@@ -2,7 +2,7 @@ from pprint import pprint
 from random import randint
 from string import ascii_letters
 
-from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy import String, create_engine
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, sessionmaker
 
 engine = create_engine("sqlite:///gecici.db", echo=True)
@@ -38,9 +38,6 @@ def main():
     " veritabanindaki package icerikleri listeleniyor"
     pprint(session.query(PackageIcerik).all())
     session.close()
-    # pprint(PackageIcerik.__table__)
-    # pprint(PackageIcerik.__dict__)
-    # pprint(PackageIcerik.__dict__.keys())
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 # to be equal to the cores available.
 # Timeout is set to 0 to disable the timeouts of the workers to allow Cloud Run to handle instance scaling.
 # CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
-FROM python:3.11-buster as builder
+FROM python:3.11-bookworm as builder
 
 RUN pip install poetry==1.5.1
 
@@ -21,7 +21,7 @@ RUN touch README.md
 
 RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --without dev --no-root
 
-FROM python:3.11-slim-buster as runtime
+FROM python:3.11-slim-bookworm as runtime
 
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
@@ -31,6 +31,8 @@ COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 COPY moe_gthr_auth_server ./moe_gthr_auth_server
 
 COPY entrypoint.sh /entrypoint.sh
+
+EXPOSE 8080
 
 ENTRYPOINT ["/bin/sh","/entrypoint.sh"]
 

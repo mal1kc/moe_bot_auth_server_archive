@@ -1,5 +1,3 @@
-import json
-from typing import Literal
 import click
 import logging
 from flask import Blueprint, Response, jsonify, request
@@ -8,7 +6,6 @@ from schema import And, Schema, SchemaError
 from .err_handlrs import (
     bad_request,
     method_not_allowed,
-    not_found,
     unauthorized,
     unsupported_media_type,
     req_data_incomplete,
