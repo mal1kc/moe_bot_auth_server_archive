@@ -18,10 +18,6 @@ def _ensure_secret_key() -> None:
 
 
 def create_app() -> Flask:
-    # print("args: ", args)
-    # print("kwargs: ")
-    # for kw in kwargs:
-    #     print(f"{kw}: {kwargs[kw]}")
     app = Flask("moe_gatherer_server")
     _ensure_secret_key()
     register_modifications(app)

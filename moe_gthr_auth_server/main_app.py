@@ -29,6 +29,7 @@ from .database_ops import (
     try_login,
 )
 from werkzeug.exceptions import UnsupportedMediaType
+from .config import endpoints
 
 main_blueprint = Blueprint("page", __name__, cli_group=None)
 
@@ -137,10 +138,10 @@ def anasayfa():
     return jsonify({"status": "OK"})
 
 
-@main_blueprint.route("/p_kayit", methods=["GET", "POST"])
-def p_kayit() -> tuple[Response, int]:
+@main_blueprint.route(endpoints.URLS.APRegister, methods=["GET", "POST"])
+def admin_package_register() -> tuple[Response, int]:
     """
-    package and package_content kayıt
+    package and package content register endpoint for admins
     """
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
@@ -210,8 +211,11 @@ def p_kayit() -> tuple[Response, int]:
     return bad_request()
 
 
-@main_blueprint.route("/k_kayit", methods=["GET", "POST"])
-def k_kayit() -> tuple[Response, int]:
+@main_blueprint.route(endpoints.URLS.URegister, methods=["GET", "POST"])
+def user_register() -> tuple[Response, int]:
+    """
+    user register endpoint for admins
+    """
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
@@ -290,8 +294,8 @@ def k_kayit() -> tuple[Response, int]:
     return bad_request()
 
 
-@main_blueprint.route("/giris", methods=["GET", "POST"])
-def giris() -> tuple[Response, int]:
+@main_blueprint.route(endpoints.URLS.ULogin, methods=["GET", "POST"])
+def user_login() -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
@@ -299,29 +303,29 @@ def giris() -> tuple[Response, int]:
         LOGGER.debug(f"{req_id} - is_user : {is_user}")
         if isinstance(is_user, User):
             LOGGER.debug(f"{req_id} - trying to login")
-            if (girisDurumu := try_login(is_user, ip_addr=request.remote_addr)) is not None:
-                LOGGER.debug(f"{req_id} - login result : {girisDurumu}")
-                if girisDurumu is loginError.max_online_user:
+            if (try_login_response := try_login(is_user, ip_addr=request.remote_addr)) is not None:
+                LOGGER.debug(f"{req_id} - login result : {try_login_response}")
+                if try_login_response is loginError.max_online_user:
                     return (
                         jsonify({"status": "error", "message": "maximum_online_user_quota"}),
                         401,
                     )
-                elif girisDurumu is loginError.user_not_found:
+                elif try_login_response is loginError.user_not_found:
                     return (
                         jsonify({"status": "error", "message": "user_not_found"}),
                         404,
                     )
-                elif girisDurumu is loginError.user_not_have_package:
+                elif try_login_response is loginError.user_not_have_package:
                     return (
                         jsonify({"status": "error", "message": "package_not_found"}),
                         404,
                     )
-                elif girisDurumu is loginError.user_package_expired:
+                elif try_login_response is loginError.user_package_expired:
                     return (
                         jsonify({"status": "error", "message": "packet_time_expired"}),
                         410,
                     )
-                elif girisDurumu is True:
+                elif try_login_response is True:
                     return (
                         jsonify({"status": "success", "message": "user_logged_in"}),
                         200,
@@ -329,6 +333,40 @@ def giris() -> tuple[Response, int]:
             return jsonify({"status": "error", "message": "login_failed"}), 200
         return jsonify({"status": "error", "message": "user_cred_not_found"}), 404
     return unauthorized()
+
+
+@main_blueprint.route(endpoints.URLS.UPInfo, methods=["GET"])
+def user_package_info() -> tuple[Response, int]:
+    """
+    user package info endpoint for users
+    """
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
+    if request.method == "GET":
+        is_user = get_user_from_req(request)
+        LOGGER.debug(f"{req_id} - is_user : {is_user}")
+        if isinstance(is_user, User):
+            LOGGER.debug(f"{req_id} - trying to get package info")
+            upackage = is_user.package
+            LOGGER.debug(f"{req_id} - upackage : {upackage}")
+            if upackage is None:
+                return (
+                    jsonify({"status": "error", "message": "user_not_have_package"}),
+                    404,
+                )  # hope this never happens
+            if upackage.is_expired():
+                return (
+                    jsonify({"status": "error", "message": "package_expired"}),
+                    410,
+                )
+            return (
+                jsonify({"status": "success", "message": "package_info", "package": upackage.__json__(user_incld=False)}),
+                200,
+            )
+
+            return jsonify({"status": "error", "message": "login_failed"}), 200
+        return jsonify({"status": "error", "message": "user_cred_not_found"}), 404
+    return method_not_allowed()
 
 
 def get_user_from_req(request) -> bool | User | None:

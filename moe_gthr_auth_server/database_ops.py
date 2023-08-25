@@ -15,6 +15,8 @@ Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
 DB_LOGGER = getLogger("sqlalchemy_db")
 
+# DEVLOG -> serilize datetime as utc_timestamp
+
 
 class pContentEnum(enum.StrEnum):
     # TODO : maybe change in future for more flexibility
@@ -163,22 +165,31 @@ class U_Package(Base):
         return f"<{self.__class__.__name__} {self.id} \
                     {self.base_package} {self.start_date} {self.end_date} {self.user}>"
 
-    def __json__(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "base_package": self.base_package,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "user": self.user.__json__(),
-        }
+    def __json__(self, user_incld=True) -> dict[str, Any]:
+        return (
+            {
+                "id": self.id,
+                "base_package": self.base_package.__json__(),
+                "start_date": utc_timestamp(self.start_date),
+                "end_date": utc_timestamp(self.end_date),
+                "user": self.user.__json__(),
+            }
+            if user_incld
+            else {
+                "id": self.id,
+                "base_package": self.base_package.__json__(),
+                "start_date": utc_timestamp(self.start_date),
+                "end_date": utc_timestamp(self.end_date),
+            }
+        )
 
     @staticmethod
     def from_json(data: dict) -> U_Package:
         U_Package.validate(data=data)
         return U_Package(
             base_package=data["base_package"],
-            start_date=data["start_date"],
-            end_date=data["end_date"],
+            start_date=utc_timestamp(data["start_date"]),
+            end_date=utc_timestamp(data["end_date"]),
             user=data["user"],
         )
 
@@ -188,12 +199,15 @@ class U_Package(Base):
             {
                 Optional("id"): And(int, Use(lambda x: x in [u_package.id for u_package in U_Package.query.all()])),
                 "base_package": And(int, Use(_package_id_check)),
-                "start_date": And(datetime),
-                "end_date": And(datetime, Use(lambda x: (x > data["start_date"] and x < datetime.utcnow()))),
+                "start_date": And(int),
+                "end_date": And(int, Use(lambda x: (x > data["start_date"] and x < utc_timestamp(datetime.utcnow())))),
                 "user": And(int, Use(_user_id_check)),
             }
         )
         schema.validate(data)
+
+    def is_expired(self) -> bool:
+        return self.end_date < datetime.utcnow()
 
 
 class U_Session(Base):
@@ -212,8 +226,8 @@ class U_Session(Base):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
+            "start_date": utc_timestamp(self.start_date),
+            "end_date": utc_timestamp(self.end_date),
             "ip": self.ip,
             "accesible": self.acces,
         }
@@ -224,8 +238,8 @@ class U_Session(Base):
             {
                 Optional("id"): And(int, Use(lambda x: x in [u_session.id for u_session in U_Session.query.all()])),
                 "user_id": And(int, Use(_user_id_check)),
-                "start_date": And(datetime),
-                "end_date": And(datetime, Use(lambda x: (x > data["start_date"]))),
+                "start_date": And(int),
+                "end_date": And(int, Use(lambda x: (x > data["start_date"]))),
                 "ip": And(str, len),
                 "accesible": And(bool),
             }
@@ -236,6 +250,9 @@ class U_Session(Base):
         self.end_date = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
         self.acces = True
         db.session.commit()
+
+    def is_expired(self) -> bool:
+        return self.end_date < datetime.utcnow()
 
 
 class User(Base):
@@ -294,13 +311,13 @@ class User(Base):
     def open_session(self, inamedr: str) -> loginError | bool:
         self.sessions.sort(key=lambda x: x.end_date)
         self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
-        package = self.package
-        if package is not None:
-            if package.end_date < datetime.utcnow():
-                db.session.delete(package)
+        u_package: U_Package = self.package
+        if u_package is not None:
+            if u_package.is_expired():
+                db.session.delete(u_package)
                 db.session.commit()
                 return loginError.user_package_expired
-            p_contents = package.base_package.packagecontents
+            p_contents = u_package.base_package.packagecontents
             extra_user_quota = list(filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents))
             max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
             same_ip_expired_session = self._eleminate_expired_accessible_sessions(inamedr)
@@ -342,7 +359,7 @@ class User(Base):
         :param inamedr: client ip
         :return: None | U_Session
         """
-        expired_sessions = filter_list(lambda x: x.end_date < datetime.utcnow(), self.u_accessible_sessions)
+        expired_sessions = filter_list(lambda x: x.is_expired(), self.u_accessible_sessions)
         same_ip_expired_sessions = filter_list(lambda x: x.k_oIp == inamedr, expired_sessions)
         other_ip_expired_sessions = filter_list(lambda x: x.k_oIp != inamedr, expired_sessions)
         self._disable_multiple_sessions_acess(other_ip_expired_sessions)
@@ -353,7 +370,7 @@ class User(Base):
             newest_same_ip_session = same_ip_expired_sessions[0]
             same_ip_expired_sessions.remove(newest_same_ip_session)
             self._disable_multiple_sessions_acess(same_ip_expired_sessions)
-            if not (newest_same_ip_session.end_date < datetime.utcnow() - timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)):
+            if not (newest_same_ip_session.end_date + timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)) < datetime.utcnow():
                 self._disable_session_access(newest_same_ip_session)
                 return newest_same_ip_session
             return None
@@ -411,8 +428,23 @@ def sha256_hash(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
-def check_password(sifre: str, hash: str) -> bool:
-    return sha256_hash(sifre) == hash
+# def check_password(sifre: str, hash: str) -> bool:
+#     return sha256_hash(sifre) == hash
+
+
+def utc_timestamp(dt: datetime | int) -> int | datetime:
+    """
+    toggle datetime to int timestamp
+    toggle int timestampt to datetime
+    :param: dt
+
+    note: i lose some presition but is it need to be that precise
+    """
+    if isinstance(dt, datetime):
+        return int(dt.timestamp())
+    if isinstance(dt, int):
+        return datetime.utcfromtimestamp(float(dt))
+    raise RuntimeError("dt needs to be int or datetime.datetime object")
 
 
 def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:

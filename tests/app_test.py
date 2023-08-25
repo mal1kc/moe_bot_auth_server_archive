@@ -6,7 +6,7 @@ import pytest
 from flask import Flask
 
 import datetime
-from moe_gthr_auth_server import register_blueprints, register_error_handlers
+from moe_gthr_auth_server import register_blueprints, register_error_handlers, config
 from moe_gthr_auth_server.database_ops import (
     Admin,
     PackageContent,
@@ -23,12 +23,7 @@ from moe_gthr_auth_server.database_ops import (
 )
 import random
 
-URLS = {
-    "login": "/giris",
-    "register": "/k_kayit",
-    "register_package": "/p_kayit",
-    "register_package_content": "/p_kayit",
-}
+URLS = config.endpoints._init_urls()
 
 LOGGER = logging.getLogger(__name__)
 
@@ -133,7 +128,7 @@ def test_init_db(app, app_ctx, admin_data):
 
 def test_login(client):
     LOGGER.debug("test_login")
-    response = client.get(URLS["login"])
+    response = client.get(URLS.ULogin)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
     LOGGER.debug("test_login done")
@@ -141,10 +136,10 @@ def test_login(client):
 
 def test_register_get(client, admin):
     LOGGER.debug("test_register: get")
-    response = client.get(URLS["register"])
+    response = client.get(URLS.URegister)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
-    response = client.get(URLS["register"], auth=admin)
+    response = client.get(URLS.URegister, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
         "status": "success",
@@ -157,12 +152,12 @@ def test_register_get(client, admin):
 
 def test_register_post_get(client, user_data, admin, app_ctx):
     LOGGER.debug("test_register: post")
-    response = client.post(URLS["register"], json=user_data, auth=admin)
+    response = client.post(URLS.URegister, json=user_data, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_created"}
 
     LOGGER.debug("test_register: get")
-    response = client.get(URLS["register"], auth=admin)
+    response = client.get(URLS.URegister, auth=admin)
     LOGGER.debug("test_register: get")
     assert response.status_code == 200
     json_data = json.loads(response.data)
@@ -188,7 +183,7 @@ def test_register_post_get(client, user_data, admin, app_ctx):
 
 def test_register_post_user_already_exits(client, user_data2, admin):
     LOGGER.debug("creating user2")
-    response = client.post(URLS["register"], json=user_data2, auth=admin)
+    response = client.post(URLS.URegister, json=user_data2, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
         "status": "success",
@@ -196,7 +191,7 @@ def test_register_post_user_already_exits(client, user_data2, admin):
     }
     LOGGER.debug("creating user2 done")
     LOGGER.debug("creating user2 again")
-    response = client.post(URLS["register"], json=user_data2, auth=admin)
+    response = client.post(URLS.URegister, json=user_data2, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
         "status": "error",
@@ -207,19 +202,19 @@ def test_register_post_user_already_exits(client, user_data2, admin):
 
 def test_register_non_json(client, user_data, user, admin):
     LOGGER.debug("test_register_non_json with admin auth")
-    response = client.post(URLS["register"], data=user_data, auth=admin)
+    response = client.post(URLS.URegister, data=user_data, auth=admin)
     assert response.status_code == 415
     assert json.loads(response.data) == ERRORS["unsupported_media_type"]
     LOGGER.debug("test_register_non_json with admin auth done")
 
     LOGGER.debug("test_register_non_json with user auth")
-    response = client.post(URLS["register"], data=user_data, auth=user)
+    response = client.post(URLS.URegister, data=user_data, auth=user)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
     LOGGER.debug("test_register_non_json with user auth done")
 
     LOGGER.debug("test_register_non_json without auth")
-    response = client.post(URLS["register"], data=user_data)
+    response = client.post(URLS.URegister, data=user_data)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
     LOGGER.debug("test_register_non_json without auth done")
@@ -227,25 +222,25 @@ def test_register_non_json(client, user_data, user, admin):
 
 def test_register_bad_request(client, user_data, admin_data, user, admin):
     LOGGER.debug("test_register_bad_request with incomplete data")
-    response = client.post(URLS["register"], json={"name": "test_user"}, auth=admin)
+    response = client.post(URLS.URegister, json={"name": "test_user"}, auth=admin)
     # assert response.status_code == 400
     assert json.loads(response.data) == {"status": "error", "message": "request_data_incomplete"}
     LOGGER.debug("test_register_bad_request with incomplete data done")
 
     LOGGER.debug("test_register_bad_request with empty data")
-    response = client.post(URLS["register"], json={}, auth=admin)
+    response = client.post(URLS.URegister, json={}, auth=admin)
     assert response.status_code == 400
     assert json.loads(response.data) == {"status": "error", "message": "request_data_is_none_or_empty"}
     LOGGER.debug("test_register_bad_request with empty data done")
 
     LOGGER.debug("test_register_bad_request with None data")
-    response = client.post(URLS["register"], json=None, auth=admin)
+    response = client.post(URLS.URegister, json=None, auth=admin)
     assert response.status_code == 415
     assert json.loads(response.data) == ERRORS["unsupported_media_type"]
     LOGGER.debug("test_register_bad_request with None data done")
 
     LOGGER.debug("test_register_bad_request with empty values data")
-    response = client.post(URLS["register"], json={"name": "", "password_hash": ""}, auth=admin)
+    response = client.post(URLS.URegister, json={"name": "", "password_hash": ""}, auth=admin)
     assert response.status_code == 400
     assert json.loads(response.data) == {"status": "error", "message": "request_data_is_none_or_empty"}
     LOGGER.debug("test_register_bad_request with empty values data done")
@@ -257,7 +252,7 @@ def test_register_bad_request(client, user_data, admin_data, user, admin):
 
 def test_login_post_user_not_found(client, user_data):
     LOGGER.debug("test_login_post_user_not_found: post")
-    response = client.post(URLS["login"], json=user_data)
+    response = client.post(URLS.ULogin, json=user_data)
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "user_cred_not_found"}
 
@@ -282,7 +277,7 @@ def login_user(app_ctx, login_user_data):
 
 def test_login_post_package_not_found(client, login_user):
     LOGGER.debug("test_login_post_package_not_found: post,auth with login_user: %s " % ",".join(login_user))
-    response = client.post(URLS["login"], auth=login_user)
+    response = client.post(URLS.ULogin, auth=login_user)
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "package_not_found"}
 
@@ -345,7 +340,7 @@ def login_user_expired_packet(expired_user_packet_data, packet_data, packet_cont
 
 def test_login_post_packet_expired(client, login_user_expired_packet):
     LOGGER.debug("test_login_post_packet_expired: post,auth with expired_user_packet_data: %s " % ",".join(login_user_expired_packet))
-    response = client.post(URLS["login"], auth=login_user_expired_packet)
+    response = client.post(URLS.ULogin, auth=login_user_expired_packet)
     assert response.status_code == 410
     assert json.loads(response.data) == {"status": "error", "message": "packet_time_expired"}
 
@@ -393,11 +388,11 @@ def login_user_with_packet(packet_data, packet_content_data, login_user_data, ap
 
 def test_login_post_max_online_user1(client, login_user_with_packet):
     LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
-    response = client.post(URLS["login"], auth=login_user_with_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
-    response = client.post(URLS["login"], auth=login_user_with_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
 
@@ -453,14 +448,14 @@ def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
         % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug(
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
         % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
 
@@ -468,7 +463,7 @@ def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
         % ",".join(login_user_with_extra_user_packet)
     )
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
 
@@ -516,19 +511,19 @@ def login_user_with_2_extra_user_packet(packet_data, packet_content_extra_user, 
 
 def test_login_post_max_online_user3(client, login_user_with_extra_user_packet):
     LOGGER.debug("test_login_post_max_online_user3, post 1")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug("test_login_post_max_online_user3, post 2")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
     LOGGER.debug("test_login_post_max_online_user3, post 3")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
     LOGGER.debug("test_login_post_max_online_user3, post 4")
-    response = client.post(URLS["login"], auth=login_user_with_extra_user_packet)
+    response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
     assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
 
@@ -548,7 +543,7 @@ def register_package_data(packet_data, packet_content_data):
 
 def test_register_package(client, register_package_data, admin):
     LOGGER.debug("test_register_package: post")
-    response = client.post(URLS["register_package"], json=register_package_data, auth=admin)
+    response = client.post(URLS.APRegister, json=register_package_data, auth=admin)
     assert json.loads(response.data) == {"status": "success", "message": "package_created"}
     assert response.status_code == 200
 
@@ -566,10 +561,10 @@ def register_package_content_data(packet_content_data):
 
 def test_register_package_content(client, register_package_data, register_package_content_data, admin):
     LOGGER.debug("test_register_package: post")
-    response = client.post(URLS["register_package"], json=register_package_data, auth=admin)
+    response = client.post(URLS.APRegister, json=register_package_data, auth=admin)
     assert json.loads(response.data) == {"status": "success", "message": "package_created"}
     assert response.status_code == 200
-    response = client.post(URLS["register_package"], json=register_package_content_data, auth=admin)
+    response = client.post(URLS.APRegister, json=register_package_content_data, auth=admin)
     assert json.loads(response.data) == {"status": "success", "message": "package_content_created"}
     assert response.status_code == 200
 
@@ -621,14 +616,14 @@ def register_package_with_multiple_contents(client, app_ctx, register_package_da
 
 
 def test_register_package_with_multiple_contents(client, register_package_with_multiple_contents, admin):
-    response = client.post(URLS["register_package"], json=register_package_with_multiple_contents, auth=admin)
+    response = client.post(URLS.APRegister, json=register_package_with_multiple_contents, auth=admin)
     assert json.loads(response.data) == {"status": "success", "message": "package_created"}
     assert response.status_code == 200
 
 
 def test_register_package_with_multiple_contents_check_db(client, register_package_with_multiple_contents, app_ctx, admin):
     with app_ctx:
-        response = client.post(URLS["register_package"], json=register_package_with_multiple_contents, auth=admin)
+        response = client.post(URLS.APRegister, json=register_package_with_multiple_contents, auth=admin)
         assert json.loads(response.data) == {"status": "success", "message": "package_created"}
         assert response.status_code == 200
         db_package = Package.query.filter_by(name=register_package_with_multiple_contents["model"]["name"]).first()
@@ -659,22 +654,22 @@ def test_register_package_get(client, admin, app_ctx):
         expected_respons_data["package_contents"] = db_package_contents_jsons
 
     LOGGER.debug("test_register_package: get")
-    response = client.get(URLS["register_package"], auth=admin)
+    response = client.get(URLS.APRegister, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == expected_respons_data
 
 
 def test_401(client):
     LOGGER.debug("test_401")
-    response = client.get(URLS["register"])
+    response = client.get(URLS.URegister)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
 
-    response = client.get(URLS["register_package"])
+    response = client.get(URLS.URegister)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
 
-    response = client.get(URLS["login"])
+    response = client.get(URLS.URegister)
     assert response.status_code == 401
     assert json.loads(response.data) == ERRORS["unauthorized"]
 
@@ -691,7 +686,7 @@ def test_404(client):
 
 def test_415(client, admin):
     LOGGER.debug("test_415")
-    response = client.post(URLS["register"], data="aaa", auth=admin)
+    response = client.post(URLS.URegister, data="aaa", auth=admin)
     # if admin auth is not provided, it will be 401 instead of 415
     assert response.status_code == 415
     assert json.loads(response.data) == ERRORS["unsupported_media_type"]
@@ -699,10 +694,10 @@ def test_415(client, admin):
 
 def test_register_other_requests(client):
     LOGGER.debug("test_register_other_requests")
-    response = client.put(URLS["register"])
+    response = client.put(URLS.URegister)
     assert response.status_code == 405
     assert json.loads(response.data) == ERRORS["method_not_allowed"]
-    response = client.delete(URLS["register"])
+    response = client.delete(URLS.URegister)
     assert response.status_code == 405
     assert json.loads(response.data) == ERRORS["method_not_allowed"]
     LOGGER.debug("test_register_other_requests done")
@@ -725,22 +720,33 @@ def not_registered_user_data():
 
 def test_login_post_user_not_registered(client, not_registered_user_data):
     LOGGER.debug("test_login_post_user_not_registered: post")
-    response = client.post(URLS["login"], json=not_registered_user_data)
+    response = client.post(URLS.ULogin, json=not_registered_user_data)
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "user_cred_not_found"}
 
 
 def test_register_login_random_data_user(client, random_user_data, random_user, admin):
     LOGGER.debug("register_random_data_user: post")
-    response = client.post(URLS["register"], json=random_user_data, auth=admin)
+    response = client.post(URLS.URegister, json=random_user_data, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_created"}
     LOGGER.debug("register_random_data_user: post done")
     LOGGER.debug("login_random_data_user: post")
-    response = client.post(URLS["login"], auth=random_user)  # package not found
+    response = client.post(URLS.ULogin, auth=random_user)  # package not found
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "package_not_found"}
     LOGGER.debug("login_random_data_user: post done")
+
+
+def test_user_package_info(client, login_user_with_packet, app_ctx):
+    with app_ctx:
+        user_exists = User.query.filter_by(name=login_user_with_packet[0]).first()
+        db_package_json = user_exists.package.__json__(user_incld=False)
+
+    response = client.get(URLS.UPInfo, auth=login_user_with_packet)
+    assert response.status_code == 200
+    LOGGER.critical(json.loads(response.data))
+    assert json.loads(response.data) == {"status": "success", "message": "package_info", "package": db_package_json}
 
 
 if __name__ == "__main__":
