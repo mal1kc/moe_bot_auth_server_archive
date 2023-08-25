@@ -17,17 +17,21 @@ from .database_ops import (
     DBOperationResult,
     Package,
     PackageContent,
+    U_Package,
     User,
     add_admin,
     add_package,
+    add_u_package,
     add_package_content,
     add_user,
     db,
     loginError,
     pContentEnum,
-    sha256_hash,
     try_login,
 )
+
+from .aes_crpyt import AESCipher
+
 from werkzeug.exceptions import UnsupportedMediaType
 from .config import endpoints
 
@@ -75,7 +79,7 @@ def initdb_command(recreate: bool = False):
     print(" ✅ veritabanı tablolari oluşturuldu ✅ ")
     print("veritabanı içeriği oluşturuluyor")
     print("admin ekleniyor")
-    add_admin(Admin(name="mal1kc", password_hash=sha256_hash("admin")))
+    add_admin(Admin(name="mal1kc", password_hash=("admin")))
     print(" ☑ admin eklendi")
     db.session.commit()
 
@@ -138,6 +142,10 @@ def anasayfa():
     return jsonify({"status": "OK"})
 
 
+# TODO: add update package and package content, update user package
+# TODO: seperate admin endpoints to methods
+
+
 @main_blueprint.route(endpoints.URLS.APRegister, methods=["GET", "POST"])
 def admin_package_register() -> tuple[Response, int]:
     """
@@ -178,6 +186,10 @@ def admin_package_register() -> tuple[Response, int]:
                     model = PackageContent.from_json(req_data["model"])
                     add_package_content(model)
                     return jsonify({"status": "success", "message": "package_content_created"}), 200
+                elif req_data["m_type"] == "user_package":
+                    model = U_Package.from_json(req_data["model"])
+                    add_u_package(model)
+                    return jsonify({"status": "success", "message": "user_created"}), 200
                 return bad_request("invalid_model_type")
             except ReqDataErrors.req_data_incomplete:
                 return req_data_incomplete()
@@ -208,7 +220,6 @@ def admin_package_register() -> tuple[Response, int]:
         return unauthorized()
     else:
         return method_not_allowed()
-    return bad_request()
 
 
 @main_blueprint.route(endpoints.URLS.URegister, methods=["GET", "POST"])
@@ -258,15 +269,15 @@ def user_register() -> tuple[Response, int]:
                             200,
                         )
                     case DBOperationResult.model_already_exists:
-                        return (
-                            jsonify({"status": "error", "message": "user_already_exists"}),
-                            200,
-                        )
+                        return bad_request(error="user_already_exists")
                     case DBOperationResult.unknown_error:
-                        return (
-                            jsonify({"status": "error", "message": "cannot_add_user"}),
-                            200,
-                        )
+                        return bad_request(error="unknown_error")
+                    case DBOperationResult.model_name_too_short:
+                        return bad_request(error="user_name_too_short")
+                    case DBOperationResult.model_name_too_long:
+                        return bad_request(error="user_name_too_long")
+                    case DBOperationResult.model_passhash_too_short:
+                        return bad_request(error="user_passhash_too_short")
                     case _:
                         return jsonify({"status": "error", "message": "unknown_error"}), 200
         LOGGER.debug(f"{req_id} - admin is None or False")
@@ -363,7 +374,7 @@ def user_package_info() -> tuple[Response, int]:
                 jsonify({"status": "success", "message": "package_info", "package": upackage.__json__(user_incld=False)}),
                 200,
             )
-
+        if isinstance(is_user, bool):
             return jsonify({"status": "error", "message": "login_failed"}), 200
         return jsonify({"status": "error", "message": "user_cred_not_found"}), 404
     return method_not_allowed()
@@ -374,8 +385,9 @@ def get_user_from_req(request) -> bool | User | None:
         return None
     user = User.query.filter_by(name=request.authorization.username).first()
     if user is None:
-        return False
-    if request.authorization.password != user.password_hash:
+        return None
+    aes = AESCipher(user.password_hash)
+    if aes.decrypt(request.authorization.password) != user.password_hash:
         return False
     return user
 
@@ -386,8 +398,11 @@ def is_admin(request) -> bool | None:
     admin = Admin.query.filter_by(name=request.authorization.username).first()
     if admin is None:
         return False
-    if request.authorization.password != admin.password_hash:
-        return False
+    # if request.authorization.password == admin.password_hash:
+    #     return False
+    aes = AESCipher(admin.password_hash)
+    if aes.decrypt(request.authorization.password) != admin.password_hash:
+        return True
     return True
 
 

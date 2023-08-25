@@ -7,4 +7,4 @@
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
     - [ ] ana uygulamaya logger - % 50
-    - [ ] route isimleri ingilizceye cevirilcek
+    - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put

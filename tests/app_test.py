@@ -1,12 +1,13 @@
 import json
 import logging
-from hashlib import sha256
 
 import pytest
 from flask import Flask
 
 import datetime
-from moe_gthr_auth_server import register_blueprints, register_error_handlers, config
+
+from moe_gthr_auth_server import register_blueprints, register_error_handlers
+from moe_gthr_auth_server.config import endpoints as config_endpoints
 from moe_gthr_auth_server.database_ops import (
     Admin,
     PackageContent,
@@ -21,9 +22,12 @@ from moe_gthr_auth_server.database_ops import (
     pContentEnum,
     add_user,
 )
+
+from moe_gthr_auth_server.aes_crpyt import AESCipher
+
 import random
 
-URLS = config.endpoints._init_urls()
+URLS = config_endpoints._init_urls()
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +39,12 @@ ERRORS = {
     "not_found": {"status": "error", "message": "not_found"},
     "method_not_allowed": {"status": "error", "message": "method_not_allowed"},
 }
+
+
+@pytest.fixture
+def aes_cipher():
+    aes_cipher = AESCipher()
+    return aes_cipher
 
 
 @pytest.fixture
@@ -83,18 +93,18 @@ def runner(app):
 
 
 @pytest.fixture
-def user_data():
-    return {"name": "test_user", "password_hash": sha256("test_user".encode()).hexdigest()}
+def user_data(aes_cipher):
+    return {"name": "test_user", "password_hash": aes_cipher.encrypt("test_user")}
 
 
 @pytest.fixture
-def user_data2():
-    return {"name": "test_user2", "password_hash": sha256("test_user2".encode()).hexdigest()}
+def user_data2(aes_cipher):
+    return {"name": "test_user2", "password_hash": aes_cipher.encrypt("test_user2")}
 
 
 @pytest.fixture
-def admin_data():
-    return {"name": "test_admin", "password_hash": sha256("test_admin".encode()).hexdigest()}
+def admin_data(aes_cipher):
+    return {"name": "test_admin", "password_hash": aes_cipher.encrypt("test_admin")}
 
 
 @pytest.fixture
@@ -118,9 +128,9 @@ def test_app(client):
     LOGGER.debug("test_app done")
 
 
-def test_init_db(app, app_ctx, admin_data):
+def test_init_db(app_ctx, admin_data):
     LOGGER.debug("test_init_db")
-    with app.app_context():
+    with app_ctx:
         db_admin = Admin.query.all()
         assert admin_data["name"] == db_admin[0].name
         assert admin_data["password_hash"] == db_admin[0].password_hash
@@ -220,7 +230,7 @@ def test_register_non_json(client, user_data, user, admin):
     LOGGER.debug("test_register_non_json without auth done")
 
 
-def test_register_bad_request(client, user_data, admin_data, user, admin):
+def test_register_bad_request(client, admin):
     LOGGER.debug("test_register_bad_request with incomplete data")
     response = client.post(URLS.URegister, json={"name": "test_user"}, auth=admin)
     # assert response.status_code == 400
@@ -529,7 +539,7 @@ def test_login_post_max_online_user3(client, login_user_with_extra_user_packet):
 
 
 @pytest.fixture
-def register_package_data(packet_data, packet_content_data):
+def register_package_data(packet_data):
     return {
         "m_type": "package",
         "model": {
@@ -602,7 +612,7 @@ def register_package_content_datas():
 
 
 @pytest.fixture
-def register_package_with_multiple_contents(client, app_ctx, register_package_data2, register_package_content_datas):
+def register_package_with_multiple_contents(register_package_data2, register_package_content_datas):
     LOGGER.debug("test_register_package: post")
 
     for pc_data in register_package_content_datas:
@@ -745,8 +755,19 @@ def test_user_package_info(client, login_user_with_packet, app_ctx):
 
     response = client.get(URLS.UPInfo, auth=login_user_with_packet)
     assert response.status_code == 200
-    LOGGER.critical(json.loads(response.data))
     assert json.loads(response.data) == {"status": "success", "message": "package_info", "package": db_package_json}
+
+
+# def test_user_update(client, login_user_with_packet, app_ctx, admin, aes_cipher):
+#     with app_ctx:
+#         user_exists = User.query.filter_by(name=login_user_with_packet[0]).first()
+#         db_package_json = user_exists.package.__json__(user_incld=False)
+#     login_user_with_packet[1] = aes_cipher.encrypt(login_user_with_packet[1] + "asdadad")
+#     response = client.put(
+#         URLS.UUpdate + f"/{user_exists.id}", json={"password_hash": login_user_with_packet[1]}, auth=login_user_with_packet
+#     )
+#     assert response.status_code == 200
+#     assert json.loads(response.data) == {"status": "success", "message": "user_updated"}
 
 
 if __name__ == "__main__":

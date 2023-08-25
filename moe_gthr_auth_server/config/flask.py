@@ -1,4 +1,5 @@
 from .. import paths
+from .secret_key import read as secret_key_read
 
 LOGGING_LEVEL = "INFO"
 
@@ -37,3 +38,4 @@ LOGGING_CONFIG = {
         },
     },
 }
+SECRET_KEY = secret_key_read()

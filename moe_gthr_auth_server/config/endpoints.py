@@ -8,13 +8,14 @@ URL_PREFIX_USER = URL_PREFIX + "/user"
 
 @dataclass
 class _URLS:
-    __slots__ = ["ULogin", "ALogin", "URegister", "APRegister", "UPRegister", "UPInfo"]
+    __slots__ = ["ULogin", "ALogin", "URegister", "APRegister", "UPRegister", "UPInfo", "UUpdate"]
     ULogin: str
     ALogin: str
     URegister: str
     APRegister: str
     UPRegister: str
     UPInfo: str
+    UUpdate: str
 
 
 @functools.lru_cache(maxsize=1)
@@ -27,6 +28,7 @@ def _init_urls() -> _URLS:
         UPRegister=URL_PREFIX_USER + "/p_register",  # register u_package or update u_package
         # UInfo = URL_PREFIX_USER + "/info",
         UPInfo=URL_PREFIX_USER + "/p_info",
+        UUpdate=URL_PREFIX_USER + "/update",
     )
 
 

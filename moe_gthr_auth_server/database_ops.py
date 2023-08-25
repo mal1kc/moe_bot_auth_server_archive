@@ -3,6 +3,7 @@ import enum
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Callable, List
+
 from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
 
 from flask_sqlalchemy import SQLAlchemy
@@ -46,6 +47,9 @@ class DBOperationResult(enum.Enum):
     model_not_created = enum.auto()
     model_not_updated = enum.auto()
     model_not_deleted = enum.auto()
+    model_name_too_short = enum.auto()
+    model_name_too_long = enum.auto()
+    model_passhash_too_short = enum.auto()
 
 
 pcontent_packages_conn_table = db.Table(
@@ -422,12 +426,6 @@ class Admin(Base):
         schema.validate(data)
 
 
-def sha256_hash(s: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(s.encode("utf-8")).hexdigest()
-
-
 # def check_password(sifre: str, hash: str) -> bool:
 #     return sha256_hash(sifre) == hash
 
@@ -447,71 +445,50 @@ def utc_timestamp(dt: datetime | int) -> int | datetime:
     raise RuntimeError("dt needs to be int or datetime.datetime object")
 
 
-def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:
+def add_db_model(
+    model: U_Package | U_Session | User | Admin | Package | PackageContent, session: scoped_session = db.session
+) -> DBOperationResult:
     try:
+        if not isinstance(model, U_Package) or isinstance(model, U_Session):
+            if len(model.name) < 3:
+                return DBOperationResult.model_name_too_short
+            if len(model.name) > 256:
+                return DBOperationResult.model_name_too_long
         with session.begin_nested():
-            session.add(user)
+            session.add(model)
             session.commit()
-        return DBOperationResult.success
+            return DBOperationResult.success
     except Exception as e:
-        DB_LOGGER.error("error accured while adding user to database %s" % e)
+        DB_LOGGER.error("error accured while adding model to database %s" % e)
         if "UNIQUE constraint failed" in str(e):
-            DB_LOGGER.error("user already exists")
+            DB_LOGGER.error("model already exists")
             return DBOperationResult.model_already_exists
     return DBOperationResult.unknown_error
+
+
+def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:
+    if len(user.password_hash) < 256:  # min 256 bit
+        return DBOperationResult.model_passhash_too_short
+    add_db_model(user, session)
+    return DBOperationResult.success
 
 
 def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperationResult:
-    try:
-        with session.begin_nested():
-            session.add(admin)
-            session.commit()
-        return DBOperationResult.success
-    except Exception as e:
-        DB_LOGGER.error("error accured while adding admin to database %s" % e)
-        if "UNIQUE constraint failed" in str(e):
-            DB_LOGGER.error("admin already exists")
-            return DBOperationResult.model_already_exists
-    return DBOperationResult.unknown_error
+    if len(admin.password_hash) < 256:
+        return DBOperationResult.model_passhash_too_short
+    return add_db_model(admin, session)
 
 
 def add_package(package: Package, session: scoped_session = db.session) -> DBOperationResult:
-    try:
-        session.add(package)
-        session.commit()
-        return DBOperationResult.success
-    except Exception as e:
-        DB_LOGGER.error("error accured while adding package to database %s" % e)
-        if "UNIQUE constraint failed" in str(e):
-            DB_LOGGER.error("package already exists")
-            return DBOperationResult.model_already_exists
-    return DBOperationResult.unknown_error
+    return add_db_model(package, session)
 
 
 def add_package_content(package_content: PackageContent, session: scoped_session = db.session) -> DBOperationResult:
-    try:
-        session.add(package_content)
-        session.commit()
-        return DBOperationResult.success
-    except Exception as e:
-        DB_LOGGER.error("error accured while adding package_icerik to database %s" % e)
-        if "UNIQUE constraint failed" in str(e):
-            DB_LOGGER.error("package_icerik already exists")
-            return DBOperationResult.model_already_exists
-    return DBOperationResult.unknown_error
+    return add_db_model(package_content, session)
 
 
 def add_u_package(u_package: U_Package, session: scoped_session = db.session) -> DBOperationResult:
-    try:
-        session.add(u_package)
-        session.commit()
-        return DBOperationResult.success
-    except Exception as e:
-        DB_LOGGER.error("error accured while adding k_package to database %s" % e)
-        if "UNIQUE constraint failed" in str(e):
-            DB_LOGGER.error("k_package already exists")
-            return DBOperationResult.model_already_exists
-    return DBOperationResult.unknown_error
+    return add_db_model(u_package, session)
 
 
 def update_user(u_id: str, new_user: User, session: scoped_session = db.session) -> DBOperationResult:
@@ -522,7 +499,7 @@ def update_user(u_id: str, new_user: User, session: scoped_session = db.session)
     :param session: db session
     :return: DBOperationResult
     ---
-    only update k_ad, k_sifre_hash, k_discord_id, k_ps
+    only update name, password_hash, discord_id, k_ps
     ---
     """
     try:

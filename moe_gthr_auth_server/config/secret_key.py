@@ -1,24 +1,41 @@
 import os
-
 from .. import paths
 
 
-def generate_secret_key():
+def read_aes_key() -> bytes:
+    # TODO : HARDCODED
+    return "ma2s12*plm3k*fl2p*ol123calsdmv2knıomcşlmtpkda.sçd".encode()
+
+
+def generate_secret_key() -> bytes:
     """Generate a secret key for Flask sessions."""
     return os.urandom(24)
 
 
-def write(key):
+def write(key) -> None:
     """Write the secret key to a file."""
-    with open(paths.SECRET_KEY_PATH, "w") as file:
+    paths.if_not_exists_make_file(paths.SECRET_KEY_PATH)
+    with open(paths.SECRET_KEY_PATH, "wb") as file:
         file.write(key)
 
 
-def read():
+def read() -> bytes:
     """Read the secret key from a file."""
-    paths.if_not_exists_make_file(paths.SECRET_KEY_PATH)
-    with open(paths.SECRET_KEY_PATH, "r") as file:
+
+    if not os.path.exists(paths.SECRET_KEY_PATH):
+        return generate_and_write()
+    with open(paths.SECRET_KEY_PATH, "rb") as file:
         return file.read()
+
+
+def generate_and_write() -> bytes:
+    """
+    Generate and write the secret key to a file.
+    return: the secret key
+    """
+    key = generate_secret_key()
+    write(key)
+    return key
 
 
 if __name__ == "__main__":
