@@ -2,9 +2,9 @@ import os
 from .. import paths
 
 
-def read_aes_key() -> bytes:
-    # TODO : HARDCODED
-    return "ma2s12*plm3k*fl2p*ol123calsdmv2knıomcşlmtpkda.sçd".encode()
+def read_enc_key() -> bytes:
+    """Read the encryption key from a file."""
+    return "owko2c0m2130x*o123k".encode("utf-8")  # TODO:HARDCODED
 
 
 def generate_secret_key() -> bytes:

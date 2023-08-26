@@ -13,7 +13,6 @@ Flask-SQLAlchemy = "^3.0.5"
 schema = "^0.7.5"
 ruff-lsp = "^0.0.35"
 gunicorn = "^21.2.0"
-pycryptodome = "^3.18.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.283"

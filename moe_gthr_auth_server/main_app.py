@@ -12,6 +12,7 @@ from .err_handlrs import (
     req_data_is_none_or_empty,
 )
 
+from .base_responses import request_error_response, request_success_response
 from .database_ops import (
     Admin,
     DBOperationResult,
@@ -30,7 +31,7 @@ from .database_ops import (
     try_login,
 )
 
-from .aes_crpyt import AESCipher
+from .crpytion import simple_dencrypt, sha256
 
 from werkzeug.exceptions import UnsupportedMediaType
 from .config import endpoints
@@ -79,7 +80,11 @@ def initdb_command(recreate: bool = False):
     print(" ✅ veritabanı tablolari oluşturuldu ✅ ")
     print("veritabanı içeriği oluşturuluyor")
     print("admin ekleniyor")
-    add_admin(Admin(name="mal1kc", password_hash=("admin")))
+    if (db_op_result := add_admin(Admin(name="mal1kc", password_hash=sha256("deov04ın-!ıj0dı12klsa")))) != DBOperationResult.success:
+        print(" ❌ admin eklenemedi ❌ ")
+        print(" ❌ veritabanı oluşturulamadı ❌ ")
+        print(" ❌ Hata: %s ❌ ", db_op_result)
+        return
     print(" ☑ admin eklendi")
     db.session.commit()
 
@@ -92,7 +97,7 @@ def initdb_command(recreate: bool = False):
         add_package_content(p_icerik)
     print(" ☑ temel package icerikler eklendi")
     print("temel packageler ekleniyor")
-    add_package(
+    db_op_result = add_package(
         Package(
             name="moe_gatherer",
             packagecontents=[
@@ -101,16 +106,30 @@ def initdb_command(recreate: bool = False):
             days=60,
         )
     )
-    add_package(
-        Package(
-            name="moe_gatherer+eksra_user",
-            packagecontents=[
-                PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-                PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
-            ],
-            days=60,
-        ),
-    )
+    if db_op_result != DBOperationResult.success:
+        print(" ❌ package eklenemedi ❌ ")
+        print(" ❌ veritabanı oluşturulamadı ❌ ")
+        print(" ❌ Hata: %s ❌ ", db_op_result)
+        return
+
+    if (
+        db_op_result := add_package(
+            Package(
+                name="moe_gatherer+eksra_user",
+                packagecontents=[
+                    PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
+                    PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
+                ],
+                days=60,
+            ),
+        )
+        != DBOperationResult.success
+    ):
+        print(" ❌ package eklenemedi ❌ ")
+        print(" ❌ veritabanı oluşturulamadı ❌ ")
+        print(" ❌ Hata: %s ❌ ", db_op_result)
+        return
+
     print(" ☑ temel package eklendi")
     db.session.commit()
     db_packageler = [package.__json__() for package in Package.query.all()]
@@ -181,15 +200,15 @@ def admin_package_register() -> tuple[Response, int]:
                         add_package(model)
                     except Exception as SchemaError:
                         return bad_request(SchemaError)
-                    return jsonify({"status": "success", "message": "package_created"}), 200
+                    return request_success_response("package_created"), 200
                 elif req_data["m_type"] == "package_content":
                     model = PackageContent.from_json(req_data["model"])
                     add_package_content(model)
-                    return jsonify({"status": "success", "message": "package_content_created"}), 200
+                    return request_success_response("package_content_created"), 200
                 elif req_data["m_type"] == "user_package":
                     model = U_Package.from_json(req_data["model"])
                     add_u_package(model)
-                    return jsonify({"status": "success", "message": "user_created"}), 200
+                    return request_success_response("user_package_created"), 200
                 return bad_request("invalid_model_type")
             except ReqDataErrors.req_data_incomplete:
                 return req_data_incomplete()
@@ -260,26 +279,25 @@ def user_register() -> tuple[Response, int]:
                 return bad_request(e)
             else:
                 LOGGER.debug(f"{req_id} - trying to add user")
-                db_op_result = add_user(User(name=req_data["name"], password_hash=req_data["password_hash"]))
+                db_op_result = add_user(
+                    User(name=req_data["name"], password_hash=simple_dencrypt(req_data["password_hash"]).decode("utf-8"))
+                )
                 LOGGER.debug(f"{req_id} - db_op_result : {db_op_result}")
                 match db_op_result:
-                    case DBOperationResult.success:
-                        return (
-                            jsonify({"status": "success", "message": "user_created"}),
-                            200,
-                        )
                     case DBOperationResult.model_already_exists:
-                        return bad_request(error="user_already_exists")
+                        return request_error_response("user_already_exists"), 400
                     case DBOperationResult.unknown_error:
-                        return bad_request(error="unknown_error")
+                        return request_error_response("unknown_error"), 400
                     case DBOperationResult.model_name_too_short:
-                        return bad_request(error="user_name_too_short")
+                        return request_error_response("user_name_too_short"), 400
                     case DBOperationResult.model_name_too_long:
-                        return bad_request(error="user_name_too_long")
+                        return request_error_response("user_name_too_long"), 400
                     case DBOperationResult.model_passhash_too_short:
-                        return bad_request(error="user_passhash_too_short")
+                        return request_error_response("user_passhash_too_short"), 400
+                    case DBOperationResult.success:
+                        return request_success_response("user_created"), 200
                     case _:
-                        return jsonify({"status": "error", "message": "unknown_error"}), 200
+                        return request_error_response("unknown_error"), 400
         LOGGER.debug(f"{req_id} - admin is None or False")
         return unauthorized()
     elif request.method == "GET":
@@ -318,27 +336,27 @@ def user_login() -> tuple[Response, int]:
                 LOGGER.debug(f"{req_id} - login result : {try_login_response}")
                 if try_login_response is loginError.max_online_user:
                     return (
-                        jsonify({"status": "error", "message": "maximum_online_user_quota"}),
+                        request_error_response("max_online_user"),
                         401,
                     )
                 elif try_login_response is loginError.user_not_found:
                     return (
-                        jsonify({"status": "error", "message": "user_not_found"}),
+                        request_error_response("user_not_found"),
                         404,
                     )
                 elif try_login_response is loginError.user_not_have_package:
                     return (
-                        jsonify({"status": "error", "message": "package_not_found"}),
+                        request_error_response("package_not_found"),
                         404,
                     )
                 elif try_login_response is loginError.user_package_expired:
                     return (
-                        jsonify({"status": "error", "message": "packet_time_expired"}),
+                        request_error_response("package_expired"),
                         410,
                     )
                 elif try_login_response is True:
                     return (
-                        jsonify({"status": "success", "message": "user_logged_in"}),
+                        request_success_response("login_success"),
                         200,
                     )
             return jsonify({"status": "error", "message": "login_failed"}), 200
@@ -362,12 +380,12 @@ def user_package_info() -> tuple[Response, int]:
             LOGGER.debug(f"{req_id} - upackage : {upackage}")
             if upackage is None:
                 return (
-                    jsonify({"status": "error", "message": "user_not_have_package"}),
+                    request_error_response("user_not_have_package"),
                     404,
                 )  # hope this never happens
             if upackage.is_expired():
                 return (
-                    jsonify({"status": "error", "message": "package_expired"}),
+                    request_error_response("package_expired"),
                     410,
                 )
             return (
@@ -375,8 +393,8 @@ def user_package_info() -> tuple[Response, int]:
                 200,
             )
         if isinstance(is_user, bool):
-            return jsonify({"status": "error", "message": "login_failed"}), 200
-        return jsonify({"status": "error", "message": "user_cred_not_found"}), 404
+            return request_error_response("login_failed"), 400
+        return request_error_response("user_cred_not_found"), 404
     return method_not_allowed()
 
 
@@ -386,8 +404,7 @@ def get_user_from_req(request) -> bool | User | None:
     user = User.query.filter_by(name=request.authorization.username).first()
     if user is None:
         return None
-    aes = AESCipher(user.password_hash)
-    if aes.decrypt(request.authorization.password) != user.password_hash:
+    if simple_dencrypt(request.authorization.password).decode("utf-8") != user.password_hash:
         return False
     return user
 
@@ -400,9 +417,8 @@ def is_admin(request) -> bool | None:
         return False
     # if request.authorization.password == admin.password_hash:
     #     return False
-    aes = AESCipher(admin.password_hash)
-    if aes.decrypt(request.authorization.password) != admin.password_hash:
-        return True
+    if simple_dencrypt(request.authorization.password).decode("utf-8") != admin.password_hash:
+        return False
     return True
 
 

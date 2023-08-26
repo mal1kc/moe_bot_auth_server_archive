@@ -466,24 +466,58 @@ def add_db_model(
     return DBOperationResult.unknown_error
 
 
+def add_db_all_models(
+    models: List[U_Package | U_Session | User | Admin | Package | PackageContent], session: scoped_session = db.session
+) -> DBOperationResult:
+    try:
+        with session.begin_nested():
+            session.add_all(models)
+            session.commit()
+            return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while adding model to database %s" % e)
+        if "UNIQUE constraint failed" in str(e):
+            DB_LOGGER.error("model already exists")
+            return DBOperationResult.model_already_exists
+    return DBOperationResult.unknown_error
+
+
 def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:
-    if len(user.password_hash) < 256:  # min 256 bit
+    if len(user.password_hash) < 16:  # AESBlockSize 16
         return DBOperationResult.model_passhash_too_short
-    add_db_model(user, session)
-    return DBOperationResult.success
+    if user.package is not None:
+        if add_u_package(user.package, session) != DBOperationResult.success:
+            return DBOperationResult.model_not_created
+    return add_db_model(user, session)
 
 
 def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperationResult:
-    if len(admin.password_hash) < 256:
+    if len(admin.password_hash) < 16:
         return DBOperationResult.model_passhash_too_short
     return add_db_model(admin, session)
 
 
-def add_package(package: Package, session: scoped_session = db.session) -> DBOperationResult:
+def add_package(package: Package, session: scoped_session = db.session, disable_recursive=False) -> DBOperationResult:
+    if hasattr(package, "packagecontents") and not disable_recursive:
+        # TODO: maybe change this to add_db_all_models
+        for package_content in package.packagecontents:
+            package_content_exist = session.query(PackageContent).filter_by(name=package_content.name).first()
+            if package_content_exist is None:
+                if add_package_content(package_content, session, disable_recursive=True) != DBOperationResult.success:
+                    return DBOperationResult.model_not_created
     return add_db_model(package, session)
 
 
-def add_package_content(package_content: PackageContent, session: scoped_session = db.session) -> DBOperationResult:
+def add_package_content(
+    package_content: PackageContent, session: scoped_session = db.session, disable_recursive=False
+) -> DBOperationResult:
+    if hasattr(package_content, "packages") and not disable_recursive:
+        # TODO: maybe change this to add_db_all_models
+        for package in package_content.packages:
+            db_package_exist = session.query(Package).filter_by(name=package.name).first()
+            if db_package_exist is None:
+                if add_package(package, session) != DBOperationResult.success:
+                    return DBOperationResult.model_not_created
     return add_db_model(package_content, session)
 
 

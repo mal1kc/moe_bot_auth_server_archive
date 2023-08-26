@@ -21,9 +21,10 @@ from moe_gthr_auth_server.database_ops import (
     db,
     pContentEnum,
     add_user,
+    DBOperationResult,
 )
 
-from moe_gthr_auth_server.aes_crpyt import AESCipher
+from moe_gthr_auth_server.crpytion import sha256, simple_dencrypt
 
 import random
 
@@ -31,20 +32,18 @@ URLS = config_endpoints._init_urls()
 
 LOGGER = logging.getLogger(__name__)
 
-ERRORS = {
+EXPECTED_RESPONSES = {
     "unauthorized": {"status": "error", "message": "unauthorized"},
     "unsupported_media_type": {"status": "error", "message": "unsupported_media_type"},
     "request_data_incomplete": {"status": "error", "message": "request_data_incomplete"},
     "request_data_is_none_or_empty": {"status": "error", "message": "request_data_is_none_or_empty"},
     "not_found": {"status": "error", "message": "not_found"},
     "method_not_allowed": {"status": "error", "message": "method_not_allowed"},
+    "login_success": {"status": "success", "message": "login_success"},
+    "max_online_user": {"status": "error", "message": "max_online_user"},
 }
 
-
-@pytest.fixture
-def aes_cipher():
-    aes_cipher = AESCipher()
-    return aes_cipher
+# TODO: refactor tests to use fixtures, better logging, better error handling, better test cases
 
 
 @pytest.fixture
@@ -64,15 +63,17 @@ def app_ctx(app):
 
 
 @pytest.fixture(autouse=True)
-def init_db(app, admin_data):
+def init_db(app, admin_data_pure):
     LOGGER.debug("init_db")
     with app.app_context():
         db.init_app(app)
         db.drop_all()
         db.create_all()
-        test_admin = Admin(name=admin_data["name"], password_hash=admin_data["password_hash"])
+        test_admin = Admin(name=admin_data_pure["name"], password_hash=admin_data_pure["password_hash"])
         LOGGER.debug("init_db: add test_admin, test_admin: %s", test_admin)
-        add_admin(test_admin)
+        if (db_op_result := add_admin(test_admin)) != DBOperationResult.success:
+            LOGGER.debug("init_db: add_admin failed, db_op_result: %s", db_op_result)
+            raise Exception("init_db: add_admin failed")
         LOGGER.debug("init_db: added test_admin")
         admin_query = Admin.query.all()
         LOGGER.debug("init_db: admin_query: %s", admin_query)
@@ -93,33 +94,68 @@ def runner(app):
 
 
 @pytest.fixture
-def user_data(aes_cipher):
-    return {"name": "test_user", "password_hash": aes_cipher.encrypt("test_user")}
+def admin_data_pure():
+    return {"name": "test_admin", "password_hash": sha256("test_admin")}
 
 
 @pytest.fixture
-def user_data2(aes_cipher):
-    return {"name": "test_user2", "password_hash": aes_cipher.encrypt("test_user2")}
+def user_data_pure():
+    return {"name": "test_user", "password_hash": sha256("test_user")}
 
 
 @pytest.fixture
-def admin_data(aes_cipher):
-    return {"name": "test_admin", "password_hash": aes_cipher.encrypt("test_admin")}
+def user_data2_pure():
+    return {"name": "test_user2", "password_hash": sha256("test_user2")}
 
 
 @pytest.fixture
-def user(user_data):
-    return tuple(user_data.values())
+def admin_data(admin_data_pure):
+    return {"name": admin_data_pure["name"], "password_hash": simple_dencrypt(admin_data_pure["password_hash"])}
 
 
 @pytest.fixture
-def user2(user_data2):
-    return tuple(user_data2.values())
+def user_data(user_data_pure):
+    return {"name": user_data_pure["name"], "password_hash": simple_dencrypt(user_data_pure["password_hash"])}
+
+
+@pytest.fixture
+def user_data2(user_data2_pure):
+    return {"name": user_data2_pure["name"], "password_hash": simple_dencrypt(user_data2_pure["password_hash"])}
+
+
+@pytest.fixture
+def user_data_json(user_data):
+    return {"name": user_data["name"], "password_hash": user_data["password_hash"].decode()}
+
+
+@pytest.fixture
+def user_data2_json(user_data2):
+    return {"name": user_data2["name"], "password_hash": user_data2["password_hash"].decode()}
+
+
+@pytest.fixture
+def user(user_data_json: dict):
+    return tuple(user_data_json.values())
+
+
+@pytest.fixture
+def user2(user_data2_json: dict):
+    return tuple(user_data2_json.values())
 
 
 @pytest.fixture
 def admin(admin_data):
-    return tuple(admin_data.values())
+    return tuple(k if isinstance(k, str) else k.decode() for k in admin_data.values())
+
+
+def test_encrypt_decrypt():
+    LOGGER.debug("test_encrypt_decrypt")
+    test_str = "test_str"
+    test_str_encrypted = simple_dencrypt(test_str).decode()
+    LOGGER.debug("test_str_encrypted: %s", test_str_encrypted)
+    assert test_str_encrypted != test_str
+    assert simple_dencrypt(test_str_encrypted).decode() == test_str
+    LOGGER.debug("test_encrypt_decrypt done")
 
 
 def test_app(client):
@@ -128,19 +164,19 @@ def test_app(client):
     LOGGER.debug("test_app done")
 
 
-def test_init_db(app_ctx, admin_data):
+def test_init_db(app_ctx, admin_data_pure):
     LOGGER.debug("test_init_db")
     with app_ctx:
         db_admin = Admin.query.all()
-        assert admin_data["name"] == db_admin[0].name
-        assert admin_data["password_hash"] == db_admin[0].password_hash
+        assert admin_data_pure["name"] == db_admin[0].name
+        assert admin_data_pure["password_hash"] == db_admin[0].password_hash
 
 
 def test_login(client):
     LOGGER.debug("test_login")
     response = client.get(URLS.ULogin)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
     LOGGER.debug("test_login done")
 
 
@@ -148,7 +184,7 @@ def test_register_get(client, admin):
     LOGGER.debug("test_register: get")
     response = client.get(URLS.URegister)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
     response = client.get(URLS.URegister, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
@@ -160,9 +196,9 @@ def test_register_get(client, admin):
     }
 
 
-def test_register_post_get(client, user_data, admin, app_ctx):
+def test_register_post_get(client, user_data_json, admin, app_ctx):
     LOGGER.debug("test_register: post")
-    response = client.post(URLS.URegister, json=user_data, auth=admin)
+    response = client.post(URLS.URegister, json=user_data_json, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_created"}
 
@@ -191,9 +227,9 @@ def test_register_post_get(client, user_data, admin, app_ctx):
             assert json_data[key] == db_users_jsons
 
 
-def test_register_post_user_already_exits(client, user_data2, admin):
+def test_register_post_user_already_exits(client, user_data2_json, admin):
     LOGGER.debug("creating user2")
-    response = client.post(URLS.URegister, json=user_data2, auth=admin)
+    response = client.post(URLS.URegister, json=user_data2_json, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {
         "status": "success",
@@ -201,8 +237,8 @@ def test_register_post_user_already_exits(client, user_data2, admin):
     }
     LOGGER.debug("creating user2 done")
     LOGGER.debug("creating user2 again")
-    response = client.post(URLS.URegister, json=user_data2, auth=admin)
-    assert response.status_code == 200
+    response = client.post(URLS.URegister, json=user_data2_json, auth=admin)
+    assert response.status_code == 400
     assert json.loads(response.data) == {
         "status": "error",
         "message": "user_already_exists",
@@ -214,26 +250,26 @@ def test_register_non_json(client, user_data, user, admin):
     LOGGER.debug("test_register_non_json with admin auth")
     response = client.post(URLS.URegister, data=user_data, auth=admin)
     assert response.status_code == 415
-    assert json.loads(response.data) == ERRORS["unsupported_media_type"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unsupported_media_type"]
     LOGGER.debug("test_register_non_json with admin auth done")
 
     LOGGER.debug("test_register_non_json with user auth")
     response = client.post(URLS.URegister, data=user_data, auth=user)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
     LOGGER.debug("test_register_non_json with user auth done")
 
     LOGGER.debug("test_register_non_json without auth")
     response = client.post(URLS.URegister, data=user_data)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
     LOGGER.debug("test_register_non_json without auth done")
 
 
 def test_register_bad_request(client, admin):
     LOGGER.debug("test_register_bad_request with incomplete data")
     response = client.post(URLS.URegister, json={"name": "test_user"}, auth=admin)
-    # assert response.status_code == 400
+    assert response.status_code == 400
     assert json.loads(response.data) == {"status": "error", "message": "request_data_incomplete"}
     LOGGER.debug("test_register_bad_request with incomplete data done")
 
@@ -246,7 +282,7 @@ def test_register_bad_request(client, admin):
     LOGGER.debug("test_register_bad_request with None data")
     response = client.post(URLS.URegister, json=None, auth=admin)
     assert response.status_code == 415
-    assert json.loads(response.data) == ERRORS["unsupported_media_type"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unsupported_media_type"]
     LOGGER.debug("test_register_bad_request with None data done")
 
     LOGGER.debug("test_register_bad_request with empty values data")
@@ -260,29 +296,39 @@ def test_register_bad_request(client, admin):
 # TODO: write more tests for login
 
 
-def test_login_post_user_not_found(client, user_data):
+def test_login_post_user_not_found(client, user_data_json):
     LOGGER.debug("test_login_post_user_not_found: post")
-    response = client.post(URLS.ULogin, json=user_data)
+    response = client.post(URLS.ULogin, json=user_data_json)
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "user_cred_not_found"}
 
 
 @pytest.fixture
-def login_user_data(user_data):
-    return user_data
+def login_user_data(user):
+    return user
 
 
 @pytest.fixture
-def login_user(app_ctx, login_user_data):
+def login_user_data_pure(user_data_pure):
+    return user_data_pure
+
+
+@pytest.fixture
+def login_user_data_json(user_data_json):
+    return user_data_json
+
+
+@pytest.fixture
+def login_user(app_ctx, login_user_data_pure, login_user_data):
     with app_ctx:
-        if (db_user := User.query.filter_by(name=login_user_data["name"]).first()) is None:
+        if (db_user := User.query.filter_by(name=login_user_data_pure["name"]).first()) is None:
             LOGGER.debug("login_user: db not have login_user ,adding login_user to db")
-            add_user(User(name=login_user_data["name"], password_hash=login_user_data["password_hash"]))
-            db_user = User.query.filter_by(name=login_user_data["name"]).first()
+            add_user(User(name=login_user_data_pure["name"], password_hash=login_user_data_pure["password_hash"]))
+            db_user = User.query.filter_by(name=login_user_data_pure["name"]).first()
             LOGGER.debug("login_user: added and queried db_user: %s", db_user)
         LOGGER.debug("login_user: db_user: %s", db_user)
         db.session.commit()
-        return tuple(login_user_data.values())
+        return login_user_data
 
 
 def test_login_post_package_not_found(client, login_user):
@@ -308,12 +354,14 @@ def expired_user_packet_data():
 
 
 @pytest.fixture
-def login_user_expired_packet(expired_user_packet_data, packet_data, packet_content_data, login_user_data, app_ctx):
+def login_user_expired_packet(
+    expired_user_packet_data, packet_data, packet_content_data, login_user_data, login_user_data_pure, app_ctx
+):
     with app_ctx:
-        if (user_exists := User.query.filter_by(name=login_user_data["name"]).first()) is None:
-            user_exists = User(name=login_user_data["name"], password_hash=login_user_data["password_hash"])
+        if (user_exists := User.query.filter_by(name=login_user_data_pure["name"]).first()) is None:
+            user_exists = User(name=login_user_data_pure["name"], password_hash=login_user_data_pure["password_hash"])
             add_user(user_exists)
-            user_exists = User.query.filter_by(name=login_user_data["name"]).first()
+            user_exists = User.query.filter_by(name=login_user_data_pure["name"]).first()
         if (packet_content_exists := PackageContent.query.filter_by(name=packet_content_data["name"]).first()) is None:
             packet_content_exists = PackageContent(
                 name=packet_content_data["name"],
@@ -341,27 +389,27 @@ def login_user_expired_packet(expired_user_packet_data, packet_data, packet_cont
             )
         )
         db.session.commit()
-        db_user = User.query.filter_by(name=login_user_data["name"]).first()
+        db_user = User.query.filter_by(name=login_user_data_pure["name"]).first()
         db_packet = db_user.package
         assert db_packet.end_date < datetime.datetime.now()
         db.session.commit()
-        return tuple(login_user_data.values())
+        return login_user_data
 
 
 def test_login_post_packet_expired(client, login_user_expired_packet):
     LOGGER.debug("test_login_post_packet_expired: post,auth with expired_user_packet_data: %s " % ",".join(login_user_expired_packet))
     response = client.post(URLS.ULogin, auth=login_user_expired_packet)
     assert response.status_code == 410
-    assert json.loads(response.data) == {"status": "error", "message": "packet_time_expired"}
+    assert json.loads(response.data) == {"status": "error", "message": "package_expired"}
 
 
 @pytest.fixture
-def login_user_with_packet(packet_data, packet_content_data, login_user_data, app_ctx):
+def login_user_with_packet(app_ctx, packet_data, packet_content_data, login_user_data_pure, login_user_data):
     with app_ctx:
-        if (user_exists := User.query.filter_by(name=login_user_data["name"]).first()) is None:
-            user_exists = User(name=login_user_data["name"], password_hash=login_user_data["password_hash"])
+        if (user_exists := User.query.filter_by(name=login_user_data_pure["name"]).first()) is None:
+            user_exists = User(name=login_user_data_pure["name"], password_hash=login_user_data_pure["password_hash"])
             add_user(user_exists)
-            user_exists = User.query.filter_by(name=login_user_data["name"]).first()
+            user_exists = User.query.filter_by(name=login_user_data_pure["name"]).first()
         if (packet_content_exists := PackageContent.query.filter_by(name=packet_content_data["name"]).first()) is None:
             packet_content_exists = PackageContent(
                 name=packet_content_data["name"],
@@ -389,22 +437,22 @@ def login_user_with_packet(packet_data, packet_content_data, login_user_data, ap
             )
         )
         db.session.commit()
-        db_user = User.query.filter_by(name=login_user_data["name"]).first()
+        db_user = User.query.filter_by(name=login_user_data_pure["name"]).first()
         db_packet = db_user.package
         assert db_packet.end_date > datetime.datetime.now()
         db.session.commit()
-        return tuple(login_user_data.values())
+        return login_user_data
 
 
 def test_login_post_max_online_user1(client, login_user_with_packet):
     LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
     response = client.post(URLS.ULogin, auth=login_user_with_packet)
     assert response.status_code == 200
-    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["login_success"]
     LOGGER.debug("test_login_post_max_online_user1: post,auth with login_user_with_packet: %s " % ",".join(login_user_with_packet))
     response = client.post(URLS.ULogin, auth=login_user_with_packet)
     assert response.status_code == 401
-    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["max_online_user"]
 
 
 @pytest.fixture
@@ -413,12 +461,12 @@ def packet_content_extra_user():
 
 
 @pytest.fixture
-def login_user_with_extra_user_packet(packet_data, packet_content_extra_user, login_user_data, app_ctx):
+def login_user_with_extra_user_packet(packet_data, packet_content_extra_user, login_user_data_pure, app_ctx, login_user_data):
     with app_ctx:
-        if (user_exists := User.query.filter_by(name=login_user_data["name"]).first()) is None:
-            user_exists = User(name=login_user_data["name"], password_hash=login_user_data["password_hash"])
+        if (user_exists := User.query.filter_by(name=login_user_data_pure["name"]).first()) is None:
+            user_exists = User(name=login_user_data_pure["name"], password_hash=login_user_data_pure["password_hash"])
             add_user(user_exists)
-            user_exists = User.query.filter_by(name=login_user_data["name"]).first()
+            user_exists = User.query.filter_by(name=login_user_data_pure["name"]).first()
         if (packet_content_exists := PackageContent.query.filter_by(name=packet_content_extra_user["name"]).first()) is None:
             packet_content_exists = PackageContent(
                 name=packet_content_extra_user["name"],
@@ -446,11 +494,11 @@ def login_user_with_extra_user_packet(packet_data, packet_content_extra_user, lo
             )
         )
         db.session.commit()
-        db_user = User.query.filter_by(name=login_user_data["name"]).first()
+        db_user = User.query.filter_by(name=login_user_data_pure["name"]).first()
         db_packet = db_user.package
         assert db_packet.end_date > datetime.datetime.now()
         db.session.commit()
-        return tuple(login_user_data.values())
+        return login_user_data
 
 
 def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
@@ -460,14 +508,14 @@ def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
     )
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
-    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["login_success"]
     LOGGER.debug(
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
         % ",".join(login_user_with_extra_user_packet)
     )
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
-    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["login_success"]
 
     LOGGER.debug(
         "test_login_post_max_online_user2: post,auth with login_user_with_extra_user_packet: %s "
@@ -475,16 +523,16 @@ def test_login_post_max_online_user2(client, login_user_with_extra_user_packet):
     )
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
-    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["max_online_user"]
 
 
 @pytest.fixture
-def login_user_with_2_extra_user_packet(packet_data, packet_content_extra_user, login_user_data, app_ctx):
+def login_user_with_2_extra_user_packet(packet_data, packet_content_extra_user, login_user_data_pure, app_ctx, login_user_data):
     with app_ctx:
-        if (user_exists := User.query.filter_by(name=login_user_data["name"]).first()) is None:
-            user_exists = User(name=login_user_data["name"], password_hash=login_user_data["password_hash"])
+        if (user_exists := User.query.filter_by(name=login_user_data_pure["name"]).first()) is None:
+            user_exists = User(name=login_user_data_pure["name"], password_hash=login_user_data_pure["password_hash"])
             add_user(user_exists)
-            user_exists = User.query.filter_by(name=login_user_data["name"]).first()
+            user_exists = User.query.filter_by(name=login_user_data_pure["name"]).first()
         if (packet_content_exists := PackageContent.query.filter_by(name=packet_content_extra_user["name"]).first()) is None:
             packet_content_exists = PackageContent(
                 name=packet_content_extra_user["name"],
@@ -512,30 +560,30 @@ def login_user_with_2_extra_user_packet(packet_data, packet_content_extra_user, 
             )
         )
         db.session.commit()
-        db_user = User.query.filter_by(name=login_user_data["name"]).first()
+        db_user = User.query.filter_by(name=login_user_data_pure["name"]).first()
         db_packet = db_user.package
         assert db_packet.end_date > datetime.datetime.now()
         db.session.commit()
-        return tuple(login_user_data.values())
+        return login_user_data
 
 
 def test_login_post_max_online_user3(client, login_user_with_extra_user_packet):
     LOGGER.debug("test_login_post_max_online_user3, post 1")
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
-    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["login_success"]
     LOGGER.debug("test_login_post_max_online_user3, post 2")
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 200
-    assert json.loads(response.data) == {"status": "success", "message": "user_logged_in"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["login_success"]
     LOGGER.debug("test_login_post_max_online_user3, post 3")
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
-    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["max_online_user"]
     LOGGER.debug("test_login_post_max_online_user3, post 4")
     response = client.post(URLS.ULogin, auth=login_user_with_extra_user_packet)
     assert response.status_code == 401
-    assert json.loads(response.data) == {"status": "error", "message": "maximum_online_user_quota"}
+    assert json.loads(response.data) == EXPECTED_RESPONSES["max_online_user"]
 
 
 @pytest.fixture
@@ -673,15 +721,15 @@ def test_401(client):
     LOGGER.debug("test_401")
     response = client.get(URLS.URegister)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
 
     response = client.get(URLS.URegister)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
 
     response = client.get(URLS.URegister)
     assert response.status_code == 401
-    assert json.loads(response.data) == ERRORS["unauthorized"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unauthorized"]
 
     LOGGER.debug("test_401 done")
 
@@ -690,7 +738,7 @@ def test_404(client):
     LOGGER.debug("test_404")
     response = client.get("/404")
     assert response.status_code == 404
-    assert json.loads(response.data) == ERRORS["not_found"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["not_found"]
     LOGGER.debug("test_404 done")
 
 
@@ -699,45 +747,79 @@ def test_415(client, admin):
     response = client.post(URLS.URegister, data="aaa", auth=admin)
     # if admin auth is not provided, it will be 401 instead of 415
     assert response.status_code == 415
-    assert json.loads(response.data) == ERRORS["unsupported_media_type"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["unsupported_media_type"]
 
 
 def test_register_other_requests(client):
     LOGGER.debug("test_register_other_requests")
     response = client.put(URLS.URegister)
     assert response.status_code == 405
-    assert json.loads(response.data) == ERRORS["method_not_allowed"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["method_not_allowed"]
     response = client.delete(URLS.URegister)
     assert response.status_code == 405
-    assert json.loads(response.data) == ERRORS["method_not_allowed"]
+    assert json.loads(response.data) == EXPECTED_RESPONSES["method_not_allowed"]
     LOGGER.debug("test_register_other_requests done")
 
 
 @pytest.fixture
-def random_user_data():
-    return {"name": "test_user_" + str(random.randint(0, 10000000)), "password_hash": "test_password"}
+def random_user_data_pure():
+    return {"name": "test_user_" + str(random.randint(0, 10000000)), "password_hash": sha256("test_password")}
 
 
 @pytest.fixture
-def random_user(random_user_data):
-    return tuple(random_user_data.values())
+def random_user_data(random_user_data_pure):
+    return {"name": random_user_data_pure["name"], "password_hash": simple_dencrypt(random_user_data_pure["password_hash"])}
 
 
 @pytest.fixture
-def not_registered_user_data():
-    return {"name": "test_user_" + str(random.randint(0, 10000000)), "password_hash": "test_password"}
+def random_user_data_json(random_user_data):
+    return {
+        "name": random_user_data["name"],
+        "password_hash": random_user_data["password_hash"].decode(),
+    }
 
 
-def test_login_post_user_not_registered(client, not_registered_user_data):
+@pytest.fixture
+def random_user(random_user_data_json):
+    return tuple(random_user_data_json.values())
+
+
+@pytest.fixture
+def not_registered_user_data_pure():
+    return {"name": "not_registered_user_" + str(random.randint(0, 10000000)), "password_hash": sha256("test_password")}
+
+
+@pytest.fixture
+def not_registered_user_data(not_registered_user_data_pure):
+    return {
+        "name": not_registered_user_data_pure["name"],
+        "password_hash": simple_dencrypt(not_registered_user_data_pure["password_hash"]),
+    }
+
+
+@pytest.fixture
+def not_registered_user_data_json(not_registered_user_data):
+    return {
+        "name": not_registered_user_data["name"],
+        "password_hash": not_registered_user_data["password_hash"].decode(),
+    }
+
+
+@pytest.fixture
+def not_registered_user(not_registered_user_data_json):
+    return tuple(not_registered_user_data_json.values())
+
+
+def test_login_post_user_not_registered(client, not_registered_user_data_json):
     LOGGER.debug("test_login_post_user_not_registered: post")
-    response = client.post(URLS.ULogin, json=not_registered_user_data)
+    response = client.post(URLS.ULogin, json=not_registered_user_data_json)
     assert response.status_code == 404
     assert json.loads(response.data) == {"status": "error", "message": "user_cred_not_found"}
 
 
-def test_register_login_random_data_user(client, random_user_data, random_user, admin):
+def test_register_login_random_data_user(client, random_user_data_json, random_user, admin):
     LOGGER.debug("register_random_data_user: post")
-    response = client.post(URLS.URegister, json=random_user_data, auth=admin)
+    response = client.post(URLS.URegister, json=random_user_data_json, auth=admin)
     assert response.status_code == 200
     assert json.loads(response.data) == {"status": "success", "message": "user_created"}
     LOGGER.debug("register_random_data_user: post done")

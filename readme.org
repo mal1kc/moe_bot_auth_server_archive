@@ -2,9 +2,14 @@
 
 ** sorunlar
 
+- ne kadar güvenli emin degilim sifre kısmı
 
 ** eksikler - TODO
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
     - [ ] ana uygulamaya logger - % 50
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
+
+** muhtemel v2 özellikleri
+
+- sessionlara token baglıyıp token üzerinden kontrol gerçekleştirme ve session ömrünü uzatma
