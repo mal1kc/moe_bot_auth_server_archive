@@ -190,12 +190,22 @@ class U_Package(Base):
     @staticmethod
     def from_json(data: dict) -> U_Package:
         U_Package.validate(data=data)
-        return U_Package(
-            base_package=data["base_package"],
-            start_date=utc_timestamp(data["start_date"]),
-            end_date=utc_timestamp(data["end_date"]),
-            user=data["user"],
-        )
+        if "end_data" in data.keys():
+            return U_Package(
+                base_package=data["base_package"],
+                start_date=utc_timestamp(data["start_date"]),
+                end_date=utc_timestamp(data["end_data"]),
+                user=data["user"],
+            )
+        else:
+            base_package = get_package_by_id(data["base_package"])
+            base_package_days = base_package.days
+            return U_Package(
+                base_package=base_package.id,
+                start_data=utc_timestamp(data["start_date"]),
+                end_data=utc_timestamp(data["start_date"]) + timedelta(days=base_package_days),
+                user=data["user"],
+            )
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -204,7 +214,7 @@ class U_Package(Base):
                 Optional("id"): And(int, Use(lambda x: x in [u_package.id for u_package in U_Package.query.all()])),
                 "base_package": And(int, Use(_package_id_check)),
                 "start_date": And(int),
-                "end_date": And(int, Use(lambda x: (x > data["start_date"] and x < utc_timestamp(datetime.utcnow())))),
+                Optional("end_date"): And(int, Use(lambda x: (x > data["start_date"] and x < utc_timestamp(datetime.utcnow())))),
                 "user": And(int, Use(_user_id_check)),
             }
         )
@@ -569,6 +579,10 @@ def get_user_by_id(id: int, session: scoped_session = db.session) -> User:
 
 def get_admin_by_id(id: int, session: scoped_session = db.session) -> Admin:
     return session.query(Admin).filter_by(id=id).first()
+
+
+def get_package_by_id(id: int, session: scoped_session = db.session) -> Package:
+    return session.query(Package).filter_by(id=id).first()
 
 
 def try_login(user: User, ip_addr: str | None) -> loginError | bool:

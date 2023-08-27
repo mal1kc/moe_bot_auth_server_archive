@@ -11,7 +11,6 @@ packages = [{include = "moe_gthr_auth_server"}]
 python = "^3.11"
 Flask-SQLAlchemy = "^3.0.5"
 schema = "^0.7.5"
-ruff-lsp = "^0.0.35"
 gunicorn = "^21.2.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -20,6 +19,7 @@ pytest = "^7.4.0"
 black = "^23.7.0"
 requests = "^2.31.0"
 pre-commit = "^3.3.3"
+ruff-lsp = "^0.0.37"
 
 [tool.black]
 python = "^3.11"

@@ -4,10 +4,42 @@
 
 - ne kadar güvenli emin degilim sifre kısmı
 
-** eksikler - TODO
+** eksikler - TODO - v1
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
-    - [ ] ana uygulamaya logger - % 50
+    - [ ] testleri baştan yaz
+    - [ ]externel bir şekilde kullanım testleri
+        - [ ] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
+            - [ ] admin,user şeklinde
+    - [ ] u_package ekleme
+    - [ ] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
+        #+begin_src python
+            {
+                "status":"success"
+                "message":"user_created"
+                "detail":{
+                    "user_id":1
+                }
+            }
+        #+end_src
+    - [ ] güncelleme  routelari
+        #+begin_src python
+        url = "api/v1/update/{id}"
+        json = {
+            "m_type":"package"
+            "model": {
+                "name" : "adada"
+                "detail" : "1dadad"
+                "days": 10,
+                "package_contents" : [{
+                "name"  : "moe_gatherer" ,"contentvalue":0 # contentvalue enum degeri
+                }]
+            }
+            }
+        #+end_src
+    - [ ] delete routelari
+    - [ ] routelar tek çatı altında toplanabilir, login hariç
+    - [ ] routelar get_by_id routelari
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
 
 ** muhtemel v2 özellikleri
