@@ -5,20 +5,20 @@
 - ne kadar güvenli emin degilim sifre kısmı
 
 ** eksikler - TODO - v1
-    - [X] login islemi gözden geçirilmesi lazım
-    - [X] logine test lazım
+    - [ ] login islemi gözden geçirilmesi lazım
+    - [ ] logine test lazım
     - [ ] testleri baştan yaz
     - [ ]externel bir şekilde kullanım testleri
-        - [ ] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
-            - [ ] admin,user şeklinde
+      - [ ] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
+        - [ ] admin,user şeklinde
     - [ ] u_package ekleme
-    - [ ] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
+    - [X] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
         #+begin_src python
             {
                 "status":"success"
                 "message":"user_created"
-                "detail":{
-                    "user_id":1
+                "user": {
+                    **user_data
                 }
             }
         #+end_src
@@ -35,10 +35,9 @@
                 "name"  : "moe_gatherer" ,"contentvalue":0 # contentvalue enum degeri
                 }]
             }
-            }
+        }
         #+end_src
     - [ ] delete routelari
-    - [ ] routelar tek çatı altında toplanabilir, login hariç
     - [ ] routelar get_by_id routelari
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
 

@@ -193,17 +193,21 @@ class U_Package(Base):
         if "end_data" in data.keys():
             return U_Package(
                 base_package=data["base_package"],
-                start_date=utc_timestamp(data["start_date"]),
-                end_date=utc_timestamp(data["end_data"]),
+                start_date=utc_timestamp(data["start_date"], return_type=datetime),
+                end_date=utc_timestamp(data["end_data"], return_type=datetime),
                 user=data["user"],
             )
         else:
             base_package = get_package_by_id(data["base_package"])
+            if base_package is None:
+                raise AttributeError("base_package not found")
+            if base_package.days is None:
+                raise AttributeError("base_package.days not found")
             base_package_days = base_package.days
             return U_Package(
                 base_package=base_package.id,
-                start_data=utc_timestamp(data["start_date"]),
-                end_data=utc_timestamp(data["start_date"]) + timedelta(days=base_package_days),
+                start_data=utc_timestamp(data["start_date"], return_type=datetime),
+                end_data=utc_timestamp(data["start_date"], return_type=datetime) + timedelta(days=base_package_days),  # type: ignore
                 user=data["user"],
             )
 
@@ -297,6 +301,14 @@ class User(Base):
             "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
             "discord_id": self.discord_id,
         }
+
+    @staticmethod
+    def from_json(data: dict) -> User:
+        User.validate(data=data)
+        return User(
+            name=data["name"],
+            password_hash=data["password_hash"],
+        )
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -440,18 +452,25 @@ class Admin(Base):
 #     return sha256_hash(sifre) == hash
 
 
-def utc_timestamp(dt: datetime | int) -> int | datetime:
+def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | datetime:
     """
     toggle datetime to int timestamp
     toggle int timestampt to datetime
     :param: dt
+    :param: return_type -> datetime | int | None (default None)
 
     note: i lose some presition but is it need to be that precise
     """
-    if isinstance(dt, datetime):
-        return int(dt.timestamp())
-    if isinstance(dt, int):
-        return datetime.utcfromtimestamp(float(dt))
+    if return_type is None:
+        if isinstance(dt, datetime):
+            return int(dt.timestamp())
+        if isinstance(dt, int):
+            return datetime.utcfromtimestamp(float(dt))
+    else:
+        for _ in range(2):
+            new_dt = utc_timestamp(dt, return_type=None)
+            if isinstance(new_dt, return_type):
+                return new_dt
     raise RuntimeError("dt needs to be int or datetime.datetime object")
 
 
@@ -565,23 +584,23 @@ def update_user(u_id: str, new_user: User, session: scoped_session = db.session)
     return DBOperationResult.unknown_error
 
 
-def get_user(u_name: str, session: scoped_session = db.session) -> User:
-    return session.query(User).filter_by(name=u_name).first()
+def get_user(name: str, session: scoped_session = db.session) -> User | None:
+    return session.query(User).filter_by(name=name).first()
 
 
-def get_admin(a_name: str, session: scoped_session = db.session) -> Admin:
-    return session.query(Admin).filter_by(name=a_name).first()
+def get_admin(name: str, session: scoped_session = db.session) -> Admin | None:
+    return session.query(Admin).filter_by(name=name).first()
 
 
-def get_user_by_id(id: int, session: scoped_session = db.session) -> User:
+def get_user_by_id(id: int, session: scoped_session = db.session) -> User | None:
     return session.query(User).filter_by(id=id).first()
 
 
-def get_admin_by_id(id: int, session: scoped_session = db.session) -> Admin:
+def get_admin_by_id(id: int, session: scoped_session = db.session) -> Admin | None:
     return session.query(Admin).filter_by(id=id).first()
 
 
-def get_package_by_id(id: int, session: scoped_session = db.session) -> Package:
+def get_package_by_id(id: int, session: scoped_session = db.session) -> Package | None:
     return session.query(Package).filter_by(id=id).first()
 
 

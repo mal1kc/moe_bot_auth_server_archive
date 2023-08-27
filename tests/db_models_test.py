@@ -1,8 +1,7 @@
 import logging
 import random
-from hashlib import sha256
-
 import pytest
+from moe_gthr_auth_server.crpytion import make_password_hash
 from moe_gthr_auth_server.database_ops import (
     Admin,
     Base,
@@ -47,14 +46,14 @@ def test_check_database_empty(session):
 
 @fixture
 def user_data():
-    return {"name": "test_user", "password_hash": sha256("test_user".encode()).hexdigest()}
+    return {"name": "test_user", "password_hash": make_password_hash("test_user")}
 
 
 @fixture
 def user(user_data) -> User:
     return User(
         name=user_data["name"],
-        password_hash=sha256(user_data["name"].encode()).hexdigest(),
+        password_hash=user_data["password_hash"],
     )
 
 
@@ -67,8 +66,9 @@ def test_user_add(user, session, user_data):
 
 def test_user_password_hash(user, session, user_data):
     add_user(user, session)
+    assert user.password_hash == user_data["password_hash"]
     q_user = session.query(User).filter_by(name=user_data["name"]).first()
-    assert q_user.password_hash == sha256(user_data["name"].encode()).hexdigest()
+    assert q_user.password_hash == user_data["password_hash"]
     session.close()
 
 
@@ -81,14 +81,14 @@ def test_get_user_by_id(user, session, user_data):
 
 @fixture
 def admin_data():
-    return {"name": "test_admin", "password_hash": sha256("test_admin".encode()).hexdigest()}
+    return {"name": "test_admin", "password_hash": make_password_hash("test_admin")}
 
 
 @fixture
 def admin(admin_data) -> Admin:
     return Admin(
         name=admin_data["name"],
-        password_hash=sha256(admin_data["name"].encode()).hexdigest(),
+        password_hash=admin_data["password_hash"],
     )
 
 
@@ -104,7 +104,7 @@ def test_admin_password_hash(session, admin, admin_data):
     if not session.query(Admin).filter_by(name=admin_data["name"]).first():
         add_admin(admin, session)
     q_admin = session.query(Admin).filter_by(name=admin_data["name"]).first()
-    assert q_admin.password_hash == sha256(admin_data["name"].encode()).hexdigest()
+    assert q_admin.password_hash == admin_data["password_hash"]
     session.close()
 
 

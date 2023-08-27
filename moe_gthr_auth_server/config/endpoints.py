@@ -8,38 +8,25 @@ URL_PREFIX_USER = URL_PREFIX + "/user"
 
 @dataclass
 class _URLS:
-    __slots__ = ["ULogin", "ALogin", "URegister", "APRegister", "UPRegister", "UPInfo", "UUpdate"]
+    __slots__ = ["ULogin", "UInfo", "ALogin", "ARegister", "AInfo", "AUpdate"]
     ULogin: str
+    UInfo: str
     ALogin: str
-    URegister: str
-    APRegister: str
-    UPRegister: str
-    UPInfo: str
-    UUpdate: str
+    ARegister: str
+    AInfo: str
+    AUpdate: str
 
 
-@functools.lru_cache(maxsize=1)
+@functools.lru_cache(maxsize=1, typed=True)
 def _init_urls() -> _URLS:
     return _URLS(
         ULogin=URL_PREFIX_USER + "/login",
+        UInfo=URL_PREFIX_USER + "/info",
         ALogin=URL_PREFIX_ADMIN + "/login",  # TODO: not implemented
-        URegister=URL_PREFIX_ADMIN + "/register",  # currently only admin can register new users
-        APRegister=URL_PREFIX_ADMIN + "/p_register",  # register package and package contents
-        UPRegister=URL_PREFIX_USER + "/p_register",  # register u_package or update u_package
-        # UInfo = URL_PREFIX_USER + "/info",
-        UPInfo=URL_PREFIX_USER + "/p_info",
-        UUpdate=URL_PREFIX_USER + "/update",
+        ARegister=URL_PREFIX_ADMIN + "/register",  # currently only admin can register new users
+        AInfo=URL_PREFIX_ADMIN + "/info",
+        AUpdate=URL_PREFIX_ADMIN + "/update",
     )
 
 
 URLS: _URLS = _init_urls()
-
-# URLS = {
-#     "ULogin": URL_PREFIX_USER + "/login",
-#     "ALogin": URL_PREFIX_ADMIN + "/login", # TODO: not implemented
-#     "URegister": URL_PREFIX_ADMIN + "/register", # currently only admin can register new users
-#     "APRegister": URL_PREFIX_ADMIN + "/p_register", # register package and package contents
-#     "UPRegister": URL_PREFIX_USER + "/p_register", # register u_package or update u_package
-#     # "UInfo" : URL_PREFIX_USER + "/info",
-#     "UPInfo": URL_PREFIX_USER + "/p_info",
-# }

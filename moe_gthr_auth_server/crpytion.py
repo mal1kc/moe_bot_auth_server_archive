@@ -2,7 +2,74 @@ import hashlib
 
 from .config.secret_key import read_enc_key
 
-bytes64 = bytes  # type alias for bytes with length 64
+encoding = "utf-8"
+encryption_password = read_enc_key()
+
+
+def simple_dencrypt(data: bytes | str, password: str | bytes = encryption_password) -> bytes:
+    if isinstance(password, str):
+        password = password.encode("utf-8")
+    elif not isinstance(password, bytes):
+        raise TypeError("password must be str or bytes")
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    elif not isinstance(data, bytes):
+        raise TypeError("data must be str or bytes")
+
+    sifrelenmis = bytearray()
+    for i, b in enumerate(data):
+        sifrelenmis.append(b ^ password[i % len(password)])
+    return bytes(sifrelenmis)
+
+
+##
+### IMPORTANT: client side code
+##
+## def make_password_hash(password: str) -> str:
+##    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest()
+##
+## def make_password_ready(password: str) -> str:
+##    return simple_dencrypt(make_password_hash(password).encode(encoding), encrption_password).hex()
+
+
+def generate_password_salt(password: str) -> str:
+    return hashlib.sha256(password.encode(encoding)).hexdigest()
+
+
+def make_password_hash(password: str) -> str:
+    """
+    password: plain text
+    return value: hex string
+    """
+    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest()
+
+
+def make_password_ready(password: str) -> str:
+    """
+    password: plain text
+    return value: hex string
+    """
+    return simple_dencrypt(make_password_hash(password).encode(encoding), encryption_password).hex()
+
+
+def unmake_password_ready(password_hex: str) -> str:
+    """
+    password_hex: hex string
+    return value: plain text
+    """
+    return simple_dencrypt(bytes.fromhex(password_hex), read_enc_key()).decode(encoding)
+
+
+def compare_encypted_hashes(encrypted_password_hash: str, password_hash: str) -> bool:
+    """
+    encrypted_password_hash: hex string
+    password_hash: hex string
+    return value: bool
+    """
+    return unmake_password_ready(encrypted_password_hash) == password_hash
+
+
+# bytes64 = bytes  # type alias for bytes with length 64
 
 # TODO: AESCipher DOESSN'T WORK ->
 #   - so utf-8 encoding , decoding errors
@@ -41,23 +108,3 @@ bytes64 = bytes  # type alias for bytes with length 64
 #     @staticmethod
 #     def __unpad(plain_text: bytes) -> str:
 #         return plain_text.rstrip(b"\0").decode()
-
-
-def simple_dencrypt(data: bytes | str, password: str | bytes = read_enc_key()) -> bytes:
-    if isinstance(password, str):
-        password = password.encode("utf-8")
-    elif not isinstance(password, bytes):
-        raise TypeError("password must be str or bytes")
-    if isinstance(data, str):
-        data = data.encode("utf-8")
-    elif not isinstance(data, bytes):
-        raise TypeError("data must be str or bytes")
-
-    sifrelenmis = bytearray()
-    for i, b in enumerate(data):
-        sifrelenmis.append(b ^ password[i % len(password)])
-    return bytes(sifrelenmis)
-
-
-def sha256(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()

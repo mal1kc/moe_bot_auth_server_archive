@@ -1,7 +1,9 @@
 import click
 import logging
 from flask import Blueprint, Response, jsonify, request
-from schema import And, Schema, SchemaError
+from schema import Schema, SchemaError
+
+from client.encryption import make_password_hash
 
 from .err_handlrs import (
     bad_request,
@@ -26,12 +28,13 @@ from .database_ops import (
     add_package_content,
     add_user,
     db,
+    get_user,
     loginError,
     pContentEnum,
     try_login,
 )
 
-from .crpytion import simple_dencrypt, sha256
+from .crpytion import compare_encypted_hashes, unmake_password_ready
 
 from werkzeug.exceptions import UnsupportedMediaType
 from .config import endpoints
@@ -80,7 +83,9 @@ def initdb_command(recreate: bool = False):
     print(" ✅ veritabanı tablolari oluşturuldu ✅ ")
     print("veritabanı içeriği oluşturuluyor")
     print("admin ekleniyor")
-    if (db_op_result := add_admin(Admin(name="mal1kc", password_hash=sha256("deov04ın-!ıj0dı12klsa")))) != DBOperationResult.success:
+    if (
+        db_op_result := add_admin(Admin(name="mal1kc", password_hash=make_password_hash("deov04ın-!ıj0dı12klsa")))
+    ) != DBOperationResult.success:
         print(" ❌ admin eklenemedi ❌ ")
         print(" ❌ veritabanı oluşturulamadı ❌ ")
         print(" ❌ Hata: %s ❌ ", db_op_result)
@@ -165,51 +170,100 @@ def anasayfa():
 # TODO: seperate admin endpoints to methods
 
 
-@main_blueprint.route(endpoints.URLS.APRegister, methods=["GET", "POST"])
-def admin_package_register() -> tuple[Response, int]:
+@main_blueprint.route(endpoints.URLS.ARegister, methods=["GET", "POST"])
+def admin_register() -> tuple[Response, int]:
     """
-    package and package content register endpoint for admins
+    model register endpoint for admins
     """
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     if request.method == "POST":
-        _is_admin = is_admin(request=request)
-        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
-        if _is_admin:
+        is_admin = get_admin_from_req(request=request)
+        LOGGER.debug(f"{req_id} - admin : {is_admin}")
+        if is_admin:
             try:
                 req_data = request.get_json(cache=False)
                 if not req_data:
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if "m_type" not in req_data or "model" not in req_data:
+                if "model_type" not in req_data or "model" not in req_data:
                     raise ReqDataErrors.req_data_incomplete()
-                if req_data["m_type"] is None or req_data["model"] is None:
+                if req_data["model_type"] is None or req_data["model"] is None:
                     raise ReqDataErrors.req_data_is_none_or_empty()
                 json_schema = Schema(
                     {
-                        "m_type": str,
+                        "model_type": str,
                         "model": dict,
                     }
                 )
 
                 json_schema.validate(req_data)
-                if req_data["m_type"] == "" or req_data["model"] == "":
+                if req_data["model_type"] == "" or req_data["model"] == "":
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if req_data["m_type"] == "package":
-                    try:
-                        model = Package.from_json(req_data["model"])
-                        add_package(model)
-                    except Exception as SchemaError:
-                        return bad_request(SchemaError)
-                    return request_success_response("package_created"), 200
-                elif req_data["m_type"] == "package_content":
-                    model = PackageContent.from_json(req_data["model"])
-                    add_package_content(model)
-                    return request_success_response("package_content_created"), 200
-                elif req_data["m_type"] == "user_package":
-                    model = U_Package.from_json(req_data["model"])
-                    add_u_package(model)
-                    return request_success_response("user_package_created"), 200
-                return bad_request("invalid_model_type")
+                elif req_data["model_type"] == "user":
+                    user = User.from_json(data=req_data["model"])
+                    if get_user(user.name) is not None:
+                        return request_error_response("user_already_exists"), 400
+                    db_op_result = add_user(User(name=user.name, password_hash=unmake_password_ready(user.password_hash)))
+                    if db_op_result is DBOperationResult.success:
+                        db_user = User.query.filter_by(name=user.name).first()
+                        return (
+                            request_success_response(success_msg="user_created", extra={"user": db_user.__json__()}),
+                            200,
+                        )
+                    return request_error_response("db_error", extra={"db_op_result": db_op_result}), 400
+                elif req_data["model_type"] == "package":
+                    package = Package.from_json(req_data["model"])
+                    db_op_result = add_package(package)
+                    if db_op_result is DBOperationResult.success:
+                        db_package = Package.query.filter_by(name=package.name).first()
+                        return (
+                            request_success_response(
+                                success_msg="package_created", extra={"package": db_package.__json__(user_incld=False)}
+                            ),
+                            200,
+                        )
+                    return request_error_response("db_error", extra={"db_op_result": db_op_result}), 400
+                elif req_data["model_type"] == "package_content":
+                    package_content = PackageContent.from_json(req_data["model"])
+                    db_op_result = add_package_content(package_content)
+                    if db_op_result is DBOperationResult.success:
+                        return (
+                            request_success_response(
+                                success_msg="package_content_created",
+                                extra={"package_content": package_content.__json__()},
+                            ),
+                            200,
+                        )
+                    return request_error_response("db_error", extra={"db_op_result": db_op_result}), 400
+                elif req_data["model_type"] == "u_package":
+                    u_package = U_Package.from_json(req_data["model"])
+                    db_op_result = add_u_package(u_package)
+                    if db_op_result is DBOperationResult.success:
+                        return (
+                            request_success_response(
+                                success_msg="u_package_created", extra={"u_package": u_package.__json__(user_incld=False)}
+                            ),
+                            200,
+                        )
+                    return request_error_response("db_error", extra={"db_op_result": db_op_result}), 400
+                return (
+                    request_error_response(
+                        "unsupported_model_type", extra={"supported_model_types": ["user", "package", "package_content", "u_package"]}
+                    ),
+                    400,
+                )
+            except SchemaError as schErr:
+                if schErr.code.startswith("Missing key"):
+                    if schErr.code[11] == "s":
+                        return req_data_is_none_or_empty()
+                    return req_data_incomplete()
+                if schErr.code.startswith("Key"):
+                    return req_data_is_none_or_empty()
+                return bad_request(schErr)
+            except AttributeError as e:
+                if str(e).endswith("object has no attribute 'get'"):
+                    return unsupported_media_type()
+                return bad_request(e)
             except ReqDataErrors.req_data_incomplete:
                 return req_data_incomplete()
             except ReqDataErrors.req_data_is_none_or_empty:
@@ -219,108 +273,88 @@ def admin_package_register() -> tuple[Response, int]:
                     return unsupported_media_type()
                 return bad_request(e)
         return unauthorized()
-    elif request.method == "GET":
-        _is_admin = is_admin(request=request)
-        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
-        if _is_admin:
-            all_packages = [package.__json__() for package in Package.query.all()]
-            all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
-            return (
-                jsonify(
-                    {
-                        "status": "success",
-                        "message": "db_content",
-                        "packages": all_packages,
-                        "package_contents": all_packagecontents,
-                    }
-                ),
-                200,
-            )
-        return unauthorized()
-    else:
-        return method_not_allowed()
+    return method_not_allowed()
 
 
-@main_blueprint.route(endpoints.URLS.URegister, methods=["GET", "POST"])
-def user_register() -> tuple[Response, int]:
-    """
-    user register endpoint for admins
-    """
-    req_id = generate_req_id(remote_addr=request.remote_addr)
-    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
-    if request.method == "POST":
-        _is_admin = is_admin(request=request)
-        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
-        if _is_admin:
-            try:
-                LOGGER.debug(f"{req_id} - trying to get json data")
-                req_data = request.get_json(cache=False)
-                LOGGER.debug(f"{req_id} - req_data : {req_data}")
-                json_schema = Schema({"name": And(str, len), "password_hash": And(str, len)})
-                json_schema.validate(req_data)
-            except SchemaError as schErr:
-                LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
-                # TODO : i dont like this
-                #  - future add enum for error codes or rewrite schema lib (prob. second)
-                if schErr.code.startswith("Missing key"):
-                    if schErr.code[11] == "s":  # 11 is len("Missing key")
-                        return req_data_is_none_or_empty()
-                    return req_data_incomplete()
-                if schErr.code.startswith("Key"):
-                    return req_data_is_none_or_empty()
-                return bad_request(schErr)
-            except AttributeError as e:
-                LOGGER.debug(f"{req_id} - catched attribute error : {e}")
-                return bad_request(e)
-            except Exception as e:
-                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
-                if type(e) is UnsupportedMediaType:
-                    return unsupported_media_type()
-                return bad_request(e)
-            else:
-                LOGGER.debug(f"{req_id} - trying to add user")
-                db_op_result = add_user(
-                    User(name=req_data["name"], password_hash=simple_dencrypt(req_data["password_hash"]).decode("utf-8"))
-                )
-                LOGGER.debug(f"{req_id} - db_op_result : {db_op_result}")
-                match db_op_result:
-                    case DBOperationResult.model_already_exists:
-                        return request_error_response("user_already_exists"), 400
-                    case DBOperationResult.unknown_error:
-                        return request_error_response("unknown_error"), 400
-                    case DBOperationResult.model_name_too_short:
-                        return request_error_response("user_name_too_short"), 400
-                    case DBOperationResult.model_name_too_long:
-                        return request_error_response("user_name_too_long"), 400
-                    case DBOperationResult.model_passhash_too_short:
-                        return request_error_response("user_passhash_too_short"), 400
-                    case DBOperationResult.success:
-                        return request_success_response("user_created"), 200
-                    case _:
-                        return request_error_response("unknown_error"), 400
-        LOGGER.debug(f"{req_id} - admin is None or False")
-        return unauthorized()
-    elif request.method == "GET":
-        _is_admin = is_admin(request=request)
-        LOGGER.debug(f"{req_id} - admin : {_is_admin}")
-        if _is_admin:
-            all_users = [kullanici.__json__() for kullanici in User.query.all()]
-            all_packages = [package.__json__() for package in Package.query.all()]
-            all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
-            return (
-                jsonify(
-                    {
-                        "status": "success",
-                        "message": "db_content",
-                        "users": all_users,
-                        "packages": all_packages,
-                        "package_contents": all_packagecontents,
-                    }
-                ),
-                200,
-            )
-        return unauthorized()
-    return bad_request()
+# def user_register() -> tuple[Response, int]:
+#     """
+#     user register endpoint for admins
+#     """
+#     req_id = generate_req_id(remote_addr=request.remote_addr)
+#     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
+#     if request.method == "POST":
+#         _is_admin = is_admin(request=request)
+#         LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+#         if _is_admin:
+#             try:
+#                 LOGGER.debug(f"{req_id} - trying to get json data")
+#                 req_data = request.get_json(cache=False)
+#                 LOGGER.debug(f"{req_id} - req_data : {req_data}")
+#                 json_schema = Schema({"name": And(str, len), "password_hash": And(str, len)})
+#                 json_schema.validate(req_data)
+#             except SchemaError as schErr:
+#                 LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
+#                 # TODO : i dont like this
+#                 #  - future add enum for error codes or rewrite schema lib (prob. second)
+#                 if schErr.code.startswith("Missing key"):
+#                     if schErr.code[11] == "s":  # 11 is len("Missing key")
+#                         return req_data_is_none_or_empty()
+#                     return req_data_incomplete()
+#                 if schErr.code.startswith("Key"):
+#                     return req_data_is_none_or_empty()
+#                 return bad_request(schErr)
+#             except AttributeError as e:
+#                 LOGGER.debug(f"{req_id} - catched attribute error : {e}")
+#                 return bad_request(e)
+#             except Exception as e:
+#                 LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+#                 if type(e) is UnsupportedMediaType:
+#                     return unsupported_media_type()
+#                 return bad_request(e)
+#             else:
+#                 LOGGER.debug(f"{req_id} - trying to add user")
+#                 db_op_result = add_user(
+#                     User(name=req_data["name"], password_hash=simple_dencrypt(req_data["password_hash"]).decode("utf-8"))
+#                 )
+#                 LOGGER.debug(f"{req_id} - db_op_result : {db_op_result}")
+#                 match db_op_result:
+#                     case DBOperationResult.model_already_exists:
+#                         return request_error_response("user_already_exists"), 400
+#                     case DBOperationResult.unknown_error:
+#                         return request_error_response("unknown_error"), 400
+#                     case DBOperationResult.model_name_too_short:
+#                         return request_error_response("user_name_too_short"), 400
+#                     case DBOperationResult.model_name_too_long:
+#                         return request_error_response("user_name_too_long"), 400
+#                     case DBOperationResult.model_passhash_too_short:
+#                         return request_error_response("user_passhash_too_short"), 400
+#                     case DBOperationResult.success:
+#                         return request_success_response("user_created"), 200
+#                     case _:
+#                         return request_error_response("unknown_error"), 400
+#         LOGGER.debug(f"{req_id} - admin is None or False")
+#         return unauthorized()
+#     elif request.method == "GET":
+#         _is_admin = is_admin(request=request)
+#         LOGGER.debug(f"{req_id} - admin : {_is_admin}")
+#         if _is_admin:
+#             all_users = [kullanici.__json__() for kullanici in User.query.all()]
+#             all_packages = [package.__json__() for package in Package.query.all()]
+#             all_packagecontents = [package_content.__json__() for package_content in PackageContent.query.all()]
+#             return (
+#                 jsonify(
+#                     {
+#                         "status": "success",
+#                         "message": "db_content",
+#                         "users": all_users,
+#                         "packages": all_packages,
+#                         "package_contents": all_packagecontents,
+#                     }
+#                 ),
+#                 200,
+#             )
+#         return unauthorized()
+#     return bad_request()
 
 
 @main_blueprint.route(endpoints.URLS.ULogin, methods=["GET", "POST"])
@@ -356,7 +390,7 @@ def user_login() -> tuple[Response, int]:
                     )
                 elif try_login_response is True:
                     return (
-                        request_success_response("login_success"),
+                        request_success_response("login_success", extra={"user": is_user.__json__()}),
                         200,
                     )
             return jsonify({"status": "error", "message": "login_failed"}), 200
@@ -364,38 +398,38 @@ def user_login() -> tuple[Response, int]:
     return unauthorized()
 
 
-@main_blueprint.route(endpoints.URLS.UPInfo, methods=["GET"])
-def user_package_info() -> tuple[Response, int]:
-    """
-    user package info endpoint for users
-    """
-    req_id = generate_req_id(remote_addr=request.remote_addr)
-    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
-    if request.method == "GET":
-        is_user = get_user_from_req(request)
-        LOGGER.debug(f"{req_id} - is_user : {is_user}")
-        if isinstance(is_user, User):
-            LOGGER.debug(f"{req_id} - trying to get package info")
-            upackage = is_user.package
-            LOGGER.debug(f"{req_id} - upackage : {upackage}")
-            if upackage is None:
-                return (
-                    request_error_response("user_not_have_package"),
-                    404,
-                )  # hope this never happens
-            if upackage.is_expired():
-                return (
-                    request_error_response("package_expired"),
-                    410,
-                )
-            return (
-                jsonify({"status": "success", "message": "package_info", "package": upackage.__json__(user_incld=False)}),
-                200,
-            )
-        if isinstance(is_user, bool):
-            return request_error_response("login_failed"), 400
-        return request_error_response("user_cred_not_found"), 404
-    return method_not_allowed()
+# @main_blueprint.route(endpoints.URLS.UPInfo, methods=["GET"])
+# def user_package_info() -> tuple[Response, int]:
+#     """
+#     user package info endpoint for users
+#     """
+#     req_id = generate_req_id(remote_addr=request.remote_addr)
+#     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
+#     if request.method == "GET":
+#         is_user = get_user_from_req(request)
+#         LOGGER.debug(f"{req_id} - is_user : {is_user}")
+#         if isinstance(is_user, User):
+#             LOGGER.debug(f"{req_id} - trying to get package info")
+#             upackage = is_user.package
+#             LOGGER.debug(f"{req_id} - upackage : {upackage}")
+#             if upackage is None:
+#                 return (
+#                     request_error_response("user_not_have_package"),
+#                     404,
+#                 )  # hope this never happens
+#             if upackage.is_expired():
+#                 return (
+#                     request_error_response("package_expired"),
+#                     410,
+#                 )
+#             return (
+#                 jsonify({"status": "success", "message": "package_info", "package": upackage.__json__(user_incld=False)}),
+#                 200,
+#             )
+#         if isinstance(is_user, bool):
+#             return request_error_response("login_failed"), 400
+#         return request_error_response("user_cred_not_found"), 404
+#     return method_not_allowed()
 
 
 def get_user_from_req(request) -> bool | User | None:
@@ -404,22 +438,23 @@ def get_user_from_req(request) -> bool | User | None:
     user = User.query.filter_by(name=request.authorization.username).first()
     if user is None:
         return None
-    if simple_dencrypt(request.authorization.password).decode("utf-8") != user.password_hash:
-        return False
-    return user
+    if compare_encypted_hashes(request.authorization.password, user.password_hash):
+        return user
+    return False
 
 
-def is_admin(request) -> bool | None:
+def get_admin_from_req(request) -> bool | None:
     if request.headers.get("Authorization") is None:
         return None
     admin = Admin.query.filter_by(name=request.authorization.username).first()
     if admin is None:
         return False
-    # if request.authorization.password == admin.password_hash:
-    #     return False
-    if simple_dencrypt(request.authorization.password).decode("utf-8") != admin.password_hash:
-        return False
-    return True
+    if compare_encypted_hashes(
+        request.authorization.password,
+        admin.password_hash,
+    ):
+        return True
+    return False
 
 
 def generate_req_id(remote_addr: str | None) -> str:
