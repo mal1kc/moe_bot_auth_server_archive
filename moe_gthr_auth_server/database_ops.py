@@ -51,6 +51,10 @@ class DBOperationResult(enum.Enum):
     model_name_too_long = enum.auto()
     model_passhash_too_short = enum.auto()
 
+    def __json__(self) -> dict[str, Any]:
+        "serialize enum to json"
+        return {"db_operation_result": self.name}
+
 
 pcontent_packages_conn_table = db.Table(
     "pcontent_packages_conn_table",
@@ -119,24 +123,36 @@ class Package(Base):
         return f"<Package {self.id} {self.name} {self.days} {self.detail}>"
 
     def __json__(self) -> dict[str, Any]:
+        if self.packagecontents is not None and len(self.packagecontents) > 0:
+            return {
+                "id": self.id,
+                "name": self.name,
+                "days": self.days,
+                "detail": self.detail,
+                "packagecontents": [package_content.__json__() for package_content in self.packagecontents],
+            }
         return {
             "id": self.id,
             "name": self.name,
             "days": self.days,
             "detail": self.detail,
-            "packagecontents": [package_content.__json__() for package_content in self.packagecontents]
-            if self.packagecontents is not None
-            else None,
+            "packagecontents": None,
         }
 
     @staticmethod
     def from_json(data: dict) -> Package:
         Package.validate(data=data)
+        if "packagecontents" in data.keys():
+            return Package(
+                name=data["name"],
+                days=data["days"],
+                detail=data["detail"],
+                packagecontents=data["packagecontents"],
+            )
         return Package(
             name=data["name"],
             days=data["days"],
             detail=data["detail"],
-            packagecontents=[PackageContent.from_json(pc_data) for pc_data in data["packagecontents"]],
         )
 
     @staticmethod
@@ -147,7 +163,13 @@ class Package(Base):
                 "name": And(str, len),
                 "days": And(int, Use(lambda x: (1 >= x) and (x < 366))),  # 1,30,90,365 gibi
                 "detail": And(str, len),
-                Optional("packagecontents"): And(list, Use(lambda x: [PackageContent.from_json(pc_data) for pc_data in x])),
+                Optional("package_contents"): And(
+                    Or(list, int),
+                    Or(
+                        Use(_package_content_validate),
+                        Or(Use(_package_content_id_check), Use(lambda x: [PackageContent.from_json(pc_data) for pc_data in x])),
+                    ),
+                ),
             }
         )
         schema.validate(data)
@@ -190,7 +212,7 @@ class U_Package(Base):
     @staticmethod
     def from_json(data: dict) -> U_Package:
         U_Package.validate(data=data)
-        if "end_data" in data.keys():
+        if "end_date" in data.keys():
             return U_Package(
                 base_package=data["base_package"],
                 start_date=utc_timestamp(data["start_date"], return_type=datetime),
@@ -203,12 +225,12 @@ class U_Package(Base):
                 raise AttributeError("base_package not found")
             if base_package.days is None:
                 raise AttributeError("base_package.days not found")
-            base_package_days = base_package.days
+            base_package_days = int(base_package.days)
             return U_Package(
-                base_package=base_package.id,
-                start_data=utc_timestamp(data["start_date"], return_type=datetime),
-                end_data=utc_timestamp(data["start_date"], return_type=datetime) + timedelta(days=base_package_days),  # type: ignore
-                user=data["user"],
+                base_package=get_package_by_id(data["base_package"]),
+                start_date=utc_timestamp(data["start_date"], return_type=datetime),
+                end_date=utc_timestamp(data["start_date"], return_type=datetime) + timedelta(days=base_package_days),  # type: ignore
+                user=get_user_by_id(data["user"]),
             )
 
     @staticmethod
@@ -530,9 +552,14 @@ def add_package(package: Package, session: scoped_session = db.session, disable_
     if hasattr(package, "packagecontents") and not disable_recursive:
         # TODO: maybe change this to add_db_all_models
         for package_content in package.packagecontents:
-            package_content_exist = session.query(PackageContent).filter_by(name=package_content.name).first()
-            if package_content_exist is None:
-                if add_package_content(package_content, session, disable_recursive=True) != DBOperationResult.success:
+            if isinstance(package_content, PackageContent):
+                package_content_exist = session.query(PackageContent).filter_by(name=package_content.name).first()
+                if package_content_exist is None:
+                    if add_package_content(package_content, session, disable_recursive=True) != DBOperationResult.success:
+                        return DBOperationResult.model_not_created
+            elif isinstance(package_content, int):
+                package_content_exist = session.query(PackageContent).filter_by(id=package_content).first()
+                if package_content_exist is None:
                     return DBOperationResult.model_not_created
     return add_db_model(package, session)
 
@@ -543,14 +570,35 @@ def add_package_content(
     if hasattr(package_content, "packages") and not disable_recursive:
         # TODO: maybe change this to add_db_all_models
         for package in package_content.packages:
-            db_package_exist = session.query(Package).filter_by(name=package.name).first()
-            if db_package_exist is None:
-                if add_package(package, session) != DBOperationResult.success:
+            if isinstance(package, Package):
+                package_exist = session.query(Package).filter_by(name=package.name).first()
+                if package_exist is None:
+                    if add_package(package, session, disable_recursive=True) != DBOperationResult.success:
+                        return DBOperationResult.model_not_created
+                package_exist = session.query(Package).filter_by(name=package.name).first()
+            elif isinstance(package, int):
+                package_exist = session.query(Package).filter_by(id=package).first()
+                if package_exist is None:
                     return DBOperationResult.model_not_created
+                package_content.packages.append(package_exist)
     return add_db_model(package_content, session)
 
 
 def add_u_package(u_package: U_Package, session: scoped_session = db.session) -> DBOperationResult:
+    if u_package.base_package is not None:
+        if u_package.base_package.id is None:
+            add_package(u_package.base_package, session)
+        db_package = get_package_by_id(u_package.base_package.id, session)
+        if db_package is None:
+            return DBOperationResult.model_not_found
+        u_package.base_package = db_package
+    if u_package.user is not None:
+        if u_package.user.id is None:
+            add_user(u_package.user, session)
+        db_user = get_user_by_id(u_package.user.id, session)
+        if db_user is None:
+            return DBOperationResult.model_not_found
+        u_package.user = db_user
     return add_db_model(u_package, session)
 
 
@@ -614,6 +662,21 @@ def try_login(user: User, ip_addr: str | None) -> loginError | bool:
 
 def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[Any]:
     return list(filter(function, input_list))
+
+
+def _package_content_id_check(package_content_id: int) -> bool:
+    if package_content_id is None:
+        return False
+    return package_content_id in [package_content.id for package_content in PackageContent.query.all()]
+
+
+def _package_content_validate(package_content: PackageContent) -> bool:
+    if package_content is None:
+        return False
+    package_content_exist = PackageContent.query.filter_by(name=package_content.name).first()
+    if package_content_exist is None:
+        return package_content.validate(package_content.__json__()) is None
+    return True
 
 
 def _package_id_check(package_id: int) -> bool:
