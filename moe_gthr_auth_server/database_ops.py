@@ -72,7 +72,9 @@ class PackageContent(Base):
     name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     content_value: Mapped[str] = mapped_column(Enum(*[e for e in pContentEnum]), nullable=False)
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
-    packages: Mapped[List[Package]] = relationship("Package", secondary=pcontent_packages_conn_table, back_populates="packagecontents")
+    packages: Mapped[List[Package]] = relationship(
+        "Package", secondary=pcontent_packages_conn_table, back_populates="package_contents"
+    )
 
     def __repr__(self):
         return f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
@@ -87,10 +89,14 @@ class PackageContent(Base):
     @staticmethod
     def from_json(data: dict) -> PackageContent:
         PackageContent.validate(data=data)
-        return PackageContent(
-            name=data["name"],
-            content_value=data["content_value"],
-        )
+        ret_package_content = {
+            "name": data["name"],
+            "content_value": data["content_value"],
+            "id": None,
+        }
+        if "id" in data.keys():
+            ret_package_content["id"] = data["id"]
+        return PackageContent(**ret_package_content)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -115,7 +121,7 @@ class Package(Base):
     days: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
     detail: Mapped[str] = mapped_column(String(256), nullable=False, default="package_detail")
 
-    packagecontents: Mapped[List[PackageContent]] = relationship(
+    package_contents: Mapped[List[PackageContent]] = relationship(
         "PackageContent", back_populates="packages", secondary=pcontent_packages_conn_table
     )
 
@@ -123,37 +129,35 @@ class Package(Base):
         return f"<Package {self.id} {self.name} {self.days} {self.detail}>"
 
     def __json__(self) -> dict[str, Any]:
-        if self.packagecontents is not None and len(self.packagecontents) > 0:
+        if self.package_contents is not None and len(self.package_contents) > 0:
             return {
                 "id": self.id,
                 "name": self.name,
                 "days": self.days,
                 "detail": self.detail,
-                "packagecontents": [package_content.__json__() for package_content in self.packagecontents],
+                "package_contents": [package_content.__json__() for package_content in self.package_contents],
             }
         return {
             "id": self.id,
             "name": self.name,
             "days": self.days,
             "detail": self.detail,
-            "packagecontents": None,
+            "package_contents": None,
         }
 
     @staticmethod
     def from_json(data: dict) -> Package:
         Package.validate(data=data)
-        if "packagecontents" in data.keys():
-            return Package(
-                name=data["name"],
-                days=data["days"],
-                detail=data["detail"],
-                packagecontents=data["packagecontents"],
-            )
-        return Package(
-            name=data["name"],
-            days=data["days"],
-            detail=data["detail"],
-        )
+        ret_package = {
+            "name": data["name"],
+            "days": data["days"],
+            "detail": data["detail"],
+            "id": None,
+        }
+
+        if "id" in data.keys():
+            ret_package["id"] = data["id"]
+        return Package(**ret_package)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -212,26 +216,31 @@ class U_Package(Base):
     @staticmethod
     def from_json(data: dict) -> U_Package:
         U_Package.validate(data=data)
+        base_package = get_package_by_id(data["base_package"])
+        ret_u_package = {
+            "base_package": base_package,
+            "start_date": utc_timestamp(data["start_date"], return_type=datetime),
+            "user": data["user"],
+        }
+        if base_package is None:
+            raise AttributeError("base_package not found")
+        if base_package.days is None:
+            raise AttributeError("base_package.days not found")
+        base_package_days = base_package.days
+        ret_u_package["base_package"] = base_package
+        if "id" in data.keys():
+            ret_u_package["id"] = data["id"]
         if "end_date" in data.keys():
-            return U_Package(
-                base_package=data["base_package"],
-                start_date=utc_timestamp(data["start_date"], return_type=datetime),
-                end_date=utc_timestamp(data["end_data"], return_type=datetime),
-                user=data["user"],
-            )
+            ret_u_package["end_date"] = utc_timestamp(data["end_date"], return_type=datetime)
         else:
-            base_package = get_package_by_id(data["base_package"])
-            if base_package is None:
-                raise AttributeError("base_package not found")
-            if base_package.days is None:
-                raise AttributeError("base_package.days not found")
-            base_package_days = int(base_package.days)
-            return U_Package(
-                base_package=get_package_by_id(data["base_package"]),
-                start_date=utc_timestamp(data["start_date"], return_type=datetime),
-                end_date=utc_timestamp(data["start_date"], return_type=datetime) + timedelta(days=base_package_days),  # type: ignore
-                user=get_user_by_id(data["user"]),
-            )
+            ret_u_package["end_date"] = utc_timestamp(data["start_date"], return_type=datetime) + timedelta(
+                days=base_package_days
+            )  # type: ignore
+        if "user" in data.keys():
+            ret_u_package["user"] = get_user_by_id(data["user"])
+            if ret_u_package["user"] is None:
+                raise Exception("user_not_found")
+        return U_Package(**ret_u_package)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -269,7 +278,7 @@ class U_Session(Base):
             "start_date": utc_timestamp(self.start_date),
             "end_date": utc_timestamp(self.end_date),
             "ip": self.ip,
-            "accesible": self.acces,
+            "accesible": self.access,
         }
 
     @staticmethod
@@ -316,10 +325,18 @@ class User(Base):
         return "<User (id:%s, name:%s, password_hash:%s, discord_id:%s)>" % (self.id, self.name, self.password_hash, self.discord_id)
 
     def __json__(self) -> dict[str, Any]:
+        if self.package is not None:
+            return {
+                "id": self.id,
+                "name": self.name,
+                "package": self.package.__json__(user_incld=False),
+                "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
+                "discord_id": self.discord_id,
+            }
         return {
             "id": self.id,
             "name": self.name,
-            "package": self.package,
+            "package": None,
             "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
             "discord_id": self.discord_id,
         }
@@ -327,10 +344,20 @@ class User(Base):
     @staticmethod
     def from_json(data: dict) -> User:
         User.validate(data=data)
-        return User(
-            name=data["name"],
-            password_hash=data["password_hash"],
-        )
+        ret_user = {
+            "name": data["name"],
+            "password_hash": data["password_hash"],
+            "discord_id": None,
+            "package": None,
+            "id": None,
+        }
+        if "discord_id" in data.keys():
+            ret_user["discord_id"] = data["discord_id"]
+        if "package" in data.keys():
+            ret_user["package"] = data["package"]
+        if "id" in data.keys():
+            ret_user["id"] = data["id"]
+        return User(**ret_user)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -365,7 +392,7 @@ class User(Base):
                 db.session.delete(u_package)
                 db.session.commit()
                 return loginError.user_package_expired
-            p_contents = u_package.base_package.packagecontents
+            p_contents = u_package.base_package.package_contents
             extra_user_quota = list(filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents))
             max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
             same_ip_expired_session = self._eleminate_expired_accessible_sessions(inamedr)
@@ -549,9 +576,15 @@ def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperation
 
 
 def add_package(package: Package, session: scoped_session = db.session, disable_recursive=False) -> DBOperationResult:
-    if hasattr(package, "packagecontents") and not disable_recursive:
+    DB_LOGGER.info("adding package to database")
+    DB_LOGGER.debug("package: %s" % package)
+    DB_LOGGER.debug("session: %s" % session)
+    DB_LOGGER.debug("disable_recursive: %s" % disable_recursive)
+    if hasattr(package, "package_contents") and not disable_recursive:
         # TODO: maybe change this to add_db_all_models
-        for package_content in package.packagecontents:
+        for package_content in package.package_contents:
+            if package_content is None:
+                break
             if isinstance(package_content, PackageContent):
                 package_content_exist = session.query(PackageContent).filter_by(name=package_content.name).first()
                 if package_content_exist is None:
@@ -602,36 +635,6 @@ def add_u_package(u_package: U_Package, session: scoped_session = db.session) ->
     return add_db_model(u_package, session)
 
 
-def update_user(u_id: str, new_user: User, session: scoped_session = db.session) -> DBOperationResult:
-    """
-    update user with k_id
-    :param k_id: id of user to update
-    :param new_user: new user object
-    :param session: db session
-    :return: DBOperationResult
-    ---
-    only update name, password_hash, discord_id, k_ps
-    ---
-    """
-    try:
-        db_user = session.query(User).filter_by(k_id=u_id).first()
-        if db_user is None:
-            return DBOperationResult.model_not_found
-        if new_user.name is not None:
-            db_user.name = new_user.name
-        if new_user.password_hash is not None:
-            db_user.password_hash = new_user.password_hash
-        if new_user.discord_id is not None:
-            db_user.discord_id = new_user.discord_id
-        if new_user.k_ps is not None:
-            db_user.k_ps = new_user.k_ps
-        session.commit()
-        return DBOperationResult.success
-    except Exception as e:
-        DB_LOGGER.error("error accured while updating user to database %s" % e)
-    return DBOperationResult.unknown_error
-
-
 def get_user(name: str, session: scoped_session = db.session) -> User | None:
     return session.query(User).filter_by(name=name).first()
 
@@ -670,7 +673,7 @@ def _package_content_id_check(package_content_id: int) -> bool:
     return package_content_id in [package_content.id for package_content in PackageContent.query.all()]
 
 
-def _package_content_validate(package_content: PackageContent) -> bool:
+def _package_content_validate(package_content: PackageContent | None) -> bool:
     if package_content is None:
         return False
     package_content_exist = PackageContent.query.filter_by(name=package_content.name).first()
@@ -692,3 +695,130 @@ def validate_data_schema(cls, data):
         cls.validate(data)
     except SchemaError as e:
         raise e
+
+
+def update_user(old_user: int | User, new_user: User, session: scoped_session = db.session) -> DBOperationResult:
+    """
+    update user with k_id
+    :param old_user: id of user to update or user object
+    :param new_user: new user object
+    :param session: db session
+    :return: DBOperationResult
+    ---
+    only update name, password_hash, discord_id, k_ps
+    ---
+    """
+    try:
+        if isinstance(old_user, int):
+            db_user = session.query(User).filter_by(k_id=old_user).first()
+        else:
+            db_user = old_user
+        if db_user is None:
+            return DBOperationResult.model_not_found
+        if new_user.name is not None:
+            db_user.name = new_user.name
+        if new_user.password_hash is not None:
+            db_user.password_hash = new_user.password_hash
+        if new_user.discord_id is not None:
+            db_user.discord_id = new_user.discord_id
+        if new_user.package is not None:
+            db_user.package = new_user.package
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating user to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_package_content(
+    old_package_content: int | PackageContent, new_package_content: PackageContent, session: scoped_session = db.session
+) -> DBOperationResult:
+    try:
+        if isinstance(old_package_content, int):
+            db_package_content = session.query(PackageContent).filter_by(id=old_package_content).first()
+        else:
+            db_package_content = old_package_content
+        if db_package_content is None:
+            return DBOperationResult.model_not_found
+        if new_package_content.name is not None:
+            db_package_content.name = new_package_content.name
+        if new_package_content.content_value is not None:
+            db_package_content.content_value = new_package_content.content_value
+        if new_package_content.package_id is not None:
+            db_package_content.package_id = new_package_content.package_id
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating package_content to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_package(old_package: int | Package, new_package: Package, session: scoped_session = db.session):
+    try:
+        if isinstance(old_package, int):
+            db_package = session.query(Package).filter_by(id=old_package).first()
+        else:
+            db_package = old_package
+        if db_package is None:
+            return DBOperationResult.model_not_found
+        if new_package.name is not None:
+            db_package.name = new_package.name
+        if new_package.days is not None:
+            db_package.days = new_package.days
+        if new_package.detail is not None:
+            db_package.detail = new_package.detail
+        if new_package.package_contents is not None:
+            db_package.package_contents = new_package.package_contents
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating package to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_u_package(old_u_package: int | U_Package, new_u_package: U_Package, session: scoped_session = db.session):
+    try:
+        if isinstance(old_u_package, int):
+            db_u_package = session.query(U_Package).filter_by(id=old_u_package).first()
+        else:
+            db_u_package = old_u_package
+        if db_u_package is None:
+            return DBOperationResult.model_not_found
+        if new_u_package.start_date is not None:
+            db_u_package.start_date = new_u_package.start_date
+        if new_u_package.end_date is not None:
+            db_u_package.end_date = new_u_package.end_date
+        if new_u_package.base_package_id is not None:
+            db_u_package.base_package_id = new_u_package.base_package_id
+        if new_u_package.user_id is not None:
+            db_u_package.user_id = new_u_package.user_id
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating u_package to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_u_session(old_u_session: int | U_Session, new_u_session: U_Session, session: scoped_session = db.session):
+    try:
+        if isinstance(old_u_session, int):
+            db_u_session = session.query(U_Session).filter_by(id=old_u_session).first()
+        else:
+            db_u_session = old_u_session
+        if db_u_session is None:
+            return DBOperationResult.model_not_found
+        if new_u_session.start_date is not None:
+            db_u_session.start_date = new_u_session.start_date
+        if new_u_session.end_date is not None:
+            db_u_session.end_date = new_u_session.end_date
+        if new_u_session.user_id is not None:
+            db_u_session.user_id = new_u_session.user_id
+        if new_u_session.ip is not None:
+            db_u_session.ip = new_u_session.ip
+        if new_u_session.access is not None:
+            db_u_session.access = new_u_session.access
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating u_session to database %s" % e)
+    return DBOperationResult.unknown_error

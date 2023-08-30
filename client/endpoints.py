@@ -1,4 +1,4 @@
-PORT = 8080
+PORT = 2402
 
 BASE_URL = f"http://127.0.0.1:{PORT}"
 URL_PREFIX = f"{BASE_URL}/api/v1"
@@ -21,23 +21,31 @@ URLS = {
 }
 
 
-class EndPoints(object):
-    __slots__ = ("ULogin", "UInfo", "ALogin", "ARegister", "AInfo")
+class _EndPoints(object):
+    __slots__ = (
+        "ULogin",
+        "UInfo",
+        "ALogin",
+        "ARegister",
+        "AInfo",
+    )
 
-    def __init__(self):
-        if EndPoints.instance is not None:
-            EndPoints.instance = self
-        self.ULogin = URLS["ULogin"]
-        self.UInfo = URLS["UInfo"]
-        self.ALogin = URLS["ALogin"]
-        self.ARegister = URLS["ARegister"]
-        self.AInfo = URLS["AInfo"]
+    def __init__(self, ULogin, UInfo, ALogin, ARegister, AInfo):
+        self.ULogin = ULogin
+        self.UInfo = UInfo
+        self.ALogin = ALogin
+        self.ARegister = ARegister
+        self.AInfo = AInfo
 
-    def __repr__(self):
-        return f"<EndPoints {self.__slots__}>"
 
-    @staticmethod
-    def __getitem__(item):
-        if EndPoints.instance is None:
-            EndPoints.instance = EndPoints()
-        return getattr(EndPoints.instance, item)
+def _make_endpoints():
+    return _EndPoints(
+        ULogin=URLS["ULogin"],
+        UInfo=URLS["UInfo"],
+        ALogin=URLS["ALogin"],
+        ARegister=URLS["ARegister"],
+        AInfo=URLS["AInfo"],
+    )
+
+
+EndPoints = _make_endpoints()

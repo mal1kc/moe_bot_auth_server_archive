@@ -18,7 +18,7 @@ sample_user_data = {"name": "ext_test_user", "password_hash": make_password_read
 
 sample_user_data2 = {"name": "ext_test_user2", "password_hash": make_password_ready("ext_test_user_password2")}
 
-sample_admin_data = {"name": "ext_test_admin", "password_hash": make_password_ready("ext_test_admin_password")}
+sample_admin_data = {"name": "mal1kc", "password_hash": make_password_ready("deov04ın-!ıj0dı12klsa")}
 
 sample_package_data = {"name": "ext_test_package", "days": 12, "detail": "ext_test_package_detail", "package_contents": []}
 

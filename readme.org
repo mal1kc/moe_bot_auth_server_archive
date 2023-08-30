@@ -7,11 +7,11 @@
 ** eksikler - TODO - v1
     - [ ] login islemi gözden geçirilmesi lazım
     - [ ] logine test lazım
-    - [ ] testleri baştan yaz
+    - [X] testleri baştan yaz
     - [ ]externel bir şekilde kullanım testleri
       - [ ] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
         - [ ] admin,user şeklinde
-    - [ ] u_package ekleme
+    - [X] u_package ekleme
     - [X] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
         #+begin_src python
             {
@@ -22,11 +22,11 @@
                 }
             }
         #+end_src
-    - [ ] güncelleme  routelari
+    - [X] güncelleme  routelari
         #+begin_src python
         url = "api/v1/update/{id}"
         json = {
-            "m_type":"package"
+            "model_type":"package"
             "model": {
                 "name" : "adada"
                 "detail" : "1dadad"
@@ -40,6 +40,7 @@
     - [ ] delete routelari
     - [ ] routelar get_by_id routelari
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
+    - [ ] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
 
 ** muhtemel v2 özellikleri
 
