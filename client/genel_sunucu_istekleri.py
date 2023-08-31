@@ -19,9 +19,15 @@ URL_USER_PREFIX = "/user"
 URLS = {
     "ULogin": URL_PREFIX + URL_USER_PREFIX + "/login",
     "ALogin": URL_PREFIX + URL_ADMIN_PREFIX + "/login",  # TODO: not implemented
-    "URegister": URL_PREFIX + URL_ADMIN_PREFIX + "/register",  # currently only admin can register new users
-    "APRegister": URL_PREFIX + URL_ADMIN_PREFIX + "/p_register",  # register package and package contents
-    "UPRegister": URL_PREFIX + URL_USER_PREFIX + "/p_register",  # register u_package or update u_package
+    "URegister": URL_PREFIX
+    + URL_ADMIN_PREFIX
+    + "/register",  # currently only admin can register new users
+    "APRegister": URL_PREFIX
+    + URL_ADMIN_PREFIX
+    + "/p_register",  # register package and package contents
+    "UPRegister": URL_PREFIX
+    + URL_USER_PREFIX
+    + "/p_register",  # register u_package or update u_package
     # "UInfo" : URL_PREFIX_USER + "/info",
     "UPInfo": URL_PREFIX + URL_USER_PREFIX + "/p_info",
 }
@@ -34,7 +40,10 @@ def sifreyi_hazirla(sifre: str):
     return simple_dencrypt(sha256(sifre.encode()).hexdigest().encode()).decode()
 
 
-admin_auth = ("mal1kc", simple_dencrypt(sha256("deov04ın-!ıj0dı12klsa".encode()).hexdigest().encode()).decode())
+admin_auth = (
+    "mal1kc",
+    simple_dencrypt(sha256("deov04ın-!ıj0dı12klsa".encode()).hexdigest().encode()).decode(),
+)
 
 
 def user_olustur():
@@ -65,7 +74,11 @@ def user_login():
 def add_upackage():
     u_package_data = {
         "m_type": "user_package",
-        "model": {"base_package": 1, "start_data": int((datetime.utcnow() + timedelta(seconds=2)).timestamp()), "user": 1},
+        "model": {
+            "base_package": 1,
+            "start_data": int((datetime.utcnow() + timedelta(seconds=2)).timestamp()),
+            "user": 1,
+        },
     }
     r = post(URLS["UPRegister"], json=u_package_data, auth=admin_auth)
     print(r.text)

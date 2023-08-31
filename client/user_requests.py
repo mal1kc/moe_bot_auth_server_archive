@@ -6,7 +6,9 @@ from data import (
 
 
 def get_user_info():
-    response = requests.get(Endpoints.UInfo, auth=(sample_user_data["name"], sample_user_data["password_hash"]))
+    response = requests.get(
+        Endpoints.UInfo, auth=(sample_user_data["name"], sample_user_data["password_hash"])
+    )
     return response.json()
 
 

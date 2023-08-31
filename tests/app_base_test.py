@@ -9,8 +9,12 @@ from tests.testing_helpers import LOGGER
 
 def test_cryption(user_data):
     LOGGER.debug("test_cryption")
-    assert unmake_password_ready(user_data["password_hash"]) == make_password_hash("ext_test_user_password")
-    assert compare_encypted_hashes(user_data["password_hash"], make_password_hash("ext_test_user_password"))
+    assert unmake_password_ready(user_data["password_hash"]) == make_password_hash(
+        "ext_test_user_password"
+    )
+    assert compare_encypted_hashes(
+        user_data["password_hash"], make_password_hash("ext_test_user_password")
+    )
     LOGGER.debug("test_cryption: OK")
 
 

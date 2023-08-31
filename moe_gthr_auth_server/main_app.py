@@ -1,9 +1,34 @@
-import click
 import logging
-from flask import Blueprint, Response, jsonify, request
-from schema import And, Schema, SchemaError, SchemaWrongKeyError
 import sqlalchemy
+from flask import Blueprint, Response, jsonify, request
+from schema import And, Schema, SchemaError, SchemaWrongKeyError, Use
+from sqlalchemy.orm import scoped_session
 
+from werkzeug.exceptions import UnsupportedMediaType
+
+from moe_gthr_auth_server.enums import mType
+from moe_gthr_auth_server.database_ops import (
+    U_Session,
+    db,
+    Admin,
+    DBOperationResult,
+    Package,
+    PackageContent,
+    U_Package,
+    User,
+    add_package,
+    add_u_package,
+    add_package_content,
+    add_user,
+    get_user,
+    loginError,
+    try_login,
+    update_package,
+    update_package_content,
+    update_u_package,
+    update_u_session,
+    update_user,
+)
 
 from .err_handlrs import (
     bad_request,
@@ -15,33 +40,10 @@ from .err_handlrs import (
 )
 
 from .base_responses import request_error_response, request_success_response
-from .database_ops import (
-    Admin,
-    DBOperationResult,
-    Package,
-    PackageContent,
-    U_Package,
-    User,
-    add_admin,
-    add_package,
-    add_u_package,
-    add_package_content,
-    add_user,
-    db,
-    get_user,
-    loginError,
-    pContentEnum,
-    try_login,
-    update_package,
-    update_package_content,
-    update_u_package,
-    update_u_session,
-    update_user,
-)
 
-from .crpytion import compare_encypted_hashes, unmake_password_ready, make_password_hash
 
-from werkzeug.exceptions import UnsupportedMediaType
+from .crpytion import compare_encypted_hashes, unmake_password_ready
+
 from .config import endpoints
 
 main_blueprint = Blueprint("page", __name__, cli_group=None)
@@ -58,114 +60,6 @@ class ReqDataErrors(Exception):
 LOGGER = logging.getLogger(__name__)
 
 
-@main_blueprint.cli.command("initdb")
-@click.option("--recreate", is_flag=True, help="delete old database if exists")
-def initdb_command(recreate: bool = False):
-    """
-    initialize database
-    and delete old database if exists
-    """
-    from pprint import pprint
-    from sqlalchemy import inspect
-
-    print("veritabanı temel verisi oluşturuluyor")
-    if ("admins" not in inspect(db.get_engine()).get_table_names()) and (not recreate):
-        db.drop_all()
-
-        ask_for_confirmation = input("‼ eski veritabani tablolari bulundu‼ \neski veritabanı silinsin mi? (y/n) : ")
-        if ask_for_confirmation == "y":
-            print(" ✅ eski veritabanı silindi ✅ ")
-            recreate = True
-        else:
-            print(" ❌ eski veritabanı silinmedi ❌ ")
-            return
-
-    if recreate:
-        print("eski veritabani droplanıyor")
-        db.drop_all()
-
-    db.create_all()
-    print(" ✅ veritabanı tablolari oluşturuldu ✅ ")
-    print("veritabanı içeriği oluşturuluyor")
-    print("admin ekleniyor")
-    if (
-        db_op_result := add_admin(Admin(name="mal1kc", password_hash=make_password_hash("deov04ın-!ıj0dı12klsa")))
-    ) != DBOperationResult.success:
-        print(" ❌ admin eklenemedi ❌ ")
-        print(" ❌ veritabanı oluşturulamadı ❌ ")
-        print(" ❌ Hata: %s ❌ ", db_op_result)
-        return
-    print(" ☑ admin eklendi")
-    db.session.commit()
-
-    print("temel package icerikler ekleniyor")
-    for package_content_deger in pContentEnum:
-        p_icerik = PackageContent(
-            name=package_content_deger,
-            content_value=pContentEnum[package_content_deger],
-        )
-        add_package_content(p_icerik)
-    print(" ☑ temel package icerikler eklendi")
-    print("temel packageler ekleniyor")
-    db_op_result = add_package(
-        Package(
-            name="moe_gatherer",
-            package_contents=[
-                PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-            ],
-            days=60,
-        )
-    )
-    if db_op_result != DBOperationResult.success:
-        print(" ❌ package eklenemedi ❌ ")
-        print(" ❌ veritabanı oluşturulamadı ❌ ")
-        print(" ❌ Hata: %s ❌ ", db_op_result)
-        return
-
-    if (
-        db_op_result := add_package(
-            Package(
-                name="moe_gatherer+eksra_user",
-                package_contents=[
-                    PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-                    PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
-                ],
-                days=60,
-            ),
-        )
-        != DBOperationResult.success
-    ):
-        print(" ❌ package eklenemedi ❌ ")
-        print(" ❌ veritabanı oluşturulamadı ❌ ")
-        print(" ❌ Hata: %s ❌ ", db_op_result)
-        return
-
-    print(" ☑ temel package eklendi")
-    db.session.commit()
-    db_packageler = [package.__json__() for package in Package.query.all()]
-    db_package_contentleri = [package_content.__json__() for package_content in PackageContent.query.all()]
-    db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
-    db_adminler = [admin.__json__() for admin in Admin.query.all()]
-    print("veritabanı oluşturuldu")
-    print("veritabanı içeriği : ")
-    print("packageler ->")
-    pprint(db_packageler)
-    print("package İçerikleri ->")
-    pprint(db_package_contentleri)
-    print("kullanıcılar ->")
-    pprint(db_kullanicilar)
-    print("adminler ->")
-    pprint(db_adminler)
-
-
-@main_blueprint.cli.command("resetdb")
-def resetdb_command():
-    """
-    reset database to default
-    """
-    click.Context(main_blueprint.cli).invoke(initdb_command, recreate=True)
-
-
 @main_blueprint.route("/", methods=["GET", "POST"])
 def anasayfa():
     return jsonify({"status": "OK"})
@@ -175,8 +69,8 @@ def anasayfa():
 # TODO: seperate admin endpoints to methods
 
 
-@main_blueprint.route(endpoints.URLS.ARegister, methods=["GET", "POST"])
-def admin_register() -> tuple[Response, int]:
+@main_blueprint.route(endpoints.URLS.ARegister, methods=["POST"])
+def admin_register(m_type: mType) -> tuple[Response, int]:
     """
     model register endpoint for admins
     """
@@ -190,78 +84,34 @@ def admin_register() -> tuple[Response, int]:
                 req_data = request.get_json(cache=False)
                 if not req_data:
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if "model_type" not in req_data or "model" not in req_data:
+                    # if "model_type" not in req_data or "model" not in req_data:
                     raise ReqDataErrors.req_data_incomplete()
-                if req_data["model_type"] is None or req_data["model"] is None:
+                if req_data["model"] is None:
                     raise ReqDataErrors.req_data_is_none_or_empty()
                 json_schema = Schema(
                     {
-                        "model_type": str,
                         "model": dict,
                     }
                 )
 
                 json_schema.validate(req_data)
-                if req_data["model_type"] == "" or req_data["model"] == "":
-                    raise ReqDataErrors.req_data_is_none_or_empty()
-                elif req_data["model_type"] == "user":
+                if m_type == mType.user:
                     LOGGER.debug(f"{req_id} - trying to add user")
-                    user = User.from_json(data=req_data["model"])
-                    if get_user(user.name) is not None:
-                        return request_error_response("user_already_exists"), 400
-                    db_op_result = add_user(User(name=user.name, password_hash=unmake_password_ready(user.password_hash)))
-                    if db_op_result is DBOperationResult.success:
-                        db_user = User.query.filter_by(name=user.name).first()
-                        return (
-                            request_success_response(success_msg="user_created", extra={"user": db_user.__json__()}),
-                            200,
-                        )
-                    return request_error_response("db_error", extra=db_op_result.__json__()), 400
-                elif req_data["model_type"] == "package":
-                    LOGGER.debug(f"{req_id} - trying to add package")
-                    package = Package.from_json(req_data["model"])
-                    if hasattr(req_data["model"], "packagecontents"):
-                        # FIXME:  add package_content by its type
-                        raise NotImplementedError("package register with package_contents not impelented")
-                    db_op_result = add_package(package)
-                    if db_op_result is DBOperationResult.success:
-                        db_package = Package.query.filter_by(name=package.name).first()
-                        return (
-                            request_success_response(success_msg="package_created", extra={"package": db_package.__json__()}),
-                            200,
-                        )
-                    return request_error_response("db_error", extra=db_op_result.__json__()), 400
-                elif req_data["model_type"] == "package_content":
-                    LOGGER.debug(f"{req_id} - trying to add package_content")
-                    package_content = PackageContent.from_json(req_data["model"])
-                    db_op_result = add_package_content(package_content)
-                    if db_op_result is DBOperationResult.success:
-                        return (
-                            request_success_response(
-                                success_msg="package_content_created",
-                                extra={"package_content": package_content.__json__()},
-                            ),
-                            200,
-                        )
-                    return request_error_response("db_error", extra=db_op_result.__json__()), 400
-                elif req_data["model_type"] == "u_package":
-                    LOGGER.debug(f"{req_id} - trying to add u_package")
-
-                    u_package = U_Package.from_json(req_data["model"])
-                    db_op_result = add_u_package(u_package)
-                    if db_op_result is DBOperationResult.success:
-                        return (
-                            request_success_response(
-                                success_msg="u_package_created", extra={"u_package": u_package.__json__(user_incld=False)}
-                            ),
-                            200,
-                        )
-                    LOGGER.debug(f"{req_id} - db_op_result : {db_op_result}")
-                    return request_error_response("db_error", extra=db_op_result.__json__()), 400
+                    return admin_register_user(req_data["model"])
+                # TODO: add other models
                 return (
                     request_error_response(
                         "unsupported_model_type",
-                        extra={"detail": {"supported_model_types": ["user", "package", "package_content", "u_package"]}},
+                        extra={
+                            "detail": {
+                                "supported_model_types": [
+                                    "user",
+                                    "package",
+                                    "package_content",
+                                    "u_package",
+                                ]
+                            }
+                        },
                     ),
                     400,
                 )
@@ -296,8 +146,116 @@ def admin_register() -> tuple[Response, int]:
     return method_not_allowed()
 
 
+def admin_register_user(user_data: dict[str, str | int]) -> tuple[Response, int]:
+    """
+    register user with given data
+    """
+    user = User.from_json(data=user_data)
+    if get_user(user.name) is not None:
+        return request_error_response("user_already_exists"), 400
+    db_op_result = add_user(
+        User(
+            name=user.name,
+            password_hash=unmake_password_ready(user.password_hash),
+        )
+    )
+    if db_op_result is DBOperationResult.success:
+        db_user = User.query.filter_by(name=user.name).first()
+        return (
+            request_success_response(
+                success_msg="user_created",
+                extra={"user": db_user.__json__()},
+            ),
+            200,
+        )
+    return (
+        request_error_response("db_error", extra=db_op_result.__json__()),
+        400,
+    )
+
+
+def admin_register_package(
+    package_data: dict[str, str | int | list[int | PackageContent]]
+) -> tuple[Response, int]:
+    """
+    register package with given data
+    """
+    req_package_data = Package.from_json(package_data)
+    db_op_result = add_package(req_package_data)
+    # TODO: also add package_contents of package to db
+    if db_op_result is DBOperationResult.success:
+        db_package = Package.query.filter_by(name=req_package_data.name).first()
+        return (
+            request_success_response(
+                success_msg="package_created",
+                extra={"package": db_package.__json__()},
+            ),
+            200,
+        )
+    return (
+        request_error_response("db_error", extra=db_op_result.__json__()),
+        400,
+    )
+
+
+def admin_register_package_content(
+    package_content_data: dict[str, str | int]
+) -> tuple[Response, int]:
+    """
+    register package_content with given data
+    """
+    req_package_content_data = PackageContent.from_json(package_content_data)
+    db_op_result = add_package_content(req_package_content_data)
+    if db_op_result is DBOperationResult.success:
+        db_package_content = PackageContent.query.filter_by(
+            name=req_package_content_data.name
+        ).first()
+        return (
+            request_success_response(
+                success_msg="package_content_created",
+                extra={"package_content": db_package_content.__json__()},
+            ),
+            200,
+        )
+    return (
+        request_error_response("db_error", extra=db_op_result.__json__()),
+        400,
+    )
+
+
+def admin_register_u_package(u_package_data: dict[str, str | int]) -> tuple[Response, int]:
+    """
+    register u_package with given data
+    """
+    req_u_package_data = U_Package.from_json(u_package_data)
+    db_op_result = add_u_package(req_u_package_data)
+    # TODO: also add base_package of u_package to db with package_contents
+    if db_op_result is DBOperationResult.success:
+        db_u_package = U_Package.query.filter_by(name=req_u_package_data.name).first()
+        return (
+            request_success_response(
+                success_msg="u_package_created",
+                extra={"u_package": db_u_package.__json__()},
+            ),
+            200,
+        )
+    return (
+        request_error_response("db_error", extra=db_op_result.__json__()),
+        400,
+    )
+
+
+def admin_register_u_session(u_session_data: dict[str, str | int]) -> tuple[Response, int]:
+    """
+    register u_session with given data
+    IMPORTANT : currently not implemented , \
+        because u_session should be only created by user login
+    """
+    return method_not_allowed()
+
+
 @main_blueprint.route(endpoints.URLS.AUpdate, methods=["PUT"])
-def admin_update() -> tuple[Response, int]:
+def admin_update(m_type: int, m_id: int) -> tuple[Response, int]:
     # TODO: refactor this : too complex
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
@@ -310,111 +268,67 @@ def admin_update() -> tuple[Response, int]:
                 req_data = request.get_json(cache=False)
                 if not req_data:
                     raise ReqDataErrors.req_data_is_none_or_empty()
-                if "model_type" not in req_data or "model" not in req_data:
+                if "new_model" not in req_data:
                     raise ReqDataErrors.req_data_incomplete()
-                if req_data["model_type"] is None or req_data["model"] is None:
-                    raise ReqDataErrors.req_data_is_none_or_empty()
+                required_atleast_keys = [
+                    "name",
+                    "password_hash",
+                    "days",
+                    "detail",
+                    "content_value",
+                    "start_date",
+                ]
                 json_schema = Schema(
                     {
-                        "model_type": str,
-                        "model": And(dict, lambda x: "id" in x, error="model_id_not_found"),
+                        "new_model": And(
+                            dict,
+                            Use(
+                                lambda x_dict: (
+                                    key in required_atleast_keys for key in x_dict.keys()
+                                ),
+                                error="unsupported_key",
+                            ),
+                        ),
                     }
                 )
 
                 json_schema.validate(req_data)
-                if req_data["model_type"] == "" or req_data["model"] == "":
-                    raise ReqDataErrors.req_data_is_none_or_empty()
-                elif req_data["model_type"] == "user":
-                    LOGGER.debug(f"{req_id} - trying to update user")
-                    req_user = User.from_json(data=req_data["model"])
-                    db_user = User.query.filter_by(id=req_user.id).first()
-                    if db_user is None:
-                        return request_error_response("user_not_found"), 404
-                    if update_user(db_user, req_user) == DBOperationResult.success:
-                        return (
-                            request_success_response(success_msg="user_updated", extra={"user": db_user.__json__()}),
-                            200,
-                        )
-                    return request_error_response("db_error"), 400
-                elif req_data["model_type"] == "package":
-                    LOGGER.debug(f"{req_id} - trying to update package")
-                    req_package = Package.from_json(req_data["model"])
-                    db_package = Package.query.filter_by(id=req_package.id).first()
-                    if hasattr(req_data["model"], "package_contents"):
-                        for rqpackage_content in req_package["package_contents"]:
-                            if isinstance(rqpackage_content, str):
-                                db_package.packagecontents.append(PackageContent.query.filter_by(name=rqpackage_content).first())
-                            elif isinstance(rqpackage_content, int):
-                                db_package.packagecontents.append(PackageContent.query.filter_by(id=rqpackage_content).first())
-                            elif isinstance(rqpackage_content, dict):
-                                rqpackage_content = PackageContent.from_json(rqpackage_content)
-                                if add_package_content(rqpackage_content) != DBOperationResult.success:
-                                    return (
-                                        request_error_response(
-                                            "package_content_not_added", extra={"package_content": rqpackage_content.__json__()}
-                                        ),
-                                        400,
-                                    )
-                                db_package.packagecontents.append(PackageContent.query.filter_by(name=rqpackage_content.name).first())
-                    if db_package is None:
-                        return request_error_response("package_not_found"), 404
-                    if update_package(db_package, req_package) == DBOperationResult.success:
-                        return (
-                            request_success_response(success_msg="package_updated", extra={"package": db_package.__json__()}),
-                            200,
-                        )
-                    return request_error_response("db_error"), 400
-                elif req_data["model_type"] == "package_content":
-                    LOGGER.debug(f"{req_id} - trying to update package_content")
-                    req_package_content = PackageContent.from_json(req_data["model"])
-                    db_package_content = PackageContent.query.filter_by(id=req_package_content.id).first()
-                    if db_package_content is None:
-                        return request_error_response("package_content_not_found"), 404
-                    if update_package_content(db_package_content, req_package_content) == DBOperationResult.success:
-                        return (
-                            request_success_response(
-                                success_msg="package_content_updated",
-                                extra={"package_content": db_package_content.__json__()},
-                            ),
-                            200,
-                        )
-                    return request_error_response("db_error"), 400
-                elif req_data["model_type"] == "u_package":
-                    LOGGER.debug(f"{req_id} - trying to update u_package")
-
-                    LOGGER.critical("eror loc 1")
-                    req_u_package = U_Package.from_json(req_data["model"])
-                    LOGGER.critical("eror loc 2")
-                    db_u_package = U_Package.query.filter_by(id=req_u_package.id).first()
-                    LOGGER.critical("eror loc 3")
-                    if db_u_package is None:
-                        return request_error_response("u_package_not_found"), 404
-                    if update_u_package(db_u_package, req_u_package) == DBOperationResult.success:
-                        return (
-                            request_success_response(
-                                success_msg="u_package_updated", extra={"u_package": db_u_package.__json__(user_incld=False)}
-                            ),
-                            200,
-                        )
-                    return request_error_response("db_error"), 400
-                elif req_data["model_type"] == "u_session":
-                    LOGGER.debug(f"{req_id} - trying to update u_session")
-                    req_u_session = U_Package.from_json(req_data["model"])
-                    db_u_session = U_Package.query.filter_by(id=req_u_session.id).first()
-                    if db_u_session is None:
-                        return request_error_response("u_session_not_found"), 404
-                    if update_u_session(db_u_session, req_u_session) == DBOperationResult.success:
-                        return (
-                            request_success_response(
-                                success_msg="u_session_updated", extra={"u_session": db_u_session.__json__(user_incld=False)}
-                            ),
-                            200,
-                        )
-                    return request_error_response("db_error"), 400
+                if m_type == mType.all_models:
+                    return (
+                        request_error_response(
+                            "unsupported_model_type",
+                        ),
+                        400,
+                    )
+                elif m_type == mType.user:
+                    return admin_update_user(m_id, req_data["new_model"], db.session)
+                elif m_type == mType.package:
+                    return admin_update_package(m_id, req_data["new_model"])
+                elif m_type == mType.package_content:
+                    return admin_update_package_content(m_id, req_data["new_model"])
+                elif m_type == mType.u_package:
+                    return admin_update_u_package(m_id, req_data["new_model"])
+                elif m_type == mType.u_session:
+                    return admin_update_u_session(m_id, req_data["new_model"])
                 return (
                     request_error_response(
                         "unsupported_model_type",
-                        extra={"detail": {"supported_model_types": ["user", "package", "package_content", "u_package"]}},
+                        extra={
+                            "detail": {
+                                "supported_model_types": [
+                                    "user",
+                                    "package",
+                                    "package_content",
+                                    "u_package",
+                                ],
+                                "enum_values": [
+                                    mType.user,
+                                    mType.package,
+                                    mType.package_content,
+                                    mType.u_package,
+                                ],
+                            }
+                        },
                     ),
                     400,
                 )
@@ -427,6 +341,8 @@ def admin_update() -> tuple[Response, int]:
                     return req_data_is_none_or_empty()
                 if SchemaError is SchemaWrongKeyError:
                     return req_data_incomplete()
+                if "new_model_id_not_found" in schErr.code:
+                    return request_error_response("new_model_id_not_found"), 400
                 return bad_request(schErr)
             except AttributeError as e:
                 if str(e).endswith("object has no attribute 'get'"):
@@ -436,7 +352,7 @@ def admin_update() -> tuple[Response, int]:
                 return req_data_incomplete()
             except ReqDataErrors.req_data_is_none_or_empty:
                 return req_data_is_none_or_empty()
-            except sqlalchemy.exc.IntegrityError as e:
+            except sqlalchemy.exc.IntegrityError as e:  # type: ignore
                 if "Duplicate entry" in str(e):
                     return request_error_response("duplicate_entry"), 400
                 if "foreign key constraint fails" in str(e):
@@ -452,14 +368,340 @@ def admin_update() -> tuple[Response, int]:
     return method_not_allowed()
 
 
-@main_blueprint.route(endpoints.URLS.ADelete, methods=["DELETE"])
-def admin_delete() -> tuple[Response, int]:
-    # TODO: IMPLEMENT THIS
+def admin_update_user(
+    user_id: int, new_user_data: dict[str, str | int], session: scoped_session
+) -> tuple[Response, int]:
+    """
+    update user with given id
+    """
+    LOGGER.debug(f"admin_update_user: -> new_user_data : {new_user_data} )")
+    req_user_data = User.from_json(new_user_data)
+    db_user = User.query.filter_by(id=user_id).first()
+    LOGGER.debug(f"admin_update_user: -> db_user : {db_user} ")
+    if db_user is None:
+        return request_error_response("user_not_found"), 400
+    db_op_result = update_user(db_user, req_user_data, session=session)
+    LOGGER.debug(f"admin_update_user: -> db_op_result : {db_op_result} ")
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="user_updated", extra={"user": db_user.__json__()}
+        ),
+        200,
+    )
+
+
+def admin_update_package(
+    package_id: int,
+    new_package_data: dict[str, str | int | list[int | PackageContent]],
+    override_children: bool = False,
+) -> tuple[Response, int]:
+    """
+    update package with given id
+    """
+    LOGGER.debug(f"admin_update_package: -> new_package_data : {new_package_data} )")
+    try:
+        req_package_data = Package.from_json(new_package_data)
+    except SchemaError as e:
+        if e.code == "invalid_package_content":
+            if isinstance(new_package_data["package_contents"], list):
+                for req_data_pc_content in new_package_data["package_contents"]:
+                    try:
+                        req_package_content_data = PackageContent.from_json(
+                            req_data_pc_content
+                        )
+                    except SchemaError as e:
+                        return request_error_response("invalid_package_content"), 400
+                    db_op_pc_result = add_package_content(req_package_content_data)
+                    if db_op_pc_result != DBOperationResult.success:
+                        return (
+                            request_error_response(
+                                "db_error", extra=db_op_pc_result.__json__()
+                            ),
+                            400,
+                        )
+        req_package_data = Package.from_json(new_package_data)
+
+    db_package = Package.query.filter_by(id=package_id).first()
+    LOGGER.debug(f"admin_update_package: -> db_package : {db_package} ")
+    if db_package is None:
+        return request_error_response("package_not_found"), 400
+    if override_children:
+        LOGGER.debug(f"admin_update_package: -> override_children : {override_children} ")
+        db_package.package_contents = []
+    if (req_package_data.package_contents is not None) and (
+        req_package_data.package_contents != []
+    ):
+        LOGGER.debug(
+            f"admin_update_package: -> req_package_data.package_contents : {req_package_data.package_contents} "  # noqa
+        )
+        for package_content in req_package_data.package_contents:
+            LOGGER.debug(f"admin_update_package: -> package_content : {package_content} ")
+            if isinstance(package_content, PackageContent):
+                db_package.package_contents.append(package_content)
+            else:
+                return request_error_response("invalid_package_content"), 400
+    db_op_result = update_package(db_package, req_package_data)
+    LOGGER.debug(f"admin_update_package: -> db_op_result : {db_op_result} ")
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="package_updated", extra={"package": db_package.__json__()}
+        ),
+        200,
+    )
+
+
+def admin_update_package_content(
+    package_content_id: int, new_package_content_data: dict[str, str | int]
+) -> tuple[Response, int]:
+    """
+    update package_content with given id
+    """
+    LOGGER.debug(
+        f"admin_update_package_content: -> new_package_content_data : {new_package_content_data} )"  # noqa
+    )
+    req_package_content_data = PackageContent.from_json(new_package_content_data)
+    db_package_content = PackageContent.query.filter_by(id=package_content_id).first()
+    LOGGER.debug(
+        f"admin_update_package_content: -> db_package_content : {db_package_content} "
+    )
+    if db_package_content is None:
+        return request_error_response("package_content_not_found"), 400
+    db_op_result = update_package_content(db_package_content, req_package_content_data)
+    LOGGER.debug(f"admin_update_package_content: -> db_op_result : {db_op_result} ")
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="package_content_updated",
+            extra={"package_content": db_package_content.__json__()},
+        ),
+        200,
+    )
+
+
+def admin_update_u_package(
+    u_package_id: int, new_u_package_data: dict[str, str | int]
+) -> tuple[Response, int]:
+    """
+    update u_package with given id
+    """
+    LOGGER.debug(f"admin_update_u_package: -> new_u_package_data : {new_u_package_data} )")
+    req_u_package_data = U_Package.from_json(new_u_package_data)
+    db_u_package = U_Package.query.filter_by(id=u_package_id).first()
+    LOGGER.debug(f"admin_update_u_package: -> db_u_package : {db_u_package} ")
+    if db_u_package is None:
+        return request_error_response("u_package_not_found"), 400
+    db_base_package = Package.query.filter_by(id=req_u_package_data.package_id).first()
+    if db_base_package is None:
+        return request_error_response("base_package_not_found"), 400
+    db_op_result = update_u_package(db_u_package, req_u_package_data)
+    LOGGER.debug(f"admin_update_u_package: -> db_op_result : {db_op_result} ")
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="u_package_updated", extra={"u_package": db_u_package.__json__()}
+        ),
+        200,
+    )
+
+
+def admin_update_u_session(
+    u_session_id: int, new_u_session_data: dict[str, str | int]
+) -> tuple[Response, int]:
+    """
+    update u_session with given id
+    """
+    u_session_data = U_Session.from_json(new_u_session_data)
+    db_u_session = U_Session.query.filter_by(id=u_session_id).first()
+    if db_u_session is None:
+        return request_error_response("u_session_not_found"), 400
+    db_user = User.query.filter_by(id=u_session_data.user_id).first()
+    if db_user is None:
+        return request_error_response("user_not_found"), 400
+    db_op_result = update_u_session(db_u_session, u_session_data)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="u_session_updated", extra={"u_session": db_u_session.__json__()}
+        ),
+        200,
+    )
+
+
+@main_blueprint.route(endpoints.URLS.AInfo, methods=["GET"])
+def admin_info(m_type: int, id: int) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
-    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
-    if request.method == "DELETE":
-        raise NotImplementedError("admin_delete is not implemented")
+    req_method = request.method
+    LOGGER.debug(f"{req_id} - {req_method} {request.url} m_type : {m_type} id : {id}")
+    if req_method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_info is not implemented")
+        return unauthorized()
     return method_not_allowed()
+
+
+def admin_get_user(user_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} user_id : {user_id}")
+    if request.method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_get is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_get_package(package_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} package_id : {package_id}")
+    if request.method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_get is not implemented")
+        return unauthorized()
+
+    return method_not_allowed()
+
+
+def admin_get_package_content(package_content_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} {package_content_id=}")  # noqa
+    if request.method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_get is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_get_u_package(u_package_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} u_package_id : {u_package_id}")
+
+    if request.method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_get is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_get_u_session(u_session_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} u_session_id : {u_session_id}")
+
+    if request.method == "GET":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_get is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+@main_blueprint.route(endpoints.URLS.ADelete, methods=["DELETE"])
+def admin_delete(m_type: int, id: int) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} m_type : {m_type} id : {id}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_delete_user(user_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} user_id : {user_id}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_delete_package(package_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} package_id : {package_id}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_delete_package_content(package_content_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} {package_content_id=}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_delete_u_package(u_package_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} u_package_id : {u_package_id}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+def admin_delete_u_session(u_session_id) -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} {u_session_id=}")
+    if request.method == "DELETE":
+        if (is_admin := get_admin_from_req(request)) is not None:
+            LOGGER.debug(f"{req_id} - admin : {is_admin}")
+            raise NotImplementedError("admin_delete is not implemented")
+        return unauthorized()
+    return method_not_allowed()
+
+
+@main_blueprint.route(endpoints.URLS.ALogin, methods=["GET", "POST"])
+def admin_login(content_page=0, get_binded: bool = True) -> tuple[Response, int]:
+    content_per_page = 50
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(
+        f"{req_id} - {request.method} {request.url} {content_page=} {get_binded=}"
+    )  # noqa
+    if request.method == "POST":
+        is_admin = get_admin_from_req(request)
+        LOGGER.debug(f"{req_id} - is_admin : {is_admin}")
+        if is_admin:
+            db_users = (
+                User.query.offset(content_page * content_per_page)
+                .limit(content_per_page)
+                .all()
+            )
+            # db_users_ = User.query.all().offset(content_page * content_per_page).limit(content_per_page) # noqa
+
+            return (
+                jsonify(
+                    {
+                        "status": "OK",
+                        "users": [user.__json__() for user in db_users],
+                        "page": content_page,
+                    }
+                ),
+                200,
+            )
+        return jsonify({"status": "error", "message": "admin_cred_not_found"}), 404
+    return unauthorized()
 
 
 @main_blueprint.route(endpoints.URLS.ULogin, methods=["GET", "POST"])
@@ -471,7 +713,9 @@ def user_login() -> tuple[Response, int]:
         LOGGER.debug(f"{req_id} - is_user : {is_user}")
         if isinstance(is_user, User):
             LOGGER.debug(f"{req_id} - trying to login")
-            if (try_login_response := try_login(is_user, ip_addr=request.remote_addr)) is not None:
+            if (
+                try_login_response := try_login(is_user, ip_addr=request.remote_addr)
+            ) is not None:
                 LOGGER.debug(f"{req_id} - login result : {try_login_response}")
                 if try_login_response is loginError.max_online_user:
                     return (
@@ -495,7 +739,9 @@ def user_login() -> tuple[Response, int]:
                     )
                 elif try_login_response is True:
                     return (
-                        request_success_response("login_success", extra={"user": is_user.__json__()}),
+                        request_success_response(
+                            "login_success", extra={"user": is_user.__json__()}
+                        ),
                         200,
                     )
             return jsonify({"status": "error", "message": "login_failed"}), 200

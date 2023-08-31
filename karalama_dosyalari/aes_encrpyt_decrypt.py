@@ -111,8 +111,12 @@ def main():
     test_aes("1234032ıjdmk123", "65345")
     test_aes("1234032ıjdmk123", "65345")
     test_aes("1234032ıjdmk123", "65345")
-    test_external_encrypted_text("1234032ıjdmk123", "ke0RUf3gj4o2/v/OLIHpQWXIacicAbOCfYKSDJQA5E8=", "65345")
-    test_external_encrypted_text("1234032ıjdmk123", "QjTZZwVzZ3o1amVCZ3X3YqbunEt8azcejuIwPzq2kN8=", "65345")
+    test_external_encrypted_text(
+        "1234032ıjdmk123", "ke0RUf3gj4o2/v/OLIHpQWXIacicAbOCfYKSDJQA5E8=", "65345"
+    )
+    test_external_encrypted_text(
+        "1234032ıjdmk123", "QjTZZwVzZ3o1amVCZ3X3YqbunEt8azcejuIwPzq2kN8=", "65345"
+    )
 
 
 def test_aes_million_random_iter():

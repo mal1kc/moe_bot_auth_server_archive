@@ -6,7 +6,9 @@ encoding = "utf-8"
 encryption_password = read_enc_key()
 
 
-def simple_dencrypt(data: bytes | str, password: str | bytes = encryption_password) -> bytes:
+def simple_dencrypt(
+    data: bytes | str, password: str | bytes = encryption_password
+) -> bytes:
     if isinstance(password, str):
         password = password.encode("utf-8")
     elif not isinstance(password, bytes):
@@ -26,10 +28,10 @@ def simple_dencrypt(data: bytes | str, password: str | bytes = encryption_passwo
 ### IMPORTANT: client side code
 ##
 ## def make_password_hash(password: str) -> str:
-##    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest()
+##    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest() # noqa
 ##
 ## def make_password_ready(password: str) -> str:
-##    return simple_dencrypt(make_password_hash(password).encode(encoding), encrption_password).hex()
+##    return simple_dencrypt(make_password_hash(password).encode(encoding), encrption_password).hex() # noqa
 
 
 def generate_password_salt(password: str) -> str:
@@ -41,7 +43,9 @@ def make_password_hash(password: str) -> str:
     password: plain text
     return value: hex string
     """
-    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest()
+    return hashlib.sha256(
+        (password + generate_password_salt(password)).encode(encoding)
+    ).hexdigest()
 
 
 def make_password_ready(password: str) -> str:
@@ -49,7 +53,9 @@ def make_password_ready(password: str) -> str:
     password: plain text
     return value: hex string
     """
-    return simple_dencrypt(make_password_hash(password).encode(encoding), encryption_password).hex()
+    return simple_dencrypt(
+        make_password_hash(password).encode(encoding), encryption_password
+    ).hex()
 
 
 def unmake_password_ready(password_hex: str) -> str:

@@ -7,8 +7,16 @@ from . import paths
 from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
 from .database_ops import db
-from .err_handlrs import bad_request, error_blueprint, method_not_allowed, not_found, unauthorized, unsupported_media_type
+from .err_handlrs import (
+    bad_request,
+    error_blueprint,
+    method_not_allowed,
+    not_found,
+    unauthorized,
+    unsupported_media_type,
+)
 from .main_app import main_blueprint
+from .cli import cli_blueprint
 
 
 LOGGER = logging.getLogger("app")
@@ -44,6 +52,7 @@ def register_blueprints(app: Flask) -> None:
     LOGGER.debug("Registering blueprints")
     app.register_blueprint(error_blueprint)
     app.register_blueprint(main_blueprint)
+    app.register_blueprint(cli_blueprint)
 
 
 def register_extensions(app: Flask, db=db) -> None:

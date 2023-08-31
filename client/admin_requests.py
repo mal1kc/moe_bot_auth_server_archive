@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import datetime
 from typing import Any
 
@@ -8,6 +9,7 @@ from data import sample_admin_data, sample_user_data, sample_package_data, sampl
 import requests
 import time
 import random
+
 
 req_session = requests.Session()
 
@@ -51,7 +53,9 @@ def main():
         print(f"register user_package failed: { response_register_user_package}")
         return
     print("register user_package success")
-    response_login_user = login_user(name=random_user_name, ready_password=make_password_ready(random_user_name))
+    response_login_user = login_user(
+        name=random_user_name, ready_password=make_password_ready(random_user_name)
+    )
     if not response_login_user[1]:
         print(f"login user failed: {response_login_user}")
         return
@@ -67,9 +71,13 @@ def register_user(name: str = "ext_test_user") -> tuple[dict[str, Any], bool]:
         "model_type": "user",
         "model": user_data,
     }
-    print(f"registerinng user auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}")
+    print(
+        f"registerinng user auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}"
+    )
 
-    response = req_session.post(EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values()))
+    response = req_session.post(
+        EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values())
+    )
     return response.json(), response.ok
 
 
@@ -78,7 +86,10 @@ def register_user(name: str = "ext_test_user") -> tuple[dict[str, Any], bool]:
 
 @took_time_decorator_ns
 def register_package(
-    package_contents: list[int] | None = None, name: str = "ext_test_package", detail: str = "ext_test_package_detail", days: int = 30
+    package_contents: list[int] | None = None,
+    name: str = "ext_test_package",
+    detail: str = "ext_test_package_detail",
+    days: int = 30,
 ) -> tuple[dict[str, Any], bool]:
     package_data = sample_package_data.copy()
     package_data["name"] = name
@@ -90,8 +101,12 @@ def register_package(
         "model_type": "package",
         "model": package_data,
     }
-    print(f"registerinng package auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}")
-    response = req_session.post(EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values()))
+    print(
+        f"registerinng package auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}"
+    )
+    response = req_session.post(
+        EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values())
+    )
     return response.json(), response.ok
 
 
@@ -106,15 +121,23 @@ def register_package_content(
         "model_type": "package_content",
         "model": package_content_data,
     }
-    print(f"registerinng package_content auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}")
-    response = req_session.post(EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values()))
+    print(
+        f"registerinng package_content auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}"
+    )
+    response = req_session.post(
+        EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values())
+    )
     return response.json(), response.ok
 
 
 @took_time_decorator_ns
-def register_user_package(user_id: int = 1, package_id: int = 1) -> tuple[dict[str, Any], bool]:
+def register_user_package(
+    user_id: int = 1, package_id: int = 1
+) -> tuple[dict[str, Any], bool]:
     u_package_data = {
-        "start_date": int(datetime.datetime.utcnow().timestamp()),  # IMPORTANT: this is in UTC and is int not float
+        "start_date": int(
+            datetime.datetime.utcnow().timestamp()
+        ),  # IMPORTANT: this is in UTC and is int not float
         "user": user_id,
         "base_package": package_id,
     }
@@ -122,13 +145,19 @@ def register_user_package(user_id: int = 1, package_id: int = 1) -> tuple[dict[s
         "model_type": "u_package",
         "model": u_package_data,
     }
-    print(f"registerinng user_package auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}")
-    response = req_session.post(EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values()))
+    print(
+        f"registerinng user_package auth: {tuple(sample_admin_data.values())}, url: {EndPoints.ARegister}, json: {request_json}"
+    )
+    response = req_session.post(
+        EndPoints.ARegister, json=request_json, auth=tuple(sample_admin_data.values())
+    )
 
     return response.json(), response.ok
 
 
-def login_user(name: str = "ext_test_user", ready_password: str = make_password_ready("ext_test_user")):
+def login_user(
+    name: str = "ext_test_user", ready_password: str = make_password_ready("ext_test_user")
+):
     response = req_session.post(EndPoints.ULogin, auth=(name, ready_password))
 
     return response.json(), response.ok

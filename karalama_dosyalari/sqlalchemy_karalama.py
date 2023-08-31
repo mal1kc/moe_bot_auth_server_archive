@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from pprint import pprint
 from random import randint
 from string import ascii_letters
@@ -31,7 +32,7 @@ def main():
         session.add(
             PackageIcerik(
                 p_icerikId=i,
-                p_icerikAdi="".join([ascii_letters[randint(0, 51)] for i in range(256)]),
+                p_icerikAdi="".join([ascii_letters[randint(0, 51)] for _ in range(256)]),
             )
         )
     session.commit()

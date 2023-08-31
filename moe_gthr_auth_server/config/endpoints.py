@@ -19,15 +19,28 @@ class _URLS:
 
 
 @functools.lru_cache(maxsize=1, typed=True)
-def _init_urls() -> _URLS:
+def _init_urls(testing=False) -> _URLS:
+    if testing:
+        return _URLS(
+            ULogin=URL_PREFIX_USER + "/login",
+            UInfo=URL_PREFIX_USER + "/info",
+            ALogin=URL_PREFIX_ADMIN + "/login",
+            ARegister=URL_PREFIX_ADMIN + "/register/{m_type}",
+            AInfo=URL_PREFIX_ADMIN + "/info/{m_type}}/{m_id}",
+            AUpdate=URL_PREFIX_ADMIN + "/update/{m_type}/{m_id}",
+            ADelete=URL_PREFIX_ADMIN + "/delete/{m_type}/{m_id}",
+        )
     return _URLS(
         ULogin=URL_PREFIX_USER + "/login",
+        # get all user info / current session info, user_packages, user_packages_contents, \
+        #    active_sessions from auth user
         UInfo=URL_PREFIX_USER + "/info",
-        ALogin=URL_PREFIX_ADMIN + "/login",  # TODO: not implemented
-        ARegister=URL_PREFIX_ADMIN + "/register",  # currently only admin can register new users
-        AInfo=URL_PREFIX_ADMIN + "/info",
-        AUpdate=URL_PREFIX_ADMIN + "/update",
-        ADelete=URL_PREFIX_ADMIN + "/delete",
+        ALogin=URL_PREFIX_ADMIN + "/login",  # redirect to /admin/info for all db data
+        ARegister=URL_PREFIX_ADMIN + "/register/<int:m_type>",
+        # currently only admin can register new users
+        AInfo=URL_PREFIX_ADMIN + "/info/<int:m_type>/<int:m_id>",
+        AUpdate=URL_PREFIX_ADMIN + "/update/<int:m_type>/<int:m_id>",
+        ADelete=URL_PREFIX_ADMIN + "/delete/<int:m_type>/<int:m_id>",
     )
 
 

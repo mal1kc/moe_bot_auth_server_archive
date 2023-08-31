@@ -7,14 +7,15 @@ from moe_gthr_auth_server.database_ops import (
     User,
     Package,
     PackageContent,
-    pContentEnum,
 )
+from moe_gthr_auth_server.enums import pContentEnum, mType  # noqa
+
 
 import moe_gthr_auth_server.config.endpoints as app_config_endpoints
 
 LOGGER = logging.getLogger(__name__)
 
-URLS = app_config_endpoints._init_urls()
+URLS = app_config_endpoints._init_urls(testing=True)
 
 
 def show_db_data(app_contx):
@@ -41,4 +42,5 @@ def generate_random_sized_random_package_content_list(max_size: int = 4):
         p_content = random.choice(available_pContent)
         if p_content not in result:
             result.append(p_content)
+    LOGGER.debug("generate_random_sized_random_content_list: -> result:%s", result)
     return result

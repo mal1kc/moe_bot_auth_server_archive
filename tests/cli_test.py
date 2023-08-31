@@ -1,11 +1,11 @@
-from click.testing import CliRunner
-import logging
-from moe_gthr_auth_server import register_blueprints, register_error_handlers, db
-from flask import Flask
 import pytest
 
+from flask import Flask
+from click.testing import CliRunner
 
-LOGGER = logging.getLogger(__name__)
+from moe_gthr_auth_server import register_blueprints, register_error_handlers, db
+from moe_gthr_auth_server.cli import initdb_command, resetdb_command
+from testing_helpers import LOGGER
 
 
 @pytest.fixture
@@ -39,7 +39,18 @@ def test_cli_help(flask_cli_runner):
 
 
 def test_cli_resetdb(flask_cli_runner):
-    result = flask_cli_runner.invoke(args=["resetdb"])
+    result = flask_cli_runner.invoke(resetdb_command)
     LOGGER.debug("result: %s", result.output)
-    assert result.exit_code == 0
-    assert "Initialized the database" in result.output
+    assert result.exit_code == 0, result.output
+    assert "adminler" in result.output
+
+
+def test_cli_initdb_recrate(flask_cli_runner):
+    result = flask_cli_runner.invoke(initdb_command, args=["--recreate"])
+    LOGGER.debug("result: %s", result.output)
+    assert result.exit_code == 0, result.output
+    assert "adminler" in result.output
+
+
+if __name__ == "__main__":
+    pytest.main(["-vv", __file__])

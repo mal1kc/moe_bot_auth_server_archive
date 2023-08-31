@@ -44,4 +44,7 @@ if __name__ == "__main__":
     print("Secret key generated and written to %s." % paths.SECRET_KEY_PATH)
     print("Keep this key secret!")
     print("If you lose this key, you will have to log in again.")
-    print("If you want to change this key, delete %s and restart the server." % paths.SECRET_KEY_PATH)
+    print(
+        "If you want to change this key, delete %s and restart the server."
+        % paths.SECRET_KEY_PATH
+    )

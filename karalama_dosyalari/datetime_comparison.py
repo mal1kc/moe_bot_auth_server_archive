@@ -12,7 +12,9 @@ def main():
     end_time = datetime.time(23, 59, 59)
 
     random_date = datetime.datetime.combine(
-        datetime.date.fromordinal(random.randint(start_date.toordinal(), end_date.toordinal())),
+        datetime.date.fromordinal(
+            random.randint(start_date.toordinal(), end_date.toordinal())
+        ),
         datetime.time(
             random.randint(start_time.hour, end_time.hour),
             random.randint(start_time.minute, end_time.minute),

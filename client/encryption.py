@@ -27,8 +27,12 @@ def simple_dencrypt(data: bytes | str, password: str | bytes = encrption_passwor
 
 
 def make_password_hash(password: str) -> str:
-    return hashlib.sha256((password + generate_password_salt(password)).encode(encoding)).hexdigest()
+    return hashlib.sha256(
+        (password + generate_password_salt(password)).encode(encoding)
+    ).hexdigest()
 
 
 def make_password_ready(password: str) -> str:
-    return simple_dencrypt(make_password_hash(password).encode(encoding), encrption_password).hex()
+    return simple_dencrypt(
+        make_password_hash(password).encode(encoding), encrption_password
+    ).hex()

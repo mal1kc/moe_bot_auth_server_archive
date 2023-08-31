@@ -1,59 +1,29 @@
 from __future__ import annotations
-import enum
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Callable, List
 
-from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
 
 from flask_sqlalchemy import SQLAlchemy
 from schema import Or, Schema, And, Use, Optional, SchemaError
 from sqlalchemy import DateTime, Enum, ForeignKey, String
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, scoped_session
+from sqlalchemy.orm import (
+    Mapped,
+    declarative_base,
+    mapped_column,
+    relationship,
+    scoped_session,
+)
 from sqlalchemy.orm.decl_api import DeclarativeMeta
+
+from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
+from .enums import pContentEnum, loginError, DBOperationResult
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
 DB_LOGGER = getLogger("sqlalchemy_db")
 
 # DEVLOG -> serilize datetime as utc_timestamp
-
-
-class pContentEnum(enum.StrEnum):
-    # TODO : maybe change in future for more flexibility
-    moe_gatherer = enum.auto()  # -> "moe_gatherer"
-    moe_advantures = enum.auto()
-    moe_camp = enum.auto()
-    moe_arena = enum.auto()
-    moe_raid = enum.auto()
-    extra_user = enum.auto()
-    discord = enum.auto()  # TODO: discord api kullanım hakkı
-
-
-class loginError(enum.IntEnum):
-    # sifre_veya_user_adi_yanlis = enum.auto()
-    max_online_user = enum.auto()
-    user_not_found = enum.auto()
-    user_not_have_package = enum.auto()
-    user_package_expired = enum.auto()
-    not_found_client_ip = enum.auto()
-
-
-class DBOperationResult(enum.Enum):
-    success = True
-    unknown_error = enum.auto()
-    model_already_exists = enum.auto()
-    model_not_found = enum.auto()
-    model_not_created = enum.auto()
-    model_not_updated = enum.auto()
-    model_not_deleted = enum.auto()
-    model_name_too_short = enum.auto()
-    model_name_too_long = enum.auto()
-    model_passhash_too_short = enum.auto()
-
-    def __json__(self) -> dict[str, Any]:
-        "serialize enum to json"
-        return {"db_operation_result": self.name}
 
 
 pcontent_packages_conn_table = db.Table(
@@ -70,14 +40,18 @@ class PackageContent(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
-    content_value: Mapped[str] = mapped_column(Enum(*[e for e in pContentEnum]), nullable=False)
+    content_value: Mapped[str] = mapped_column(
+        Enum(*[e for e in pContentEnum]), nullable=False
+    )
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
     packages: Mapped[List[Package]] = relationship(
         "Package", secondary=pcontent_packages_conn_table, back_populates="package_contents"
     )
 
     def __repr__(self):
-        return f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
+        return (
+            f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
+        )
 
     def __json__(self) -> dict[str, Any]:
         return {
@@ -102,11 +76,26 @@ class PackageContent(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                Optional("id"): And(int, Use(lambda x: x in [p_content.id for p_content in PackageContent.query.all()])),
-                "name": And(str, len),
-                "content_value": And(str, Use(pContentEnum)),
-                Optional("packages"): And(list, Use(lambda x: [Package.from_json(package_data) for package_data in x])),
-                Optional("package_id"): And(Or(int, None), Use(_package_id_check)),
+                Optional("id"): And(
+                    int,
+                    Use(
+                        lambda x: x
+                        in [p_content.id for p_content in PackageContent.query.all()],
+                        error="not_valid_id",
+                    ),
+                ),
+                "name": And(str, len, error="not_valid_name"),
+                "content_value": And(
+                    str, Use(pContentEnum), error="not_valid_content_value"
+                ),
+                Optional("packages"): And(
+                    list,
+                    Use(lambda x: [Package.from_json(package_data) for package_data in x]),
+                    error="not_valid_packages",
+                ),
+                Optional("package_id"): And(
+                    Or(int, None), Use(_package_id_check), error="not_valid_package_id"
+                ),
             }
         )
         schema.validate(data)
@@ -119,7 +108,9 @@ class Package(Base):
     name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
 
     days: Mapped[int] = mapped_column(nullable=False, default=30)  # 1,30,90,365 gibi
-    detail: Mapped[str] = mapped_column(String(256), nullable=False, default="package_detail")
+    detail: Mapped[str] = mapped_column(
+        String(256), nullable=False, default="package_detail"
+    )
 
     package_contents: Mapped[List[PackageContent]] = relationship(
         "PackageContent", back_populates="packages", secondary=pcontent_packages_conn_table
@@ -135,7 +126,9 @@ class Package(Base):
                 "name": self.name,
                 "days": self.days,
                 "detail": self.detail,
-                "package_contents": [package_content.__json__() for package_content in self.package_contents],
+                "package_contents": [
+                    package_content.__json__() for package_content in self.package_contents
+                ],
             }
         return {
             "id": self.id,
@@ -153,26 +146,35 @@ class Package(Base):
             "days": data["days"],
             "detail": data["detail"],
             "id": None,
+            "package_contents": None,
         }
 
         if "id" in data.keys():
             ret_package["id"] = data["id"]
+        if "package_contents" in data.keys():
+            ret_package["package_contents"] = []
+            for package_content in data["package_contents"]:
+                ret_package["package_contents"].append(
+                    PackageContent.query.filter_by(id=package_content).first()
+                )
         return Package(**ret_package)
 
     @staticmethod
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                Optional("id"): And(int, Use(lambda x: x in [package.id for package in Package.query.all()])),
-                "name": And(str, len),
-                "days": And(int, Use(lambda x: (1 >= x) and (x < 366))),  # 1,30,90,365 gibi
-                "detail": And(str, len),
-                Optional("package_contents"): And(
-                    Or(list, int),
-                    Or(
-                        Use(_package_content_validate),
-                        Or(Use(_package_content_id_check), Use(lambda x: [PackageContent.from_json(pc_data) for pc_data in x])),
-                    ),
+                Optional("id"): And(
+                    int,
+                    Use(lambda x: x in [package.id for package in Package.query.all()]),
+                    error="not_valid_id",
+                ),
+                "name": And(str, Use(lambda x: len(x) > 3), error="not_valid_name"),
+                "days": And(
+                    int, Use(lambda x: (1 >= x) and (x < 366)), error="not_valid_days"
+                ),  # 1,30,90,365 gibi
+                "detail": And(str, len, error="not_valid_detail"),
+                Optional("package_contents"): Use(
+                    _package_contents_validate, error="not_valid_package_contents"
                 ),
             }
         )
@@ -183,11 +185,15 @@ class U_Package(Base):
     __tablename__ = "user_packages"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    start_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     base_package_id: Mapped[int] = mapped_column(ForeignKey("packages.id"), nullable=False)
-    base_package: Mapped[Package] = relationship("Package", uselist=False, backref="user_packages")
+    base_package: Mapped[Package] = relationship(
+        "Package", uselist=False, backref="user_packages"
+    )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
@@ -231,9 +237,13 @@ class U_Package(Base):
         if "id" in data.keys():
             ret_u_package["id"] = data["id"]
         if "end_date" in data.keys():
-            ret_u_package["end_date"] = utc_timestamp(data["end_date"], return_type=datetime)
+            ret_u_package["end_date"] = utc_timestamp(
+                data["end_date"], return_type=datetime
+            )
         else:
-            ret_u_package["end_date"] = utc_timestamp(data["start_date"], return_type=datetime) + timedelta(
+            ret_u_package["end_date"] = utc_timestamp(
+                data["start_date"], return_type=datetime
+            ) + timedelta(
                 days=base_package_days
             )  # type: ignore
         if "user" in data.keys():
@@ -246,11 +256,25 @@ class U_Package(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                Optional("id"): And(int, Use(lambda x: x in [u_package.id for u_package in U_Package.query.all()])),
-                "base_package": And(int, Use(_package_id_check)),
-                "start_date": And(int),
-                Optional("end_date"): And(int, Use(lambda x: (x > data["start_date"] and x < utc_timestamp(datetime.utcnow())))),
-                "user": And(int, Use(_user_id_check)),
+                Optional("id"): And(
+                    int,
+                    Use(
+                        lambda x: x in [u_package.id for u_package in U_Package.query.all()]
+                    ),
+                    error="not_valid_id",
+                ),
+                "base_package": And(int, Use(_package_id_check), error="not_valid_package"),
+                "start_date": And(int, error="not_valid_start_date"),
+                Optional("end_date"): And(
+                    int,
+                    Use(
+                        lambda x: (
+                            x > data["start_date"] and x < utc_timestamp(datetime.utcnow())
+                        )
+                    ),
+                    error="not_valid_end_date",
+                ),
+                "user": And(int, Use(_user_id_check), error="not_valid_user"),
             }
         )
         schema.validate(data)
@@ -263,13 +287,15 @@ class U_Session(Base):
     __tablename__ = "user_sessions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    start_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     ip: Mapped[str] = mapped_column(String(256), nullable=False)
     access: Mapped[bool] = mapped_column(nullable=False, default=True)
 
     def __repr__(self) -> str:
-        return f"<U_Session {self.id} {self.user_id} {self.start_date} {self.end_date} {self.ip} {self.access}>"
+        return f"<U_Session {self.id} {self.user_id} {self.start_date} {self.end_date} {self.ip} {self.access}>"  # noqa
 
     def __json__(self) -> dict[str, Any]:
         return {
@@ -285,12 +311,24 @@ class U_Session(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                Optional("id"): And(int, Use(lambda x: x in [u_session.id for u_session in U_Session.query.all()])),
-                "user_id": And(int, Use(_user_id_check)),
-                "start_date": And(int),
-                "end_date": And(int, Use(lambda x: (x > data["start_date"]))),
-                "ip": And(str, len),
-                "accesible": And(bool),
+                Optional("id"): And(
+                    int,
+                    Use(
+                        lambda x: x in [u_session.id for u_session in U_Session.query.all()]
+                    ),
+                    error="not_valid_id",
+                ),
+                "user_id": And(int, Use(_user_id_check), error="not_valid_user"),
+                "start_date": And(
+                    int,
+                    Use(lambda x: x < utc_timestamp(datetime.utcnow())),
+                    error="not_valid_start_date",
+                ),
+                "end_date": And(
+                    int, Use(lambda x: (x > data["start_date"])), error="not_valid_end_date"
+                ),
+                "ip": And(str, len, error="not_valid_ip"),
+                "accesible": And(bool, error="not_valid_accesible"),
             }
         )
         schema.validate(data)
@@ -318,11 +356,20 @@ class User(Base):
 
     discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
 
-    package: Mapped[U_Package] = relationship("U_Package", cascade="all, delete", backref="user")
-    sessions: Mapped[List[U_Session]] = relationship("U_Session", backref="user")
+    package: Mapped[U_Package] = relationship(
+        "U_Package", cascade="all, delete", backref="user"
+    )
+    sessions: Mapped[List[U_Session]] = relationship(
+        "U_Session", backref="user", lazy="dynamic", order_by="desc(U_Session.end_date)"
+    )
 
     def __repr__(self) -> str:
-        return "<User (id:%s, name:%s, password_hash:%s, discord_id:%s)>" % (self.id, self.name, self.password_hash, self.discord_id)
+        return "<User (id:%s, name:%s, password_hash:%s, discord_id:%s)>" % (
+            self.id,
+            self.name,
+            self.password_hash,
+            self.discord_id,
+        )
 
     def __json__(self) -> dict[str, Any]:
         if self.package is not None:
@@ -330,14 +377,18 @@ class User(Base):
                 "id": self.id,
                 "name": self.name,
                 "package": self.package.__json__(user_incld=False),
-                "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
+                "sessions": [session.__json__() for session in self.sessions]
+                if self.sessions is not None
+                else None,
                 "discord_id": self.discord_id,
             }
         return {
             "id": self.id,
             "name": self.name,
             "package": None,
-            "sessions": [session.__json__() for session in self.sessions] if self.sessions is not None else None,
+            "sessions": [session.__json__() for session in self.sessions]
+            if self.sessions is not None
+            else None,
             "discord_id": self.discord_id,
         }
 
@@ -363,11 +414,13 @@ class User(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                Optional("id"): And(int, Use(_user_id_check)),
-                "name": And(str, len),
-                "password_hash": And(str, len),
-                Optional("discord_id"): And(str, len),
-                Optional("package"): And(Or(int, None), Use(_package_id_check)),
+                Optional("id"): And(int, Use(_user_id_check), error="not_valid_id"),
+                "name": And(str, len, error="not_valid_name"),
+                "password_hash": And(str, len, error="not_valid_password_hash"),
+                Optional("discord_id"): And(str, len, error="not_valid_discord_id"),
+                Optional("package"): And(
+                    Or(int, None), Use(_package_id_check), error="not_valid_package"
+                ),
             }
         )
 
@@ -393,7 +446,9 @@ class User(Base):
                 db.session.commit()
                 return loginError.user_package_expired
             p_contents = u_package.base_package.package_contents
-            extra_user_quota = list(filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents))
+            extra_user_quota = list(
+                filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents)
+            )
             max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
             same_ip_expired_session = self._eleminate_expired_accessible_sessions(inamedr)
 
@@ -401,11 +456,16 @@ class User(Base):
                 return loginError.max_online_user
             if same_ip_expired_session is not None:
                 same_ip_expired_session.oturumuzat()
-                DB_LOGGER.info("user oturum uzatildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr))
+                DB_LOGGER.info(
+                    "user oturum uzatildi: id:%s, name:%s, ip:%s"
+                    % (self.id, self.name, inamedr)
+                )
                 return True
             self._add_new_session(inamedr)
             db.session.commit()
-            DB_LOGGER.info("user oturum acildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr))
+            DB_LOGGER.info(
+                "user oturum acildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr)
+            )
             return True
         return loginError.user_not_have_package
 
@@ -435,8 +495,12 @@ class User(Base):
         :return: None | U_Session
         """
         expired_sessions = filter_list(lambda x: x.is_expired(), self.u_accessible_sessions)
-        same_ip_expired_sessions = filter_list(lambda x: x.k_oIp == inamedr, expired_sessions)
-        other_ip_expired_sessions = filter_list(lambda x: x.k_oIp != inamedr, expired_sessions)
+        same_ip_expired_sessions = filter_list(
+            lambda x: x.k_oIp == inamedr, expired_sessions
+        )
+        other_ip_expired_sessions = filter_list(
+            lambda x: x.k_oIp != inamedr, expired_sessions
+        )
         self._disable_multiple_sessions_acess(other_ip_expired_sessions)
 
         if len(same_ip_expired_sessions) > 1:
@@ -445,7 +509,13 @@ class User(Base):
             newest_same_ip_session = same_ip_expired_sessions[0]
             same_ip_expired_sessions.remove(newest_same_ip_session)
             self._disable_multiple_sessions_acess(same_ip_expired_sessions)
-            if not (newest_same_ip_session.end_date + timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)) < datetime.utcnow():
+            if (
+                not (
+                    newest_same_ip_session.end_date
+                    + timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)
+                )
+                < datetime.utcnow()
+            ):
                 self._disable_session_access(newest_same_ip_session)
                 return newest_same_ip_session
             return None
@@ -477,7 +547,11 @@ class Admin(Base):
     password_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
 
     def __repr__(self) -> str:
-        return "<Admin (id:%s, name:%s, password_hash:%s)>" % (self.id, self.name, self.password_hash)
+        return "<Admin (id:%s, name:%s, password_hash:%s)>" % (
+            self.id,
+            self.name,
+            self.password_hash,
+        )
 
     def __json__(self) -> dict[str, Any]:
         return {
@@ -490,8 +564,8 @@ class Admin(Base):
     def validate(data: dict) -> None:
         schema = Schema(
             {
-                "name": And(str, len),
-                "password_hash": And(str, len),
+                "name": And(str, len, error="not_valid_name"),
+                "password_hash": And(str, len, error="not_valid_password_hash"),
             }
         )
         schema.validate(data)
@@ -524,7 +598,8 @@ def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | 
 
 
 def add_db_model(
-    model: U_Package | U_Session | User | Admin | Package | PackageContent, session: scoped_session = db.session
+    model: U_Package | U_Session | User | Admin | Package | PackageContent,
+    session: scoped_session = db.session,
 ) -> DBOperationResult:
     try:
         DB_LOGGER.info("adding model to database %s" % model)
@@ -548,7 +623,8 @@ def add_db_model(
 
 
 def add_db_all_models(
-    models: List[U_Package | U_Session | User | Admin | Package | PackageContent], session: scoped_session = db.session
+    models: List[U_Package | U_Session | User | Admin | Package | PackageContent],
+    session: scoped_session = db.session,
 ) -> DBOperationResult:
     try:
         with session.begin_nested():
@@ -584,7 +660,9 @@ def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperation
     return add_db_model(admin, session)
 
 
-def add_package(package: Package, session: scoped_session = db.session, disable_recursive=False) -> DBOperationResult:
+def add_package(
+    package: Package, session: scoped_session = db.session, disable_recursive=False
+) -> DBOperationResult:
     DB_LOGGER.info("adding package to database")
     DB_LOGGER.debug("package: %s" % package)
     DB_LOGGER.debug("session: %s" % session)
@@ -595,19 +673,32 @@ def add_package(package: Package, session: scoped_session = db.session, disable_
             if package_content is None:
                 break
             if isinstance(package_content, PackageContent):
-                package_content_exist = session.query(PackageContent).filter_by(name=package_content.name).first()
+                package_content_exist = (
+                    session.query(PackageContent)
+                    .filter_by(name=package_content.name)
+                    .first()
+                )
                 if package_content_exist is None:
-                    if add_package_content(package_content, session, disable_recursive=True) != DBOperationResult.success:
+                    if (
+                        add_package_content(
+                            package_content, session, disable_recursive=True
+                        )
+                        != DBOperationResult.success
+                    ):
                         return DBOperationResult.model_not_created
             elif isinstance(package_content, int):
-                package_content_exist = session.query(PackageContent).filter_by(id=package_content).first()
+                package_content_exist = (
+                    session.query(PackageContent).filter_by(id=package_content).first()
+                )
                 if package_content_exist is None:
                     return DBOperationResult.model_not_created
     return add_db_model(package, session)
 
 
 def add_package_content(
-    package_content: PackageContent, session: scoped_session = db.session, disable_recursive=False
+    package_content: PackageContent,
+    session: scoped_session = db.session,
+    disable_recursive=False,
 ) -> DBOperationResult:
     if hasattr(package_content, "packages") and not disable_recursive:
         # TODO: maybe change this to add_db_all_models
@@ -615,7 +706,10 @@ def add_package_content(
             if isinstance(package, Package):
                 package_exist = session.query(Package).filter_by(name=package.name).first()
                 if package_exist is None:
-                    if add_package(package, session, disable_recursive=True) != DBOperationResult.success:
+                    if (
+                        add_package(package, session, disable_recursive=True)
+                        != DBOperationResult.success
+                    ):
                         return DBOperationResult.model_not_created
                 package_exist = session.query(Package).filter_by(name=package.name).first()
             elif isinstance(package, int):
@@ -626,7 +720,9 @@ def add_package_content(
     return add_db_model(package_content, session)
 
 
-def add_u_package(u_package: U_Package, session: scoped_session = db.session) -> DBOperationResult:
+def add_u_package(
+    u_package: U_Package, session: scoped_session = db.session
+) -> DBOperationResult:
     if u_package.base_package is not None:
         if u_package.base_package.id is None:
             add_package(u_package.base_package, session)
@@ -676,18 +772,28 @@ def filter_list(function: Callable[[Any], bool], input_list: List[Any]) -> List[
     return list(filter(function, input_list))
 
 
-def _package_content_id_check(package_content_id: int) -> bool:
-    if package_content_id is None:
+def _package_contents_validate(package_contents: List[PackageContent | None | int]) -> bool:
+    if package_contents is None:
         return False
-    return package_content_id in [package_content.id for package_content in PackageContent.query.all()]
+    for package_content in package_contents:
+        if not _package_content_validate(package_content):
+            return False
+    return True
 
 
-def _package_content_validate(package_content: PackageContent | None) -> bool:
+def _package_content_validate(package_content: PackageContent | None | int) -> bool:
     if package_content is None:
         return False
-    package_content_exist = PackageContent.query.filter_by(name=package_content.name).first()
-    if package_content_exist is None:
-        return package_content.validate(package_content.__json__()) is None
+    elif isinstance(package_content, int):
+        package_content = PackageContent.query.filter_by(id=package_content).first()
+        if package_content is None:
+            return False
+    elif isinstance(package_content, PackageContent):
+        package_content_exist = PackageContent.query.filter_by(
+            name=package_content.name
+        ).first()
+        if package_content_exist is None:
+            return package_content.validate(package_content.__json__()) is not None
     return True
 
 
@@ -706,7 +812,9 @@ def validate_data_schema(cls, data):
         raise e
 
 
-def update_user(old_user: int | User, new_user: User, session: scoped_session = db.session) -> DBOperationResult:
+def update_user(
+    old_user: int | User, new_user: User, session: scoped_session = db.session
+) -> DBOperationResult:
     """
     update user with k_id
     :param old_user: id of user to update or user object
@@ -740,11 +848,15 @@ def update_user(old_user: int | User, new_user: User, session: scoped_session = 
 
 
 def update_package_content(
-    old_package_content: int | PackageContent, new_package_content: PackageContent, session: scoped_session = db.session
+    old_package_content: int | PackageContent,
+    new_package_content: PackageContent,
+    session: scoped_session = db.session,
 ) -> DBOperationResult:
     try:
         if isinstance(old_package_content, int):
-            db_package_content = session.query(PackageContent).filter_by(id=old_package_content).first()
+            db_package_content = (
+                session.query(PackageContent).filter_by(id=old_package_content).first()
+            )
         else:
             db_package_content = old_package_content
         if db_package_content is None:
@@ -762,7 +874,9 @@ def update_package_content(
     return DBOperationResult.unknown_error
 
 
-def update_package(old_package: int | Package, new_package: Package, session: scoped_session = db.session):
+def update_package(
+    old_package: int | Package, new_package: Package, session: scoped_session = db.session
+):
     try:
         if isinstance(old_package, int):
             db_package = session.query(Package).filter_by(id=old_package).first()
@@ -785,7 +899,11 @@ def update_package(old_package: int | Package, new_package: Package, session: sc
     return DBOperationResult.unknown_error
 
 
-def update_u_package(old_u_package: int | U_Package, new_u_package: U_Package, session: scoped_session = db.session):
+def update_u_package(
+    old_u_package: int | U_Package,
+    new_u_package: U_Package,
+    session: scoped_session = db.session,
+):
     try:
         if isinstance(old_u_package, int):
             db_u_package = session.query(U_Package).filter_by(id=old_u_package).first()
@@ -808,7 +926,11 @@ def update_u_package(old_u_package: int | U_Package, new_u_package: U_Package, s
     return DBOperationResult.unknown_error
 
 
-def update_u_session(old_u_session: int | U_Session, new_u_session: U_Session, session: scoped_session = db.session):
+def update_u_session(
+    old_u_session: int | U_Session,
+    new_u_session: U_Session,
+    session: scoped_session = db.session,
+):
     try:
         if isinstance(old_u_session, int):
             db_u_session = session.query(U_Session).filter_by(id=old_u_session).first()

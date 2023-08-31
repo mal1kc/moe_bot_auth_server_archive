@@ -117,7 +117,10 @@ def test_admin_already_exists(admin, session, admin_data):
     LOGGER.debug("test_admin_already_exists: after first add_admin -> q_admin: %s", q_admin)
     assert DBOperationResult.model_already_exists == add_admin(admin, session)
     q_all_admins = session.query(Admin).all()
-    LOGGER.debug("test_admin_already_exists: after second add_admin -> q_all_admins: %s", q_all_admins)
+    LOGGER.debug(
+        "test_admin_already_exists: after second add_admin -> q_all_admins: %s",
+        q_all_admins,
+    )
     assert len(q_all_admins) == 1
     q_admin = session.query(Admin).filter_by(name=admin_data["name"]).first()
     assert q_admin.name == admin.name
@@ -155,10 +158,16 @@ def test_package_content_add(session, package, package_content):
         session.add(package)
     session.add(package_content)
     session.commit()
-    q_package_contentleri = session.query(PackageContent).filter(PackageContent.package_id == package.id).all()
+    q_package_contentleri = (
+        session.query(PackageContent).filter(PackageContent.package_id == package.id).all()
+    )
     if len(q_package_contentleri) == 0:
         package = session.query(Package).filter_by(name=package.name).first()
-        q_package_contentleri = session.query(PackageContent).filter(PackageContent.package_id == package.id).all()
+        q_package_contentleri = (
+            session.query(PackageContent)
+            .filter(PackageContent.package_id == package.id)
+            .all()
+        )
     assert package_content in q_package_contentleri
     session.close()
 
@@ -177,7 +186,10 @@ def test_package_add_random_package_content(session, package):
     session.commit()
     q_package_content = (
         session.query(PackageContent)
-        .filter(PackageContent.name == package_content.name, PackageContent.package_id == package.id)
+        .filter(
+            PackageContent.name == package_content.name,
+            PackageContent.package_id == package.id,
+        )
         .first()
     )
     assert q_package_content.content_value == package_content.content_value

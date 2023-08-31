@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moe-gthr-auth-server"
-version = "0.9.1"
+version = "0.10.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "LICENCE"
@@ -23,10 +23,10 @@ ruff-lsp = "^0.0.37"
 
 [tool.black]
 python = "^3.11"
-line-length = 135
+line-length = 92
 
 [tool.ruff]
-line-length = 135
+line-length = 92
 
 [tool.pytest.ini_options]
 log_format = "%(asctime)s %(levelname)s %(message)s"

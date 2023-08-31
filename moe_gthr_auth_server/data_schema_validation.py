@@ -12,9 +12,11 @@ example:
             "street": Use(str.upper),  # apply a function to the value
             "city": Use(str.title), #  apply a function to the value
             "state": Use(str),
-            "zip": And(Use(int), lambda n: 10000 <= n <= 99999), # apply a function to the value
+            "zip": And(Use(int), lambda n: 10000 <= n <= 99999),
+            # apply a function to the value
         }
-        "custom_field":  And(Use(str), lambda s: s.startswith('custom_field')), # apply a function to the value
+        "custom_field":  And(Use(str), lambda s: s.startswith('custom_field')),
+        # apply a function to the value
     }
 !!!!not_finished!!!!
 TODO:
@@ -142,7 +144,9 @@ class And(Schema):
         _func_result = self.func(value) if callable(self.func) else None
         if isinstance(value, self.dtype) and _func_result:
             return True
-        raise BaseSchemaValidationError(f"{value=} is not {self.dtype=} or function retuns={_func_result}")
+        raise BaseSchemaValidationError(
+            f"{value=} is not {self.dtype=} or function retuns={_func_result}"
+        )
 
 
 class Or(Schema):
@@ -155,4 +159,6 @@ class Or(Schema):
             return True
         if _func_result := self.func(value):
             return True
-        raise BaseSchemaValidationError(f"{value=} is not {self.dtype=} and function retuns={_func_result}")
+        raise BaseSchemaValidationError(
+            f"{value=} is not {self.dtype=} and function retuns={_func_result}"
+        )

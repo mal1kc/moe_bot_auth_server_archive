@@ -7,7 +7,10 @@ error_blueprint = Blueprint("error_blueprint", __name__)
 @error_blueprint.errorhandler(400)
 def bad_request(error=None) -> tuple[Response, int]:
     if error is not None:
-        return jsonify({"status": "error", "message": "bad_request", "error": str(error)}), 400
+        return (
+            jsonify({"status": "error", "message": "bad_request", "error": str(error)}),
+            400,
+        )
     return request_error_response("bad_request"), 400
 
 
