@@ -221,44 +221,8 @@ def admin_register() -> tuple[Response, int]:
                     LOGGER.debug(f"{req_id} - trying to add package")
                     package = Package.from_json(req_data["model"])
                     if hasattr(req_data["model"], "packagecontents"):
-                        if req_data["model"]["packagecontents"] is not None:
-                            for package_content in req_data["model"]["packagecontents"]:
-                                if isinstance(package_content, str):
-                                    try:
-                                        package_content = PackageContent.query.filter_by(name=package_content).first()
-                                    except Exception as e:
-                                        LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
-                                        LOGGER.debug(f"{req_id} - error ignored, continuing... add package")
-                                        break
-                                if isinstance(package_content, int):
-                                    db_package_content = PackageContent.query.filter_by(id=package_content).first()
-                                    if isinstance(db_package_content, PackageContent):
-                                        package.packagecontents.append(package_content)
-                                    else:
-                                        LOGGER.debug(f"{req_id} - package_content not found")
-                                        return (
-                                            request_error_response(
-                                                "package_content_not_found", extra={"packet_content": {"id": package_content}}
-                                            ),
-                                            404,
-                                        )
-                                elif isinstance(package_content, dict):
-                                    LOGGER.debug(f"{req_id} - package_content is dict, trying to add")
-                                    package_content = PackageContent.from_json(package_content)
-                                    if add_package_content(package_content) != DBOperationResult.success:
-                                        LOGGER.debug(f"{req_id} - package_content not added")
-                                        return (
-                                            request_error_response(
-                                                "package_content_not_added", extra={"package_content": package_content.__json__()}
-                                            ),
-                                            400,
-                                        )
-                                    db_package_content = PackageContent.query.filter_by(name=package_content.name).first()
-                                    package.packagecontents.append(db_package_content)
-
-                                # if PackageContent.query.filter_by(name=package_content).first() is None:
-                                #     return request_error_response("package_content_not_found"), 404
-
+                        # FIXME:  add package_content by its type
+                        raise NotImplementedError("package register with package_contents not impelented")
                     db_op_result = add_package(package)
                     if db_op_result is DBOperationResult.success:
                         db_package = Package.query.filter_by(name=package.name).first()
@@ -333,7 +297,8 @@ def admin_register() -> tuple[Response, int]:
 
 
 @main_blueprint.route(endpoints.URLS.AUpdate, methods=["PUT"])
-def admin_update() -> tuple[Response, int]:  # TODO: refactor this
+def admin_update() -> tuple[Response, int]:
+    # TODO: refactor this : too complex
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     # can method be changed to PUT?
@@ -484,6 +449,16 @@ def admin_update() -> tuple[Response, int]:  # TODO: refactor this
                     return unsupported_media_type()
                 return bad_request(e)
         return unauthorized()
+    return method_not_allowed()
+
+
+@main_blueprint.route(endpoints.URLS.ADelete, methods=["DELETE"])
+def admin_delete() -> tuple[Response, int]:
+    # TODO: IMPLEMENT THIS
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
+    if request.method == "DELETE":
+        raise NotImplementedError("admin_delete is not implemented")
     return method_not_allowed()
 
 

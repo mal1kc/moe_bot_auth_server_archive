@@ -1,4 +1,4 @@
-PORT = 2402
+PORT = 5000
 
 BASE_URL = f"http://127.0.0.1:{PORT}"
 URL_PREFIX = f"{BASE_URL}/api/v1"

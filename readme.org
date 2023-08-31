@@ -37,6 +37,10 @@
             }
         }
         #+end_src
+    - [ ] tarih , k ad, paket bazlı sorgu sonucu bütün(kullanicya bağlı herşey) tablo
+    - [ ] register sonrası daha detayli çıktı ( package ve package_content için)
+    - [ ] admin için daha okunaklı bir çıktı
+    - [ ] admin için id ve name e göre info routelari
     - [ ] delete routelari
     - [ ] routelar get_by_id routelari
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put

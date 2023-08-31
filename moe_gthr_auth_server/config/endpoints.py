@@ -8,13 +8,14 @@ URL_PREFIX_USER = URL_PREFIX + "/user"
 
 @dataclass
 class _URLS:
-    __slots__ = ["ULogin", "UInfo", "ALogin", "ARegister", "AInfo", "AUpdate"]
+    __slots__ = ["ULogin", "UInfo", "ALogin", "ARegister", "AInfo", "AUpdate", "ADelete"]
     ULogin: str
     UInfo: str
     ALogin: str
     ARegister: str
     AInfo: str
     AUpdate: str
+    ADelete: str
 
 
 @functools.lru_cache(maxsize=1, typed=True)
@@ -26,6 +27,7 @@ def _init_urls() -> _URLS:
         ARegister=URL_PREFIX_ADMIN + "/register",  # currently only admin can register new users
         AInfo=URL_PREFIX_ADMIN + "/info",
         AUpdate=URL_PREFIX_ADMIN + "/update",
+        ADelete=URL_PREFIX_ADMIN + "/delete",
     )
 
 

@@ -17,6 +17,8 @@ repos:
     -   id: check-toml
     -   id: check-merge-conflict
     -   id: name-tests-test
+        # testing helper funcs / funcs that are used in multiple test-fiels
+        exclude: ^tests/testing_helpers.py$
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
   rev: v0.0.285

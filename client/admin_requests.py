@@ -1,13 +1,13 @@
 import datetime
-import random
 from typing import Any
 
-from client.analytics import took_time_decorator_ns
+from analytics import took_time_decorator_ns
 from encryption import make_password_ready  # noqa
 from endpoints import EndPoints
 from data import sample_admin_data, sample_user_data, sample_package_data, sample_package_content_data, pContentEnum  # type: ignore
 import requests
 import time
+import random
 
 req_session = requests.Session()
 
@@ -17,22 +17,27 @@ def main():
     # not too rondom ehehehe
     random_user_name = f"ext_test_user_{time.time_ns()}"
     random_package_name = f"ext_test_package_{time.time_ns()}"
-    random_package_content_name = f"ext_test_package_content_{time.time_ns()}"
-    random_content_value = random.choice([pcontent for pcontent in pContentEnum])
+    # random_package_content_name = f"ext_test_package_content_{time.time_ns()}"
+    random_content_values = generate_random_sized_random_package_content_list()
+    # this enum is already created in the database with initdb command
     response_register_user = register_user(name=random_user_name)
     response_register_user_dict = response_register_user[0]
     if not response_register_user[1]:
         print("register user failed %s" % response_register_user_dict)
         return
     print("register user success")
-    response_register_package_content = register_package_content(name=random_package_content_name, content_value=random_content_value)
-    response_register_package_content_dict = response_register_package_content[0]
-    if not response_register_package_content[1]:
-        print("register package_content failed %s" % response_register_package_content_dict)
-        return
+    # IMPORTANT: disable package_content for now because already created in the database with initdb command
+    #
+    # response_register_package_content = \
+    #                  register_package_content(name=random_package_content_name, content_value=random_content_value)
+    # response_register_package_content_dict = response_register_package_content[0]
+    # if not response_register_package_content[1]:
+    #     print("register package_content failed %s" % response_register_package_content_dict)
+    #     return
     response_register_package = register_package(
-        name=random_package_name, package_contents=[response_register_package_content_dict["package_content"]["id"]]  # type: ignore
-    )
+        name=random_package_name,
+        package_contents=random_content_values,
+    )  # type: ignore
     response_register_package_dict = response_register_package[0]
     if not response_register_package[1]:
         print("register package failed %s " % response_register_package)
@@ -68,9 +73,12 @@ def register_user(name: str = "ext_test_user") -> tuple[dict[str, Any], bool]:
     return response.json(), response.ok
 
 
+# asdasd/admin/v1/info/user(name)
+
+
 @took_time_decorator_ns
 def register_package(
-    package_contents: list[int] | None = None, name: str = "ext_test_package", detail: str = "ext_test_package_detail", days: int = 12
+    package_contents: list[int] | None = None, name: str = "ext_test_package", detail: str = "ext_test_package_detail", days: int = 30
 ) -> tuple[dict[str, Any], bool]:
     package_data = sample_package_data.copy()
     package_data["name"] = name
@@ -126,9 +134,19 @@ def login_user(name: str = "ext_test_user", ready_password: str = make_password_
     return response.json(), response.ok
 
 
+def generate_random_sized_random_package_content_list(max_size: int = 4):
+    size_list = random.randint(a=1, b=max_size)
+    result = []
+    while len(result) < size_list:
+        p_content = random.choice(pContentEnum)
+        if p_content not in result:
+            result.append(p_content)
+    return result
+
+
 if __name__ == "__main__":
-    # main()
-    login_user(
-        name="ext_test_user_1693337791657298046",
-        ready_password=make_password_ready("ext_test_user_1693337791657298046"),
-    )
+    main()
+    # login_user(
+    #     name="ext_test_user_1693337791657298046",
+    #     ready_password=make_password_ready("ext_test_user_1693337791657298046"),
+    # )

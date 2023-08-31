@@ -1,6 +1,7 @@
 import logging
-import random
 import pytest
+import random
+
 from moe_gthr_auth_server.crpytion import make_password_hash
 from moe_gthr_auth_server.database_ops import (
     Admin,
@@ -13,17 +14,16 @@ from moe_gthr_auth_server.database_ops import (
     add_user,
     pContentEnum,
 )
-from pytest import fixture
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 test_db_engine = create_engine("sqlite:///:memory:")
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
 
 
-@fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def _init_db():
     test_db_engine.connect()
     test_db_engine.clear_compiled_cache()
@@ -31,7 +31,7 @@ def _init_db():
     Base.metadata.create_all(bind=test_db_engine)
 
 
-@fixture
+@pytest.fixture
 def session():
     return sessionmaker(bind=test_db_engine)()
 
@@ -44,12 +44,12 @@ def test_check_database_empty(session):
     session.close()
 
 
-@fixture
+@pytest.fixture
 def user_data():
     return {"name": "test_user", "password_hash": make_password_hash("test_user")}
 
 
-@fixture
+@pytest.fixture
 def user(user_data) -> User:
     return User(
         name=user_data["name"],
@@ -79,12 +79,12 @@ def test_get_user_by_id(user, session, user_data):
     session.close()
 
 
-@fixture
+@pytest.fixture
 def admin_data():
     return {"name": "test_admin", "password_hash": make_password_hash("test_admin")}
 
 
-@fixture
+@pytest.fixture
 def admin(admin_data) -> Admin:
     return Admin(
         name=admin_data["name"],
@@ -124,7 +124,7 @@ def test_admin_already_exists(admin, session, admin_data):
     session.close()
 
 
-@fixture
+@pytest.fixture
 def package():
     return Package(name="test_package", detail="test_package_aciklama", days=30)
 
@@ -137,7 +137,7 @@ def test_package_add(session, package):
     session.close()
 
 
-@fixture
+@pytest.fixture
 def package_content(package, session):
     if not session.query(Package).filter_by(name=package.name).first():
         session.add(package)

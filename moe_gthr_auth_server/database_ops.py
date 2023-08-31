@@ -527,13 +527,16 @@ def add_db_model(
     model: U_Package | U_Session | User | Admin | Package | PackageContent, session: scoped_session = db.session
 ) -> DBOperationResult:
     try:
+        DB_LOGGER.info("adding model to database %s" % model)
         if not isinstance(model, U_Package) or isinstance(model, U_Session):
             if len(model.name) < 3:
                 return DBOperationResult.model_name_too_short
             if len(model.name) > 256:
                 return DBOperationResult.model_name_too_long
         with session.begin_nested():
+            DB_LOGGER.debug("session.is_active: %s" % session.is_active)
             session.add(model)
+            DB_LOGGER.debug("session.add(model) done")
             session.commit()
             return DBOperationResult.success
     except Exception as e:
@@ -566,12 +569,18 @@ def add_user(user: User, session: scoped_session = db.session) -> DBOperationRes
     if user.package is not None:
         if add_u_package(user.package, session) != DBOperationResult.success:
             return DBOperationResult.model_not_created
+    if is_exits := session.query(User).filter_by(name=user.name).first():
+        DB_LOGGER.info("user already exists %s" % is_exits)
+        return DBOperationResult.model_already_exists
     return add_db_model(user, session)
 
 
 def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperationResult:
     if len(admin.password_hash) < 16:
         return DBOperationResult.model_passhash_too_short
+    if is_exits := session.query(Admin).filter_by(name=admin.name).first():
+        DB_LOGGER.info("admin already exists %s" % is_exits)
+        return DBOperationResult.model_already_exists
     return add_db_model(admin, session)
 
 

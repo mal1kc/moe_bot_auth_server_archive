@@ -1,146 +1,19 @@
-import datetime
-import logging
+import pytest
 import random
 
-import pytest
-from flask import Flask
-
-
-from moe_gthr_auth_server import register_blueprints, register_error_handlers
-from moe_gthr_auth_server.config import endpoints as config_endpoints
 from moe_gthr_auth_server.database_ops import (
-    Admin,
-    Package,
-    PackageContent,
-    U_Package,
-    User,
-    add_admin,
-    db,
     pContentEnum,
-    utc_timestamp,
 )
 
 from moe_gthr_auth_server.crpytion import (
     make_password_hash,
-    compare_encypted_hashes,
     encryption_password,
     simple_dencrypt,
     encoding,
-    unmake_password_ready,
+    make_password_ready,
 )
 
-
-URLS = config_endpoints._init_urls()
-
-LOGGER = logging.getLogger(__name__)
-
-
-def make_password_ready(password: str) -> str:
-    return simple_dencrypt(make_password_hash(password).encode(encoding), encryption_password).hex()
-
-
-@pytest.fixture
-def app():
-    app = Flask("moe_gatherer_server")
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-    app.config["TESTING"] = True
-    LOGGER.debug("app: %s", app)
-    register_blueprints(app)
-    register_error_handlers(app)
-    db.init_app(app)
-    yield app
-
-
-@pytest.fixture
-def app_ctx(app):
-    return app.app_context()
-
-
-@pytest.fixture
-def admin_db_data() -> dict:
-    return {"name": "ext_test_admin", "password_hash": make_password_hash("ext_test_admin_password")}
-
-
-@pytest.fixture
-def admin_data(admin_db_data) -> dict:
-    return {"name": admin_db_data["name"], "password_hash": make_password_ready("ext_test_admin_password")}
-
-
-@pytest.fixture
-def user_db_data() -> dict:
-    return {"name": "ext_test_user", "password_hash": make_password_hash("ext_test_user_password")}
-
-
-@pytest.fixture
-def user_data() -> dict:
-    return {"name": "ext_test_user", "password_hash": make_password_ready("ext_test_user_password")}
-
-
-@pytest.fixture(autouse=True)
-def init_db(app_ctx, admin_db_data):
-    LOGGER.debug("init_db")
-    with app_ctx:
-        db.create_all()
-        db_Admin = Admin(**admin_db_data)
-        add_admin(db_Admin)
-        yield
-        db.session.remove()
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-def show_db_data(app_contx=app_ctx):
-    LOGGER.debug("show_db_data")
-    with app_contx:
-        db_admins = Admin.query.all()
-        LOGGER.debug("db_admins: %s", db_admins)
-        for db_admin in db_admins:
-            LOGGER.debug("db_admin: %s", db_admin)
-        db_users = User.query.all()
-        LOGGER.debug("db_users: %s", db_users)
-        for db_user in db_users:
-            LOGGER.debug("db_user: %s", db_user)
-        db_packages = Package.query.all()
-        LOGGER.debug("db_packages: %s", db_packages)
-        for db_package in db_packages:
-            LOGGER.debug("db_package: %s", db_package)
-            LOGGER.debug("db_package.package_contents: %s", db_package.package_contents)
-        db_package_contents = PackageContent.query.all()
-        LOGGER.debug("db_package_contents: %s", db_package_contents)
-        for db_package_content in db_package_contents:
-            LOGGER.debug("db_package_content: %s", db_package_content)
-        db_user_packages = U_Package.query.all()
-        LOGGER.debug("db_user_packages: %s", db_user_packages)
-        for db_user_package in db_user_packages:
-            LOGGER.debug("db_user_package: %s", db_user_package)
-        LOGGER.debug("show_db_data: OK")
-
-
-@pytest.fixture
-def admin_data_auth(admin_data) -> tuple:
-    return (admin_data["name"], admin_data["password_hash"])
-
-
-def test_cryption(user_data):
-    LOGGER.debug("test_cryption")
-    assert unmake_password_ready(user_data["password_hash"]) == make_password_hash("ext_test_user_password")
-    assert compare_encypted_hashes(user_data["password_hash"], make_password_hash("ext_test_user_password"))
-    LOGGER.debug("test_cryption: OK")
-
-
-def test_can_be_alive(client):
-    LOGGER.debug("test_can_be_alive")
-    assert client.get("/").status_code == 200
-    LOGGER.debug("test_can_be_alive: OK")
-
-
-@pytest.fixture
-def user_data_model_json(user_data) -> dict:
-    return {"model_type": "user", "user": {*user_data}}
+from tests.testing_helpers import show_db_data, LOGGER, URLS
 
 
 def test_register_user(client, user_data, admin_data_auth):
@@ -259,11 +132,6 @@ def test_register_user_name_too_long(client, user_data, admin_data_auth):
     LOGGER.debug("test_register_user_name_too_long: OK")
 
 
-@pytest.fixture
-def package_data() -> dict:
-    return {"name": "ext_test_package", "detail": "ext_test_package_detail", "days": 12}
-
-
 def test_register_package_data(client, package_data, admin_data_auth):
     LOGGER.debug("test_register_package_data")
     request_json = {"model_type": "package", "model": package_data}
@@ -289,17 +157,6 @@ def test_register_package_data_invalid_package_contents(client, package_data, ad
     assert response.json["status"] == "error"
     assert response.status_code == 400
     LOGGER.debug("test_register_package_data_invalid_package_contents: OK")
-
-
-@pytest.fixture
-def package_content_data() -> dict:
-    return {"name": "ext_test_package_content", "content_value": "extra_user"}
-
-
-@pytest.fixture
-def package_data_with_package_content(package_data, package_content_data) -> dict:
-    package_data["package_contents"] = [package_content_data]
-    return package_data
 
 
 def test_register_package_data_with_package_content(client, package_data_with_package_content, admin_data_auth):
@@ -338,12 +195,6 @@ def test_register_package_already_exits(client, app_ctx, package_data, admin_dat
     assert response.status_code == 400
     LOGGER.debug("test_register_package_already_exits: OK")
     show_db_data(app_ctx)
-
-
-@pytest.fixture
-def random_package_content_data() -> dict:
-    random_cotent_value = random.choice([pi for pi in pContentEnum])
-    return {"name": "ext_test_package_content" + str(random_cotent_value), "content_value": random_cotent_value}
 
 
 def test_register_package_content_data(client, random_package_content_data, admin_data_auth):
@@ -410,11 +261,6 @@ def test_register_package_content_already_exists(client, app_ctx, random_package
     show_db_data(app_ctx)
 
 
-@pytest.fixture
-def u_package_data() -> dict:
-    return {"user": 1, "base_package": 1, "start_date": utc_timestamp(datetime.datetime.utcnow())}
-
-
 def test_register_u_package(client, u_package_data, user_data, package_data, admin_data_auth):
     # TODO : warningleri düzelt
     LOGGER.debug("test_register_u_package")
@@ -461,11 +307,6 @@ def test_register_unsupported_model(client, admin_data_auth):
     assert response.json["detail"] == {"supported_model_types": ["user", "package", "package_content", "u_package"]}
     assert response.status_code == 400
     LOGGER.debug("test_register_unsupported_model: OK")
-
-
-@pytest.fixture
-def user_data_auth(user_data) -> tuple:
-    return (user_data["name"], user_data["password_hash"])
 
 
 def test_login_without_u_package(client, user_data_auth, user_data, admin_data_auth):
@@ -542,11 +383,6 @@ def test_login_with_u_package(
     LOGGER.debug("test_login_with_u_package: logging in user: OK")
 
 
-@pytest.fixture
-def sample_update_user_data() -> dict:
-    return {"id": None, "name": "ext_test_user_updated", "password_hash": make_password_ready("ext_test_user_password_updated")}
-
-
 def test_update_user_data(client, user_data, admin_data_auth, sample_update_user_data, app_ctx):
     LOGGER.debug("test_update_user_data: registering user")
     request_json = {"model_type": "user", "model": user_data}
@@ -589,11 +425,6 @@ def test_update_user_data_invalid_or_empty(client, user_data, admin_data_auth, s
     assert response.json["status"] == "error"
     assert response.status_code == 400
     LOGGER.debug("test_update_user_data_invalid_or_empty: updating user: OK")
-
-
-@pytest.fixture
-def sample_update_package_data() -> dict:
-    return {"id": None, "name": "ext_test_package_updated", "detail": "ext_test_package_detail_updated", "days": 12}
 
 
 def test_update_package_data(client, package_data, admin_data_auth, sample_update_package_data, app_ctx):
@@ -663,11 +494,6 @@ def test_update_package_data_invalid_package_contents(client, package_data, admi
     LOGGER.debug("test_update_package_data_invalid_package_contents: updating package: OK")
 
 
-@pytest.fixture
-def sample_update_package_content_data() -> dict:
-    return {"id": None, "name": "ext_test_package_content_updated", "content_value": "extra_user"}
-
-
 def test_update_package_content_data(
     client, random_package_content_data, admin_data_auth, sample_update_package_content_data, app_ctx
 ):
@@ -692,11 +518,6 @@ def test_update_package_content_data(
     assert response.status_code == 200
     LOGGER.debug("test_update_package_content_data: updating package_content: OK")
     show_db_data(app_contx=app_ctx)
-
-
-@pytest.fixture
-def sample_update_u_package_data() -> dict:
-    return {"id": None, "user": 1, "base_package": 1, "start_date": utc_timestamp(datetime.datetime.utcnow())}
 
 
 def test_update_u_package_data(
@@ -760,17 +581,6 @@ def test_update_u_package_data(
     assert response.status_code == 200
     LOGGER.debug("test_update_u_package_data: updating u_package: OK")
     show_db_data(app_contx=app_ctx)
-
-
-@pytest.fixture
-def sample_update_package_with_package_content_data() -> dict:
-    return {
-        "id": None,
-        "name": "ext_test_package_updated",
-        "detail": "ext_test_package_detail_updated",
-        "days": 12,
-        "package_contents": [1, 2],
-    }
 
 
 def test_update_package_with_package_content_data_without_package_content(
@@ -852,6 +662,57 @@ def test_update_package_with_package_content_data_with_package_content(
     assert response.status_code == 200
     LOGGER.debug("test_update_package_with_package_content_data_with_package_content: updating package: OK")
     show_db_data(app_contx=app_ctx)
+
+
+def test_register_user_package(client, user_data_auth, user_data, package_data, admin_data_auth):
+    LOGGER.debug("test_register_user_package: registering user")
+    request_json = {"model_type": "user", "model": user_data}
+    response = client.post(URLS.ARegister, json=request_json, content_type="application/json", auth=admin_data_auth)
+    LOGGER.debug("response: %s", response)
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "user_created", response.json
+    assert response.json["status"] == "success"
+    assert "user" in response.json.keys()
+    assert response.status_code == 200
+    LOGGER.debug("test_register_user_package: registering user: OK")
+
+    LOGGER.debug("test_register_user_package: registering package")
+    request_json = {"model_type": "package", "model": package_data}
+    response = client.post(URLS.ARegister, json=request_json, content_type="application/json", auth=admin_data_auth)
+    LOGGER.debug("response: %s", response)
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "package_created", response.json
+    assert response.json["status"] == "success"
+    assert "package" in response.json.keys()
+    assert response.status_code == 200
+    LOGGER.debug("test_register_user_package: registering package: OK")
+
+    LOGGER.debug("test_register_user_package: registering user_package")
+    user_package_data = {"user": response.json["user"]["id"], "base_package": response.json["package"]["id"]}
+    request_json = {"model_type": "u_package", "model": user_package_data}
+    response = client.post(URLS.ARegister, json=request_json, content_type="application/json", auth=admin_data_auth)
+    LOGGER.debug("response: %s", response)
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "u_package_created", response.json
+    assert response.json["status"] == "success"
+    assert "u_package" in response.json.keys()
+    assert response.status_code == 200
+    LOGGER.debug("test_register_user_package: registering user_package: OK")
+
+
+def test_register_package_with_contents(client, package_data_with_random_content_datas, admin_data_auth):
+    LOGGER.debug("test_register_package_with_contents: registering package")
+    request_json = {"model_type": "package", "model": package_data_with_random_content_datas}
+    response = client.post(URLS.ARegister, json=request_json, content_type="application/json", auth=admin_data_auth)
+    LOGGER.debug("response: %s", response)
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "package_created", response.json
+    assert response.json["status"] == "success"
+    assert "package" in response.json.keys()
+    assert "package_contents" in response.json["package"].keys()
+    assert package_data_with_random_content_datas["package_contents"] == response.json["package"]["package_contents"]
+    assert response.status_code == 200
+    LOGGER.debug("test_register_package_with_contents: registering package: OK")
 
 
 if __name__ == "__main__":
