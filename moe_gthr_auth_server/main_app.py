@@ -35,11 +35,14 @@ from .err_handlrs import (
     method_not_allowed,
     unauthorized,
     unsupported_media_type,
+)
+
+from .base_responses import (
+    request_error_response,
+    request_success_response,
     req_data_incomplete,
     req_data_is_none_or_empty,
 )
-
-from .base_responses import request_error_response, request_success_response
 
 
 from .crpytion import compare_encypted_hashes, unmake_password_ready
@@ -85,7 +88,6 @@ def admin_register(m_type: mType) -> tuple[Response, int]:
                 if not req_data:
                     raise ReqDataErrors.req_data_is_none_or_empty()
                     # if "model_type" not in req_data or "model" not in req_data:
-                    raise ReqDataErrors.req_data_incomplete()
                 if req_data["model"] is None:
                     raise ReqDataErrors.req_data_is_none_or_empty()
                 json_schema = Schema(
@@ -98,7 +100,18 @@ def admin_register(m_type: mType) -> tuple[Response, int]:
                 if m_type == mType.user:
                     LOGGER.debug(f"{req_id} - trying to add user")
                     return admin_register_user(req_data["model"])
-                # TODO: add other models
+                elif m_type == mType.package:
+                    LOGGER.debug(f"{req_id} - trying to add package")
+                    return admin_register_package(req_data["model"])
+                elif m_type == mType.package_content:
+                    LOGGER.debug(f"{req_id} - trying to add package_content")
+                    return admin_register_package_content(req_data["model"])
+                elif m_type == mType.u_package:
+                    LOGGER.debug(f"{req_id} - trying to add u_package")
+                    return admin_register_u_package(req_data["model"])
+                elif m_type == mType.u_session:
+                    LOGGER.debug(f"{req_id} - trying to add u_session")
+                    return admin_register_u_session(req_data["model"])
                 return (
                     request_error_response(
                         "unsupported_model_type",
@@ -116,12 +129,27 @@ def admin_register(m_type: mType) -> tuple[Response, int]:
                     400,
                 )
             except SchemaError as schErr:
+                # TODO: improve error messages
                 LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
-                if schErr.code.startswith("Missing key"):
-                    if schErr.code[11] == "s":
-                        return req_data_is_none_or_empty()
+                if schErr.code.startswith("invalid"):
+                    return (
+                        request_error_response(
+                            "invalid_data", extra={"detail": schErr.code}
+                        ),
+                        400,
+                    )
+                if schErr.code == "not_valid_data":
+                    return (
+                        request_error_response(
+                            "invalid_data", extra={"detail": schErr.code}
+                        ),
+                        400,
+                    )
+                elif schErr.code.startswith("Missing keys"):
+                    return req_data_incomplete(extra={"detail": schErr.code})
+                elif schErr.code.startswith("Missing key"):
                     return req_data_incomplete()
-                if schErr.code.startswith("Key"):
+                elif schErr.code.startswith("Key"):
                     return req_data_is_none_or_empty()
                 if SchemaError is SchemaWrongKeyError:
                     return req_data_incomplete()
@@ -182,7 +210,6 @@ def admin_register_package(
     """
     req_package_data = Package.from_json(package_data)
     db_op_result = add_package(req_package_data)
-    # TODO: also add package_contents of package to db
     if db_op_result is DBOperationResult.success:
         db_package = Package.query.filter_by(name=req_package_data.name).first()
         return (
@@ -231,7 +258,7 @@ def admin_register_u_package(u_package_data: dict[str, str | int]) -> tuple[Resp
     db_op_result = add_u_package(req_u_package_data)
     # TODO: also add base_package of u_package to db with package_contents
     if db_op_result is DBOperationResult.success:
-        db_u_package = U_Package.query.filter_by(name=req_u_package_data.name).first()
+        db_u_package = U_Package.query.filter_by(user_id=req_u_package_data.user_id).first()
         return (
             request_success_response(
                 success_msg="u_package_created",
@@ -333,6 +360,8 @@ def admin_update(m_type: int, m_id: int) -> tuple[Response, int]:
                     400,
                 )
             except SchemaError as schErr:
+                # TODO: improve error messages
+                LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
                 if schErr.code.startswith("Missing key"):
                     if schErr.code[11] == "s":
                         return req_data_is_none_or_empty()
@@ -358,7 +387,15 @@ def admin_update(m_type: int, m_id: int) -> tuple[Response, int]:
                 if "foreign key constraint fails" in str(e):
                     return request_error_response("foreign_key_constraint_fails"), 400
                 if "NOT NULL constraint failed" in str(e):
-                    return request_error_response("not_null_constraint_failed"), 400
+                    return (
+                        request_error_response(
+                            "not_null_constraint_failed",
+                            extra={
+                                "db_error": str(e),
+                            },
+                        ),
+                        400,
+                    )
                 return bad_request(e)
             except Exception as e:
                 if type(e) is UnsupportedMediaType:
@@ -490,24 +527,30 @@ def admin_update_u_package(
     update u_package with given id
     """
     LOGGER.debug(f"admin_update_u_package: -> new_u_package_data : {new_u_package_data} )")
-    req_u_package_data = U_Package.from_json(new_u_package_data)
+    db.session.autoflush = False
+
     db_u_package = U_Package.query.filter_by(id=u_package_id).first()
     LOGGER.debug(f"admin_update_u_package: -> db_u_package : {db_u_package} ")
+    db.session.autoflush = True
     if db_u_package is None:
         return request_error_response("u_package_not_found"), 400
-    db_base_package = Package.query.filter_by(id=req_u_package_data.package_id).first()
-    if db_base_package is None:
+    req_u_package = U_Package.from_json(new_u_package_data)
+    LOGGER.debug(f"admin_update_u_package: -> req_u_package_data : {req_u_package} ")
+    if req_u_package.base_package is None:
         return request_error_response("base_package_not_found"), 400
-    db_op_result = update_u_package(db_u_package, req_u_package_data)
+    if req_u_package.user_id is None:
+        req_u_package.user_id = req_u_package.user.id
+    db_op_result = update_u_package(db_u_package, req_u_package)
     LOGGER.debug(f"admin_update_u_package: -> db_op_result : {db_op_result} ")
-    if db_op_result != DBOperationResult.success:
-        return request_error_response("db_error", extra=db_op_result.__json__()), 400
-    return (
-        request_success_response(
-            success_msg="u_package_updated", extra={"u_package": db_u_package.__json__()}
-        ),
-        200,
-    )
+    if db_op_result is DBOperationResult.success:
+        return (
+            request_success_response(
+                success_msg="u_package_updated",
+                extra={"u_package": db_u_package.__json__()},
+            ),
+            200,
+        )
+    return request_error_response("db_error", extra=db_op_result.__json__()), 400
 
 
 def admin_update_u_session(
@@ -693,7 +736,7 @@ def admin_login(content_page=0, get_binded: bool = True) -> tuple[Response, int]
             return (
                 jsonify(
                     {
-                        "status": "OK",
+                        "status": "success",
                         "users": [user.__json__() for user in db_users],
                         "page": content_page,
                     }

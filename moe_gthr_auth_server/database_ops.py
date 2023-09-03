@@ -49,8 +49,12 @@ class PackageContent(Base):
     )
 
     def __repr__(self):
-        return (
-            f"<PackageContent ({self.id} {self.name} {self.content_value} {self.packages})>"
+        return "<{clsname} ({id} {name} {content_value} {packages})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            name=self.name,
+            content_value=self.content_value,
+            packages=self.packages,
         )
 
     def __json__(self) -> dict[str, Any]:
@@ -66,7 +70,6 @@ class PackageContent(Base):
         ret_package_content = {
             "name": data["name"],
             "content_value": data["content_value"],
-            "id": None,
         }
         if "id" in data.keys():
             ret_package_content["id"] = data["id"]
@@ -96,7 +99,8 @@ class PackageContent(Base):
                 Optional("package_id"): And(
                     Or(int, None), Use(_package_id_check), error="not_valid_package_id"
                 ),
-            }
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
@@ -117,7 +121,13 @@ class Package(Base):
     )
 
     def __repr__(self):
-        return f"<Package {self.id} {self.name} {self.days} {self.detail}>"
+        return "<{clsname} ({id} {name} {days} {detail})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            name=self.name,
+            days=self.days,
+            detail=self.detail,
+        )
 
     def __json__(self) -> dict[str, Any]:
         if self.package_contents is not None and len(self.package_contents) > 0:
@@ -145,18 +155,27 @@ class Package(Base):
             "name": data["name"],
             "days": data["days"],
             "detail": data["detail"],
-            "id": None,
-            "package_contents": None,
         }
 
         if "id" in data.keys():
             ret_package["id"] = data["id"]
         if "package_contents" in data.keys():
             ret_package["package_contents"] = []
-            for package_content in data["package_contents"]:
-                ret_package["package_contents"].append(
-                    PackageContent.query.filter_by(id=package_content).first()
-                )
+            if isinstance(data["package_contents"], list):
+                for package_content in data["package_contents"]:
+                    DB_LOGGER.debug("package_content:  %s", package_content)
+                    if isinstance(package_content, int):
+                        db_package_content = get_package_content_by_id(package_content)
+                        DB_LOGGER.debug("db_package_content : %s", db_package_content)
+                        if db_package_content is None:
+                            raise SchemaError("package_content_not_found")
+                        ret_package["package_contents"].append(db_package_content)
+                    elif isinstance(package_content, dict):
+                        pc_content = PackageContent.from_json(package_content)
+                        DB_LOGGER.debug("pc_content : %s", pc_content)
+                        ret_package["package_contents"].append(pc_content)
+                    else:
+                        raise SchemaError("not_valid_package_contents")
         return Package(**ret_package)
 
     @staticmethod
@@ -176,7 +195,8 @@ class Package(Base):
                 Optional("package_contents"): Use(
                     _package_contents_validate, error="not_valid_package_contents"
                 ),
-            }
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
@@ -198,8 +218,14 @@ class U_Package(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {self.id} \
-                    {self.base_package} {self.start_date} {self.end_date} {self.user}>"
+        return "<{clsname} ({id} {base_package} {start_date} {end_date} {user})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            base_package=self.base_package,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            user=self.user,
+        )
 
     def __json__(self, user_incld=True) -> dict[str, Any]:
         return (
@@ -226,12 +252,11 @@ class U_Package(Base):
         ret_u_package = {
             "base_package": base_package,
             "start_date": utc_timestamp(data["start_date"], return_type=datetime),
-            "user": data["user"],
         }
         if base_package is None:
-            raise AttributeError("base_package not found")
+            raise SchemaError("base_package_not_found")
         if base_package.days is None:
-            raise AttributeError("base_package.days not found")
+            raise SchemaError("base_package.days_not_found")
         base_package_days = base_package.days
         ret_u_package["base_package"] = base_package
         if "id" in data.keys():
@@ -246,10 +271,23 @@ class U_Package(Base):
             ) + timedelta(
                 days=base_package_days
             )  # type: ignore
-        if "user" in data.keys():
-            ret_u_package["user"] = get_user_by_id(data["user"])
-            if ret_u_package["user"] is None:
-                raise Exception("user_not_found")
+
+        if "user_id" in data.keys():
+            if "user" in data.keys():
+                if data["user"] != data["user_id"]:
+                    raise SchemaError("user_id_and_user_both_found")
+            if isinstance(data["user_id"], int):
+                ret_u_package["user_id"] = data["user_id"]
+            else:
+                raise SchemaError("user_not_found")
+        elif "user" in data.keys():
+            if isinstance(data["user"], int):
+                ret_u_package["user_id"] = data["user"]
+            else:
+                raise SchemaError("user_not_found")
+        else:
+            raise SchemaError("user_not_found")
+        DB_LOGGER.debug("ret_u_package: %s" % ret_u_package)
         return U_Package(**ret_u_package)
 
     @staticmethod
@@ -274,8 +312,10 @@ class U_Package(Base):
                     ),
                     error="not_valid_end_date",
                 ),
-                "user": And(int, Use(_user_id_check), error="not_valid_user"),
-            }
+                Optional("user"): And(int, Use(_user_id_check), error="not_valid_user"),
+                Optional("user_id"): And(int, Use(_user_id_check), error="not_valid_user"),
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
@@ -295,7 +335,15 @@ class U_Session(Base):
     access: Mapped[bool] = mapped_column(nullable=False, default=True)
 
     def __repr__(self) -> str:
-        return f"<U_Session {self.id} {self.user_id} {self.start_date} {self.end_date} {self.ip} {self.access}>"  # noqa
+        return "<{clsname} ({id} {user_id} {start_date} {end_date} {ip} {access})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            user_id=self.user_id,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            ip=self.ip,
+            access=self.access,
+        )
 
     def __json__(self) -> dict[str, Any]:
         return {
@@ -329,7 +377,8 @@ class U_Session(Base):
                 ),
                 "ip": And(str, len, error="not_valid_ip"),
                 "accesible": And(bool, error="not_valid_accesible"),
-            }
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
@@ -356,19 +405,24 @@ class User(Base):
 
     discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
 
-    package: Mapped[U_Package] = relationship(
-        "U_Package", cascade="all, delete", backref="user"
-    )
+    # delete u_package when user deleted
+    package: Mapped[U_Package] = relationship("U_Package", cascade="delete", backref="user")
+    # delete all u_sessions when user deleted
     sessions: Mapped[List[U_Session]] = relationship(
-        "U_Session", backref="user", lazy="dynamic", order_by="desc(U_Session.end_date)"
+        "U_Session",
+        backref="user",
+        cascade="delete",
+        order_by="asc(U_Session.end_date)",  # first most oldest session
+        lazy="dynamic",
     )
 
     def __repr__(self) -> str:
-        return "<User (id:%s, name:%s, password_hash:%s, discord_id:%s)>" % (
-            self.id,
-            self.name,
-            self.password_hash,
-            self.discord_id,
+        return "<{clsname} ({id} {name} {password_hash} {discord_id})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            name=self.name,
+            password_hash=self.password_hash,
+            discord_id=self.discord_id,
         )
 
     def __json__(self) -> dict[str, Any]:
@@ -398,9 +452,6 @@ class User(Base):
         ret_user = {
             "name": data["name"],
             "password_hash": data["password_hash"],
-            "discord_id": None,
-            "package": None,
-            "id": None,
         }
         if "discord_id" in data.keys():
             ret_user["discord_id"] = data["discord_id"]
@@ -421,7 +472,8 @@ class User(Base):
                 Optional("package"): And(
                     Or(int, None), Use(_package_id_check), error="not_valid_package"
                 ),
-            }
+            },
+            error="not_valid_data",
         )
 
         schema.validate(data)
@@ -432,12 +484,13 @@ class User(Base):
             {
                 "name": And(str, len),
                 "password_hash": And(str, len),
-            }
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
     def open_session(self, inamedr: str) -> loginError | bool:
-        self.sessions.sort(key=lambda x: x.end_date)
+        # self.sessions.sort(key=lambda x: x.end_date)
         self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
         u_package: U_Package = self.package
         if u_package is not None:
@@ -547,10 +600,11 @@ class Admin(Base):
     password_hash: Mapped[str] = mapped_column(String(256), unique=False, nullable=False)
 
     def __repr__(self) -> str:
-        return "<Admin (id:%s, name:%s, password_hash:%s)>" % (
-            self.id,
-            self.name,
-            self.password_hash,
+        return "<{clsname} ({id} {name} {password_hash})>".format(
+            clsname=self.__class__.__name__,
+            id=self.id,
+            name=self.name,
+            password_hash=self.password_hash,
         )
 
     def __json__(self) -> dict[str, Any]:
@@ -566,7 +620,8 @@ class Admin(Base):
             {
                 "name": And(str, len, error="not_valid_name"),
                 "password_hash": And(str, len, error="not_valid_password_hash"),
-            }
+            },
+            error="not_valid_data",
         )
         schema.validate(data)
 
@@ -584,16 +639,19 @@ def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | 
 
     note: i lose some presition but is it need to be that precise
     """
+    DB_LOGGER.debug(f"dt: {dt},return_type: {return_type}")
     if return_type is None:
         if isinstance(dt, datetime):
             return int(dt.timestamp())
         if isinstance(dt, int):
             return datetime.utcfromtimestamp(float(dt))
     else:
+        new_dt = utc_timestamp(dt, return_type=None)
+        DB_LOGGER.debug(f"new_dt: {new_dt}")
         for _ in range(2):
-            new_dt = utc_timestamp(dt, return_type=None)
             if isinstance(new_dt, return_type):
                 return new_dt
+            new_dt = utc_timestamp(new_dt, return_type=None)
     raise RuntimeError("dt needs to be int or datetime.datetime object")
 
 
@@ -668,14 +726,17 @@ def add_package(
     DB_LOGGER.debug("session: %s" % session)
     DB_LOGGER.debug("disable_recursive: %s" % disable_recursive)
     if hasattr(package, "package_contents") and not disable_recursive:
-        # TODO: maybe change this to add_db_all_models
+        # TODO: this part probably never runs cause -> Package.from_json()
         for package_content in package.package_contents:
             if package_content is None:
-                break
+                continue
             if isinstance(package_content, PackageContent):
                 package_content_exist = (
                     session.query(PackageContent)
-                    .filter_by(name=package_content.name)
+                    .filter(
+                        PackageContent.name == package_content.name,
+                        PackageContent.content_value == package_content.content_value,
+                    )
                     .first()
                 )
                 if package_content_exist is None:
@@ -758,6 +819,12 @@ def get_admin_by_id(id: int, session: scoped_session = db.session) -> Admin | No
 
 def get_package_by_id(id: int, session: scoped_session = db.session) -> Package | None:
     return session.query(Package).filter_by(id=id).first()
+
+
+def get_package_content_by_id(
+    id: int, session: scoped_session = db.session
+) -> PackageContent | None:
+    return session.query(PackageContent).filter_by(id=id).first()
 
 
 def try_login(user: User, ip_addr: str | None) -> loginError | bool:
@@ -917,12 +984,15 @@ def update_u_package(
             db_u_package.end_date = new_u_package.end_date
         if new_u_package.base_package_id is not None:
             db_u_package.base_package_id = new_u_package.base_package_id
-        if new_u_package.user_id is not None:
+        if new_u_package.user is not None:
+            db_u_package.user_id = new_u_package.user.id
+        elif new_u_package.user_id is not None:
             db_u_package.user_id = new_u_package.user_id
+
         session.commit()
         return DBOperationResult.success
     except Exception as e:
-        DB_LOGGER.error("error accured while updating u_package to database %s" % e)
+        DB_LOGGER.error("error accured while updating u_package %s" % e)
     return DBOperationResult.unknown_error
 
 

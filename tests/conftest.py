@@ -80,6 +80,8 @@ def init_db(app_ctx, admin_db_data):
         db.create_all()
         db_Admin = Admin(**admin_db_data)
         for pcontent in pContentEnum:
+            if PackageContent.query.filter_by(name=pcontent.name).first() is not None:
+                continue
             db_PackageContent = PackageContent(
                 name=pcontent,
                 content_value=pcontent,
@@ -144,8 +146,8 @@ def package_content_data() -> dict:
 
 
 @pytest.fixture
-def package_data_with_package_content(package_data, package_content_data) -> dict:
-    package_data["package_contents"] = [package_content_data]
+def package_data_with_package_content(package_data, random_package_content_data) -> dict:
+    package_data["package_contents"] = [random_package_content_data]
     return package_data
 
 
@@ -218,11 +220,14 @@ def update_sample_package_with_package_content_data() -> dict:
 
 
 @pytest.fixture
-def package_data_with_random_content_datas(package_data) -> dict:
-    pcontents = generate_random_sized_random_package_content_list()
+def package_data_with_random_content_datas(
+    package_data, random_package_contents_from_db
+) -> dict:
+    pcontents = random_package_contents_from_db
     LOGGER.debug("package_data_with_random_content_list: pcontents: %s", pcontents)
     package_content_datas = [
-        {"name": pcontent, "content_value": pcontent} for pcontent in pcontents
+        {"name": pcontent.name, "content_value": pcontent.content_value}
+        for pcontent in pcontents
     ]
     LOGGER.debug(
         "package_data_with_random_content_list: package_content_datas: %s",
@@ -331,6 +336,28 @@ def random_package_contents_from_db(
 
 
 @pytest.fixture
+def package_with_random_contents_from_db(
+    app_ctx,
+    package_data,
+    random_package_contents_from_db,
+):
+    LOGGER.debug("package_with_random_contens_from_db")
+    with app_ctx:
+        package_data["package_contents"] = [
+            pc_content.id for pc_content in random_package_contents_from_db
+        ]
+        db_package = Package(**package_data)
+        db.session.add(db_package)
+        db.session.commit()
+        db_query_package = Package.query.filter_by(name=package_data["name"]).first()
+        for db_package_content in random_package_contents_from_db:
+            db_query_package.package_contents.append(db_package_content)
+        db.session.commit()
+        yield db_query_package
+        db.session.remove()
+
+
+@pytest.fixture
 def second_user_from_db(
     app_ctx,
     user_db_data,
@@ -359,12 +386,14 @@ def u_package_from_db(
     with app_ctx:
         u_package_data["user"] = user_from_db.id
         u_package_data["base_package"] = package_from_db.id
-        db_u_package = U_Package(**u_package_data)
+        u_package_data["start_date"] = utc_timestamp(
+            datetime.datetime.utcnow(), return_type=int
+        )
+        db_u_package = U_Package.from_json(u_package_data)
         db.session.add(db_u_package)
         db.session.commit()
-        db_query_u_package = U_Package.query.filter_by(
-            user=user_from_db.id,
-            base_package=package_from_db.id,
+        db_query_u_package = U_Package.query.filter(
+            U_Package.user == user_from_db, U_Package.base_package == package_from_db
         ).first()
         yield db_query_u_package
         db.session.remove()

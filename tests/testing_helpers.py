@@ -7,6 +7,7 @@ from moe_gthr_auth_server.database_ops import (
     User,
     Package,
     PackageContent,
+    utc_timestamp,  # noqa
 )
 from moe_gthr_auth_server.enums import pContentEnum, mType  # noqa
 

@@ -32,7 +32,7 @@
                 "detail" : "1dadad"
                 "days": 10,
                 "package_contents" : [{
-                "name"  : "moe_gatherer" ,"contentvalue":0 # contentvalue enum degeri
+                "name"  : "moe_gatherer" ,"content_value":"moe_gatherer" # contentvalue enum degeri
                 }]
             }
         }
@@ -45,6 +45,8 @@
     - [ ] routelar get_by_id routelari
     - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
     - [ ] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
+    - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
+    - [ ] daha anlaşılır loglama (daha sonra)
 
 ** muhtemel v2 özellikleri
 
