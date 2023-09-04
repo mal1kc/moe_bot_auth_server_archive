@@ -344,7 +344,7 @@ def package_with_random_contents_from_db(
     LOGGER.debug("package_with_random_contens_from_db")
     with app_ctx:
         package_data["package_contents"] = [
-            pc_content.id for pc_content in random_package_contents_from_db
+            pc_content for pc_content in random_package_contents_from_db
         ]
         db_package = Package(**package_data)
         db.session.add(db_package)

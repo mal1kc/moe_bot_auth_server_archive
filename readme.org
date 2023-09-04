@@ -24,10 +24,19 @@
         #+end_src
     - [X] güncelleme  routelari
         #+begin_src python
-        url = "api/v1/update/{id}"
-        json = {
-            "model_type":"package"
-            "model": {
+        url = "api/v1/admin/update/<int:m_type>/<int:m_id>"
+        # example mType.user -> 0
+        # db_user.id -> 2
+        # url look like that -> DOMAIN_OR_HOST/api/v1/admin/update/0/2
+        # needs admin auth header
+        json_example_update_user_request = {
+            "new_model": {
+                "password_hash": make_password_ready("new_password")
+            }
+        }
+
+        json_example_package_user_request = {
+            "new_model": {
                 "name" : "adada"
                 "detail" : "1dadad"
                 "days": 10,
@@ -38,13 +47,22 @@
         }
         #+end_src
     - [ ] tarih , k ad, paket bazlı sorgu sonucu bütün(kullanicya bağlı herşey) tablo
-    - [ ] register sonrası daha detayli çıktı ( package ve package_content için)
-    - [ ] admin için daha okunaklı bir çıktı
-    - [ ] admin için id ve name e göre info routelari
+    - [X] register sonrası daha detayli çıktı ( package ve package_content için)
+    - [X] admin için daha okunaklı bir çıktı
+    - [X] admin için id ve name e göre info routelari
+     #+begin_src python
+    url = "/api/v1/admin/<int:m_type>/<int:m_id>"
+    # example for u_package
+
+    # example url to get u_package_with id=42
+    u_package_info = url.format(
+        m_type=3,
+        m_id=42
+    )
+     #+end_src
     - [ ] delete routelari
-    - [ ] routelar get_by_id routelari
-    - [ ] routelar methodlarına göre ayrılacak - post,update,delete,put
-    - [ ] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
+    - [X] routelar methodlarına göre ayrılacak - post,update,delete,put
+    - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
 

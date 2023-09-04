@@ -21,6 +21,7 @@ from moe_gthr_auth_server.database_ops import (
     add_package_content,
     add_user,
     get_user,
+    get_user_by_id,
     loginError,
     try_login,
     update_package,
@@ -278,6 +279,7 @@ def admin_register_u_session(u_session_data: dict[str, str | int]) -> tuple[Resp
     IMPORTANT : currently not implemented , \
         because u_session should be only created by user login
     """
+    _ = u_session_data
     return method_not_allowed()
 
 
@@ -578,72 +580,198 @@ def admin_update_u_session(
 
 
 @main_blueprint.route(endpoints.URLS.AInfo, methods=["GET"])
-def admin_info(m_type: int, id: int) -> tuple[Response, int]:
+def admin_info(m_type: int, m_id: int) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     req_method = request.method
-    LOGGER.debug(f"{req_id} - {req_method} {request.url} m_type : {m_type} id : {id}")
+    LOGGER.debug(f"{req_id} - {req_method} {request.url} m_type : {m_type} id : {m_id}")
     if req_method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_info is not implemented")
+            try:
+                if m_type == mType.all_models:
+                    # TODO: implement admin_info_all_models | admin_register
+                    return NotImplemented
+                elif m_type == mType.user:
+                    return admin_info_user(m_id)
+                elif m_type == mType.package:
+                    return admin_info_package(m_id)
+                elif m_type == mType.package_content:
+                    return admin_info_package_content(m_id)
+                elif m_type == mType.u_package:
+                    return admin_info_u_package(m_id)
+                elif m_type == mType.u_session:
+                    return admin_info_u_session(m_id)
+                return (
+                    request_error_response(
+                        "unsupported_model_type",
+                        extra={
+                            "detail": {
+                                "supported_model_types": {
+                                    "user": mType.user,
+                                    "package": mType.package,
+                                    "package_content": mType.package_content,
+                                    "u_package": mType.u_package,
+                                    "u_session": mType.u_session,
+                                }
+                            }
+                        },
+                    ),
+                    400,
+                )
+            except SchemaError as schErr:
+                LOGGER.debug(f"{req_id} - catched schema error : {schErr}")
+                if schErr.code.startswith("Key"):
+                    return req_data_is_none_or_empty()
+                if SchemaError is SchemaWrongKeyError:
+                    return req_data_incomplete()
+                return bad_request(schErr)
+            except AttributeError as e:
+                LOGGER.debug(f"{req_id} - catched attribute error : {e}")
+                if str(e).endswith("object has no attribute 'get'"):
+                    return unsupported_media_type()
+                return bad_request(e)
+            except ReqDataErrors.req_data_incomplete:
+                return req_data_incomplete()
+            except ReqDataErrors.req_data_is_none_or_empty:
+                return req_data_is_none_or_empty()
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : {e}")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 
 
-def admin_get_user(user_id) -> tuple[Response, int]:
+def admin_info_user(user_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} user_id : {user_id}")
     if request.method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_get is not implemented")
+            try:
+                db_user = get_user_by_id(id=user_id)
+                if db_user is None:
+                    return request_error_response("user_not_found"), 404
+                return (
+                    request_success_response(
+                        success_msg="success", extra={"user": db_user.__json__()}
+                    ),
+                    200,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 
 
-def admin_get_package(package_id) -> tuple[Response, int]:
+def admin_info_package(package_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} package_id : {package_id}")
     if request.method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_get is not implemented")
+            try:
+                get_package_by_id = Package.query.filter_by(id=package_id).first()
+                if get_package_by_id is None:
+                    return request_error_response("package_not_found"), 404
+                return (
+                    request_success_response(
+                        success_msg="success",
+                        extra={"package": get_package_by_id.__json__()},
+                    ),
+                    200,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
 
     return method_not_allowed()
 
 
-def admin_get_package_content(package_content_id) -> tuple[Response, int]:
+def admin_info_package_content(package_content_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} {package_content_id=}")  # noqa
     if request.method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_get is not implemented")
+            try:
+                db_package_content = PackageContent.query.filter_by(
+                    id=package_content_id
+                ).first()
+                if db_package_content is None:
+                    return request_error_response("package_content_not_found"), 404
+                return (
+                    request_success_response(
+                        success_msg="success",
+                        extra={"package_content": db_package_content.__json__()},
+                    ),
+                    200,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 
 
-def admin_get_u_package(u_package_id) -> tuple[Response, int]:
+def admin_info_u_package(u_package_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} u_package_id : {u_package_id}")
 
     if request.method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_get is not implemented")
+            try:
+                db_u_package = U_Package.query.filter_by(id=u_package_id).first()
+                if db_u_package is None:
+                    return request_error_response("u_package_not_found"), 404
+                return (
+                    request_success_response(
+                        success_msg="success",
+                        extra={"u_package": db_u_package.__json__()},
+                    ),
+                    200,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 
 
-def admin_get_u_session(u_session_id) -> tuple[Response, int]:
+def admin_info_u_session(u_session_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} u_session_id : {u_session_id}")
-
     if request.method == "GET":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_get is not implemented")
+            try:
+                db_u_session = U_Session.query.filter_by(id=u_session_id).first()
+                if db_u_session is None:
+                    return request_error_response("u_session_not_found"), 404
+                return (
+                    request_success_response(
+                        success_msg="success",
+                        extra={"u_session": db_u_session.__json__()},
+                    ),
+                    200,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 

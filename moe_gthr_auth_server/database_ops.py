@@ -234,7 +234,7 @@ class U_Package(Base):
                 "base_package": self.base_package.__json__(),
                 "start_date": utc_timestamp(self.start_date),
                 "end_date": utc_timestamp(self.end_date),
-                "user": self.user.__json__(),
+                "user": self.user.__json__(package_incld=False),
             }
             if user_incld
             else {
@@ -425,26 +425,19 @@ class User(Base):
             discord_id=self.discord_id,
         )
 
-    def __json__(self) -> dict[str, Any]:
-        if self.package is not None:
-            return {
-                "id": self.id,
-                "name": self.name,
-                "package": self.package.__json__(user_incld=False),
-                "sessions": [session.__json__() for session in self.sessions]
-                if self.sessions is not None
-                else None,
-                "discord_id": self.discord_id,
-            }
-        return {
+    def __json__(self, package_incld=True) -> dict[str, Any]:
+        ret_package = {
             "id": self.id,
             "name": self.name,
-            "package": None,
-            "sessions": [session.__json__() for session in self.sessions]
-            if self.sessions is not None
-            else None,
+            "password_hash": self.password_hash,
             "discord_id": self.discord_id,
         }
+        if self.package is not None:
+            if package_incld:
+                ret_package["package"] = self.package.__json__(user_incld=False)
+        if self.sessions is not None:
+            ret_package["sessions"] = [u_session.__json__() for u_session in self.sessions]
+        return ret_package
 
     @staticmethod
     def from_json(data: dict) -> User:
@@ -624,10 +617,6 @@ class Admin(Base):
             error="not_valid_data",
         )
         schema.validate(data)
-
-
-# def check_password(sifre: str, hash: str) -> bool:
-#     return sha256_hash(sifre) == hash
 
 
 def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | datetime:

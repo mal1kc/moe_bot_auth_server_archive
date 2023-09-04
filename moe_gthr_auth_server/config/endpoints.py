@@ -26,7 +26,7 @@ def _init_urls(testing=False) -> _URLS:
             UInfo=URL_PREFIX_USER + "/info",
             ALogin=URL_PREFIX_ADMIN + "/login",
             ARegister=URL_PREFIX_ADMIN + "/register/{m_type}",
-            AInfo=URL_PREFIX_ADMIN + "/info/{m_type}}/{m_id}",
+            AInfo=URL_PREFIX_ADMIN + "/info/{m_type}/{m_id}",
             AUpdate=URL_PREFIX_ADMIN + "/update/{m_type}/{m_id}",
             ADelete=URL_PREFIX_ADMIN + "/delete/{m_type}/{m_id}",
         )

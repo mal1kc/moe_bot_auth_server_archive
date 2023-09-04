@@ -31,7 +31,7 @@ def flask_cli_runner(app):
 
 
 def test_cli_help(flask_cli_runner):
-    result = flask_cli_runner.invoke(args=["--help"])
+    result = flask_cli_runner.invoke(args=["cli", "--help"])
     LOGGER.debug("result: %s", result.output)
     assert result.exit_code == 0
     assert "initdb" in result.output
