@@ -406,12 +406,14 @@ class User(Base):
     discord_id: Mapped[str] = mapped_column(String(18), nullable=True)
 
     # delete u_package when user deleted
-    package: Mapped[U_Package] = relationship("U_Package", cascade="delete", backref="user")
+    package: Mapped[U_Package] = relationship(
+        "U_Package", cascade="all, delete-orphan", backref="user"
+    )
     # delete all u_sessions when user deleted
     sessions: Mapped[List[U_Session]] = relationship(
         "U_Session",
         backref="user",
-        cascade="delete",
+        cascade="all, delete-orphan",
         order_by="asc(U_Session.end_date)",  # first most oldest session
         lazy="dynamic",
     )
@@ -816,6 +818,14 @@ def get_package_content_by_id(
     return session.query(PackageContent).filter_by(id=id).first()
 
 
+def get_u_package_by_id(id: int, session: scoped_session = db.session) -> U_Package | None:
+    return session.query(U_Package).filter_by(id=id).first()
+
+
+def get_u_session_by_id(id: int, session: scoped_session = db.session) -> U_Session | None:
+    return session.query(U_Session).filter_by(id=id).first()
+
+
 def try_login(user: User, ip_addr: str | None) -> loginError | bool:
     if ip_addr is None:
         return loginError.not_found_client_ip
@@ -1012,3 +1022,85 @@ def update_u_session(
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_session to database %s" % e)
     return DBOperationResult.unknown_error
+
+
+def _delete_model(
+    model: User | Admin | Package | PackageContent | U_Package | U_Session,
+    session: scoped_session = db.session,
+):
+    try:
+        session.delete(model)
+        session.commit()
+        return DBOperationResult.success
+    except Exception as e:
+        DB_LOGGER.error("error accured while deleting model from database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+# def delete_user(
+#     id: int | User, session: scoped_session = db.session
+# ) -> DBOperationResult:
+#     DB_LOGGER.info("deleting user from database %s" % id)
+#     if isinstance(id, int):
+#         db_user = session.query(User).filter_by(id=id).first()
+#     else:
+#         db_user = id
+#     if db_user is None:
+#         return DBOperationResult.model_not_found
+#     return _delete_model(db_user, session)
+
+# def delete_package(
+#     id: int | Package, session: scoped_session = db.session
+# ) -> DBOperationResult:
+#     DB_LOGGER.info("deleting package from database %s" % id)
+#     if isinstance(id, int):
+#         db_package = session.query(Package).filter_by(id=id).first()
+#     else:
+#         db_package = id
+#     if db_package is None:
+#         return DBOperationResult.model_not_found
+#     return _delete_model(db_package, session)
+
+# def delete_package_content(
+#     id: int | PackageContent, session: scoped_session = db.session
+# ) -> DBOperationResult:
+#     DB_LOGGER.info("deleting package_content from database %s" % id)
+#     if isinstance(id, int):
+#         db_package_content = session.query(PackageContent).filter_by(id=id).first()
+#     else:
+#         db_package_content = id
+#     if db_package_content is None:
+#         return DBOperationResult.model_not_found
+#     return _delete_model(db_package_content, session)
+
+# def delete_u_package(
+#     id: int | U_Package, session: scoped_session = db.session
+# ) -> DBOperationResult:
+#     DB_LOGGER.info("deleting u_package from database %s" % id)
+#     if isinstance(id, int):
+#         db_u_package = session.query(U_Package).filter_by(id=id).first()
+#     else:
+#         db_u_package = id
+#     if db_u_package is None:
+#         return DBOperationResult.model_not_found
+#     return _delete_model(db_u_package, session)
+
+# def delete_u_session(
+#     id: int | U_Session, session: scoped_session = db.session
+# ) -> DBOperationResult:
+#     DB_LOGGER.info("deleting u_session from database %s" % id)
+#     if isinstance(id, int):
+#         db_u_session = session.query(U_Session).filter_by(id=id).first()
+#     else:
+#         db_u_session = id
+#     if db_u_session is None:
+#         return DBOperationResult.model_not_found
+#     return _delete_model(db_u_session, session)
+
+
+def delete_model(
+    model: User | Admin | Package | PackageContent | U_Package | U_Session,
+    session: scoped_session = db.session,
+) -> DBOperationResult:
+    DB_LOGGER.info("deleting model from database %s" % model)
+    return _delete_model(model, session)

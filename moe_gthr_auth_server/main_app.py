@@ -1,6 +1,6 @@
 import logging
 import sqlalchemy
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, session
 from schema import And, Schema, SchemaError, SchemaWrongKeyError, Use
 from sqlalchemy.orm import scoped_session
 
@@ -20,6 +20,11 @@ from moe_gthr_auth_server.database_ops import (
     add_u_package,
     add_package_content,
     add_user,
+    delete_model,
+    get_package_by_id,
+    get_package_content_by_id,
+    get_u_package_by_id,
+    get_u_session_by_id,
     get_user,
     get_user_by_id,
     loginError,
@@ -777,13 +782,62 @@ def admin_info_u_session(u_session_id) -> tuple[Response, int]:
 
 
 @main_blueprint.route(endpoints.URLS.ADelete, methods=["DELETE"])
-def admin_delete(m_type: int, id: int) -> tuple[Response, int]:
+def admin_delete(m_type: int, m_id: int) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
-    LOGGER.debug(f"{req_id} - {request.method} {request.url} m_type : {m_type} id : {id}")
+    LOGGER.debug(f"{req_id} - {request.method} {request.url} m_type : {m_type} id : {m_id}")
     if request.method == "DELETE":
         if (is_admin := get_admin_from_req(request)) is not None:
             LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
+            try:
+                if m_type == mType.all_models:
+                    return (
+                        request_error_response(
+                            "ignored_model_type",
+                            extra={
+                                "detail": "ignored_model_type",
+                                "supported_model_types": {
+                                    "user": mType.user,
+                                    "package": mType.package,
+                                    "package_content": mType.package_content,
+                                    "u_package": mType.u_package,
+                                    "u_session": mType.u_session,
+                                },
+                            },
+                        ),
+                        400,
+                    )
+                if m_type == mType.user:
+                    return admin_delete_user(m_id)
+                elif m_type == mType.package:
+                    return admin_delete_package(m_id)
+                elif m_type == mType.package_content:
+                    return admin_delete_package_content(m_id)
+                elif m_type == mType.u_package:
+                    return admin_delete_u_package(m_id)
+                elif m_type == mType.u_session:
+                    return admin_delete_u_session(m_id)
+                return (
+                    request_error_response(
+                        "unsupported_model_type",
+                        extra={
+                            "detail": {
+                                "supported_model_types": {
+                                    "user": mType.user,
+                                    "package": mType.package,
+                                    "package_content": mType.package_content,
+                                    "u_package": mType.u_package,
+                                    "u_session": mType.u_session,
+                                }
+                            }
+                        },
+                    ),
+                    400,
+                )
+            except Exception as e:
+                LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+                if type(e) is UnsupportedMediaType:
+                    return unsupported_media_type()
+                return bad_request(e)
         return unauthorized()
     return method_not_allowed()
 
@@ -791,56 +845,94 @@ def admin_delete(m_type: int, id: int) -> tuple[Response, int]:
 def admin_delete_user(user_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} user_id : {user_id}")
-    if request.method == "DELETE":
-        if (is_admin := get_admin_from_req(request)) is not None:
-            LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
-        return unauthorized()
-    return method_not_allowed()
+    db_user = get_user_by_id(id=user_id)
+    if db_user is None:
+        return request_error_response("user_not_found"), 404
+    ret_user_data = {
+        "user": db_user.__json__(),
+    }
+    db_op_result = delete_model(db_user)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(success_msg="user_deleted", extra=ret_user_data),
+        200,
+    )
 
 
 def admin_delete_package(package_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} package_id : {package_id}")
-    if request.method == "DELETE":
-        if (is_admin := get_admin_from_req(request)) is not None:
-            LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
-        return unauthorized()
-    return method_not_allowed()
+    db_package = get_package_by_id(id=package_id)
+    if db_package is None:
+        return request_error_response("package_not_found"), 404
+    ret_package_data = {
+        "package": db_package.__json__(),
+    }
+    db_op_result = delete_model(db_package)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(success_msg="package_deleted", extra=ret_package_data),
+        200,
+    )
 
 
 def admin_delete_package_content(package_content_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} {package_content_id=}")
-    if request.method == "DELETE":
-        if (is_admin := get_admin_from_req(request)) is not None:
-            LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
-        return unauthorized()
-    return method_not_allowed()
+    db_package_content = get_package_content_by_id(id=package_content_id)
+    if db_package_content is None:
+        return request_error_response("package_content_not_found"), 404
+    ret_package_content_data = {
+        "package_content": db_package_content.__json__(),
+    }
+    db_op_result = delete_model(db_package_content)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(
+            success_msg="package_content_deleted",
+            extra=ret_package_content_data,
+        ),
+        200,
+    )
 
 
 def admin_delete_u_package(u_package_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} u_package_id : {u_package_id}")
-    if request.method == "DELETE":
-        if (is_admin := get_admin_from_req(request)) is not None:
-            LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
-        return unauthorized()
-    return method_not_allowed()
+    db_u_package = get_u_package_by_id(id=u_package_id)
+    if db_u_package is None:
+        return request_error_response("u_package_not_found"), 404
+    ret_u_package_data = {
+        "u_package": db_u_package.__json__(),
+    }
+    db_op_result = delete_model(db_u_package)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(success_msg="u_package_deleted", extra=ret_u_package_data),
+        200,
+    )
 
 
 def admin_delete_u_session(u_session_id) -> tuple[Response, int]:
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url} {u_session_id=}")
-    if request.method == "DELETE":
-        if (is_admin := get_admin_from_req(request)) is not None:
-            LOGGER.debug(f"{req_id} - admin : {is_admin}")
-            raise NotImplementedError("admin_delete is not implemented")
-        return unauthorized()
-    return method_not_allowed()
+    db_u_session = get_u_session_by_id(id=u_session_id)
+    if db_u_session is None:
+        return request_error_response("u_session_not_found"), 404
+    ret_u_session_data = {
+        "u_session": db_u_session.__json__(),
+    }
+    db_op_result = delete_model(db_u_session)
+    if db_op_result != DBOperationResult.success:
+        return request_error_response("db_error", extra=db_op_result.__json__()), 400
+    return (
+        request_success_response(success_msg="u_session_deleted", extra=ret_u_session_data),
+        200,
+    )
 
 
 @main_blueprint.route(endpoints.URLS.ALogin, methods=["GET", "POST"])
@@ -948,4 +1040,8 @@ def get_admin_from_req(request) -> bool | None:
 def generate_req_id(remote_addr: str | None) -> str:
     from uuid import uuid4
 
-    return str(remote_addr) + "_" + str(uuid4())
+    if hasattr(session, "req_id"):
+        return session["req_id"]
+    req_id = str(remote_addr) + "_" + str(uuid4())
+    session["req_id"] = req_id
+    return req_id

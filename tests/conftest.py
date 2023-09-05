@@ -29,6 +29,7 @@ def app():
     app = Flask("moe_gatherer_server")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test_secret_key"
     LOGGER.debug("app: %s", app)
     register_blueprints(app)
     register_error_handlers(app)
@@ -396,4 +397,31 @@ def u_package_from_db(
             U_Package.user == user_from_db, U_Package.base_package == package_from_db
         ).first()
         yield db_query_u_package
+        db.session.remove()
+
+
+@pytest.fixture
+def user_with_package_from_db(
+    app_ctx,
+    user_from_db,
+    package_with_random_contents_from_db,
+    u_package_data,
+):
+    LOGGER.debug("u_package_from_db")
+    with app_ctx:
+        u_package_data["user"] = user_from_db.id
+        u_package_data["base_package"] = package_with_random_contents_from_db.id
+        u_package_data["start_date"] = utc_timestamp(
+            datetime.datetime.utcnow(), return_type=int
+        )
+        db_u_package = U_Package.from_json(u_package_data)
+        db.session.add(db_u_package)
+        db.session.commit()
+        db_query_u_package = U_Package.query.filter(
+            U_Package.user == user_from_db,
+            U_Package.base_package == package_with_random_contents_from_db,
+        ).first()
+        user_from_db.package = db_query_u_package
+        db.session.commit()
+        yield user_from_db
         db.session.remove()

@@ -60,7 +60,7 @@
         m_id=42
     )
      #+end_src
-    - [ ] delete routelari
+    - [X] delete routelari
     - [X] routelar methodlarına göre ayrılacak - post,update,delete,put
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
