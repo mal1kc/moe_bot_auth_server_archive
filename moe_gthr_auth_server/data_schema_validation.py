@@ -25,8 +25,9 @@ TODO:
 TODO: add more tests
 """
 from __future__ import annotations
-from typing import Callable, Any, Iterable, Type, Set
+
 import logging
+from typing import Any, Callable, Iterable, Set, Type
 
 LOGGER = logging.getLogger(__name__)
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
-from typing import Any, Dict
-from moe_gthr_auth_server.data_schema_validation import Schema, And, SchemaValidationError
-from pytest import fixture
+
 import logging
+from typing import Any, Dict
+
+from pytest import fixture
+
+from moe_gthr_auth_server.data_schema_validation import And, Schema, SchemaValidationError
 
 LOGGER = logging.getLogger(__name__)
 

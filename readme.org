@@ -4,13 +4,24 @@
 
 - ne kadar güvenli emin degilim sifre kısmı
 
-** eksikler - TODO - v1
-    - [ ] login islemi gözden geçirilmesi lazım
-    - [ ] logine test lazım
+** TODO eksikler - v1 [75%]
+    - [X] login islemi gözden geçirilmesi lazım
+    - [X] logine test lazım
     - [X] testleri baştan yaz
-    - [ ]externel bir şekilde kullanım testleri
-      - [ ] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
+    - [-] externel bir şekilde kullanım testleri
+      - [-] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
         - [ ] admin,user şeklinde
+        - [-] admin için [1/4]
+          - [X] register
+          - [ ] update
+          - [ ] delete
+          - [ ] info
+        - [ ] user [0%]
+          - [ ] login
+          - [ ] info
+            - [ ] u_package
+            - [ ] u_session
+            - [ ] self/user
     - [X] u_package ekleme
     - [X] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
         #+begin_src python

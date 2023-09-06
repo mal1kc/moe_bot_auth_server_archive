@@ -1,5 +1,5 @@
 from moe_gthr_auth_server.enums import mType
-from tests.testing_helpers import URLS, LOGGER
+from tests.testing_helpers import LOGGER, URLS
 
 
 def test_login_without_u_package(client, user_data_auth, user_data, admin_data_auth):

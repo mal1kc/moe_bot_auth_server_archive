@@ -1,9 +1,8 @@
 from moe_gthr_auth_server.crpytion import (
-    make_password_hash,
     compare_encypted_hashes,
+    make_password_hash,
     unmake_password_ready,
 )
-
 from tests.testing_helpers import LOGGER
 
 

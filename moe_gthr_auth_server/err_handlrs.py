@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, Response
+from flask import Blueprint, Response, jsonify
+
 from .base_responses import request_error_response
 
 error_blueprint = Blueprint("error_blueprint", __name__)

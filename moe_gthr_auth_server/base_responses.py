@@ -1,4 +1,4 @@
-from flask import jsonify, Response
+from flask import Response, jsonify
 
 
 def request_error_response(error_msg="unkown_error", extra: dict | None = None) -> Response:

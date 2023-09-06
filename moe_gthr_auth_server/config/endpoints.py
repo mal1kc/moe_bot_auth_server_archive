@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import functools
+from dataclasses import dataclass
 
 URL_PREFIX = "/api/v1"
 URL_PREFIX_ADMIN = URL_PREFIX + "/admin"

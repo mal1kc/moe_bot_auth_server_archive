@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Callable, List
 
-
 from flask_sqlalchemy import SQLAlchemy
-from schema import Or, Schema, And, Use, Optional, SchemaError
+from schema import And, Optional, Or, Schema, SchemaError, Use
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import (
     Mapped,
@@ -15,9 +15,9 @@ from sqlalchemy.orm import (
     scoped_session,
 )
 from sqlalchemy.orm.decl_api import DeclarativeMeta
+from flask import current_app
 
-from .config.flask import USER_OLDEST_SESSION_TIMEOUT, USER_SESSION_TIMEOUT
-from .enums import pContentEnum, loginError, DBOperationResult
+from .enums import DBOperationResult, loginError, pContentEnum
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
@@ -383,7 +383,9 @@ class U_Session(Base):
         schema.validate(data)
 
     def extend_session(self) -> None:
-        self.end_date = datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT)
+        self.end_date = datetime.utcnow() + timedelta(
+            minutes=current_app.config["USER_SESSION_TIMEOUT"]
+        )
         self.acces = True
         db.session.commit()
 
@@ -527,7 +529,8 @@ class User(Base):
             self.u_accessible_sessions = []
         new_session = U_Session(
             user_id=self.id,
-            end_date=datetime.utcnow() + timedelta(minutes=USER_SESSION_TIMEOUT),
+            end_date=datetime.utcnow()
+            + timedelta(minutes=current_app.config["USER_SESSION_TIMEOUT"]),
             ip=inamedr,
         )
         self.sessions.append(new_session)
@@ -560,7 +563,7 @@ class User(Base):
             if (
                 not (
                     newest_same_ip_session.end_date
-                    + timedelta(minutes=USER_OLDEST_SESSION_TIMEOUT)
+                    + timedelta(minutes=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
                 )
                 < datetime.utcnow()
             ):

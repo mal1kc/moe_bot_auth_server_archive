@@ -2,17 +2,10 @@
 import logging
 import random
 
-from moe_gthr_auth_server.database_ops import (
-    Admin,
-    User,
-    Package,
-    PackageContent,
-    utc_timestamp,  # noqa
-)
-from moe_gthr_auth_server.enums import pContentEnum, mType  # noqa
-
-
 import moe_gthr_auth_server.config.endpoints as app_config_endpoints
+from moe_gthr_auth_server.database_ops import utc_timestamp  # noqa
+from moe_gthr_auth_server.database_ops import Admin, Package, PackageContent, User
+from moe_gthr_auth_server.enums import mType, pContentEnum  # noqa
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,5 +36,5 @@ def generate_random_sized_random_package_content_list(max_size: int = 4):
         p_content = random.choice(available_pContent)
         if p_content not in result:
             result.append(p_content)
-    LOGGER.debug("generate_random_sized_random_content_list: -> result:%s", result)
+    LOGGER.debug("generate_random_sized_random_content_list: -> result:{}".format(result))
     return result

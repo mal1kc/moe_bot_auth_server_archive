@@ -1,9 +1,10 @@
+import logging
 import os
 
 from flask import Flask
-import logging
 
 from . import paths
+from .cli import cli_blueprint
 from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
 from .database_ops import db
@@ -16,8 +17,6 @@ from .err_handlrs import (
     unsupported_media_type,
 )
 from .main_app import main_blueprint
-from .cli import cli_blueprint
-
 
 LOGGER = logging.getLogger("app")
 
@@ -30,10 +29,12 @@ def _ensure_secret_key() -> None:
     conf_secret_key.write(conf_secret_key.generate_secret_key())
 
 
-def _ensure_db() -> None:
+def _ensure_db(app) -> None:
     """Ensure that a database exists."""
-    LOGGER.debug("Ensuring database file %s", paths.DB_PATH)
-    if os.path.exists(paths.DB_PATH):
+    LOGGER.debug(
+        "Ensuring database file %s", app.config["SQLALCHEMY_DATABASE_URI"].split("///")[1]
+    )
+    if os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].split("///")[1]):
         return
     db.create_all()
 
@@ -57,8 +58,13 @@ def register_blueprints(app: Flask) -> None:
 
 def register_extensions(app: Flask, db=db) -> None:
     db.init_app(app)
+    print(
+        "app.config['SQLALCHEMY_DATABASE_URI'] -> {}".format(
+            app.config["SQLALCHEMY_DATABASE_URI"]
+        )
+    )
     with app.app_context():
-        _ensure_db()
+        _ensure_db(app)
 
 
 def register_error_handlers(app: Flask):
@@ -72,5 +78,7 @@ def register_error_handlers(app: Flask):
 
 def register_modifications(app: Flask) -> None:
     LOGGER.debug("Registering modifications")
-    app.config.from_object(conf_flask)
+    app.config.from_object(conf_flask.load_config_from_toml())
+    LOGGER.debug("config loaded")
+    LOGGER.debug("config -> {}".format(app.config))
     # app.secret_key = conf_secret_key.read()

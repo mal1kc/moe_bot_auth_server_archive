@@ -1,10 +1,11 @@
-import pytest
 import datetime
 import random
 
+import pytest
 from flask import Flask
 
 from moe_gthr_auth_server import register_blueprints, register_error_handlers
+from moe_gthr_auth_server.crpytion import make_password_hash, make_password_ready
 from moe_gthr_auth_server.database_ops import (
     Admin,
     Package,
@@ -16,11 +17,6 @@ from moe_gthr_auth_server.database_ops import (
     pContentEnum,
     utc_timestamp,
 )
-from moe_gthr_auth_server.crpytion import (
-    make_password_hash,
-    make_password_ready,
-)
-
 from tests.testing_helpers import LOGGER, generate_random_sized_random_package_content_list
 
 
@@ -30,6 +26,11 @@ def app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["TESTING"] = True
     app.config["SECRET_KEY"] = "test_secret_key"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ECHO"] = False
+    app.config["USER_SESSION_TIMEOUT"] = 20  # in minutes
+    app.config["USER_OLDEST_SESSION_TIMEOUT"] = 2  # in days
+    app.config["USER_IP_SESSION_LIMIT"] = 150  # as number of sessions
     LOGGER.debug("app: %s", app)
     register_blueprints(app)
     register_error_handlers(app)
@@ -149,6 +150,24 @@ def package_content_data() -> dict:
 @pytest.fixture
 def package_data_with_package_content(package_data, random_package_content_data) -> dict:
     package_data["package_contents"] = [random_package_content_data]
+    return package_data
+
+
+@pytest.fixture
+def package_data_with_package_content_id(
+    package_data, random_package_content_from_db
+) -> dict:
+    package_data["package_contents"] = [random_package_content_from_db.id]
+    return package_data
+
+
+@pytest.fixture
+def package_data_with_multiple_package_content_ids(
+    package_data, random_package_contents_from_db
+) -> dict:
+    package_data["package_contents"] = [
+        pcontent.id for pcontent in random_package_contents_from_db
+    ]
     return package_data
 
 

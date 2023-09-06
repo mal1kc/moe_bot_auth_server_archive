@@ -1,15 +1,17 @@
-import pytest
 import datetime
 
+import pytest
+
 from moe_gthr_auth_server.crpytion import (
-    make_password_hash,
-    encryption_password,
-    simple_dencrypt,
     encoding,
+    encryption_password,
+    make_password_hash,
+    simple_dencrypt,
 )
 from moe_gthr_auth_server.enums import mType
+from tests.testing_helpers import LOGGER, URLS, show_db_data, utc_timestamp
 
-from tests.testing_helpers import show_db_data, LOGGER, URLS, utc_timestamp
+# all of function arguments are fixtures from conftest.py
 
 
 def test_register_user(client, user_data, admin_data_auth):
@@ -239,6 +241,47 @@ def test_register_package_data_with_package_content(
     assert "package" in response.json.keys()
     assert response.status_code == 200
     LOGGER.debug("test_register_package_data_with_package_content: OK")
+
+
+def test_register_package_data_with_package_content_id(
+    client, package_data_with_package_content_id, admin_data_auth
+):
+    LOGGER.debug("test_register_package_data_with_package_content_id")
+    request_json = {"model": package_data_with_package_content_id}
+    LOGGER.debug("request_json: %s", request_json)
+    response = client.post(
+        URLS.ARegister.format(m_type=mType.package),
+        json=request_json,
+        content_type="application/json",
+        auth=admin_data_auth,
+    )
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "package_created", response.json
+    assert response.json["status"] == "success"
+    assert "package" in response.json.keys()
+    assert response.status_code == 200
+    LOGGER.debug("test_register_package_data_with_package_content_id: OK")
+
+
+def test_register_package_data_with_multiple_package_content_ids(
+    client, package_data_with_multiple_package_content_ids, admin_data_auth
+):
+    LOGGER.debug("test_register_package_data_with_multiple_package_content_ids")
+    request_json = {"model": package_data_with_multiple_package_content_ids}
+    LOGGER.debug("request_json: %s", request_json)
+    response = client.post(
+        URLS.ARegister.format(m_type=mType.package),
+        json=request_json,
+        content_type="application/json",
+        auth=admin_data_auth,
+    )
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "package_created", response.json
+    assert response.json["status"] == "success"
+    assert "package" in response.json.keys()
+    assert "package_contents" in response.json["package"].keys()
+    assert response.status_code == 200
+    LOGGER.debug("test_register_package_data_with_multiple_package_content_ids: OK")
 
 
 def test_register_package_already_exits(client, app_ctx, package_data, admin_data_auth):

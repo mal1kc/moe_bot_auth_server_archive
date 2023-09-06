@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import hashlib
-from Crypto import Random
-from Crypto.Cipher import AES
-from base64 import b64encode, b64decode
 import random
 import string
+from base64 import b64decode, b64encode
 
+from Crypto import Random
+from Crypto.Cipher import AES
 
 # class AESCipher(object):
 #     def __init__(self, key):

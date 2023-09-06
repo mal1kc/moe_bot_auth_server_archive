@@ -1,6 +1,5 @@
 from moe_gthr_auth_server.enums import mType
-
-from tests.testing_helpers import show_db_data, LOGGER, URLS
+from tests.testing_helpers import LOGGER, URLS, show_db_data
 
 # from moe_gthr_auth_server.database_ops import pContentEnum, utc_timestamp
 # from moe_gthr_auth_server.crpytion import make_password_ready

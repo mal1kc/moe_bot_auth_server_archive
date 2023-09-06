@@ -1,11 +1,10 @@
 import pytest
-
-from flask import Flask
 from click.testing import CliRunner
-
-from moe_gthr_auth_server import register_blueprints, register_error_handlers, db
-from moe_gthr_auth_server.cli import initdb_command, resetdb_command
+from flask import Flask
 from testing_helpers import LOGGER
+
+from moe_gthr_auth_server import db, register_blueprints, register_error_handlers
+from moe_gthr_auth_server.cli import initdb_command, resetdb_command
 
 
 @pytest.fixture

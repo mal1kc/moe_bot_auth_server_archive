@@ -1,18 +1,33 @@
-from encryption import make_password_ready
-import enum
 import datetime
+import enum
+
+from encryption import make_password_ready
 
 
 class pContentEnum(enum.StrEnum):
-    # TODO : maybe change in future for more flexibility
     moe_gatherer = enum.auto()  # -> "moe_gatherer"
     moe_advantures = enum.auto()
     moe_camp = enum.auto()
     moe_arena = enum.auto()
     moe_raid = enum.auto()
     extra_user = enum.auto()
-    discord = enum.auto()  # TODO: discord api kullanım hakkı
+    discord = enum.auto()
 
+
+class mTypes(enum.IntEnum):
+    "enum for model types"
+    "values are coming from serverside values"
+    user = 0
+    package_content = 1
+    package = 2
+    u_package = 3
+    u_session = 4
+
+
+sample_admin_data = {
+    "name": "mal1kc",
+    "password_hash": make_password_ready("deov04ın-!ıj0dı12klsa"),
+}
 
 sample_user_data = {
     "name": "ext_test_user",
@@ -22,11 +37,6 @@ sample_user_data = {
 sample_user_data2 = {
     "name": "ext_test_user2",
     "password_hash": make_password_ready("ext_test_user_password2"),
-}
-
-sample_admin_data = {
-    "name": "mal1kc",
-    "password_hash": make_password_ready("deov04ın-!ıj0dı12klsa"),
 }
 
 sample_package_data = {
