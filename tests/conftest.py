@@ -11,6 +11,7 @@ from moe_gthr_auth_server.database_ops import (
     Package,
     PackageContent,
     U_Package,
+    U_Session,
     User,
     add_admin,
     db,
@@ -443,4 +444,49 @@ def user_with_package_from_db(
         user_from_db.package = db_query_u_package
         db.session.commit()
         yield user_from_db
+        db.session.remove()
+
+
+@pytest.fixture
+def u_session_from_db(
+    user_from_db,
+    app_ctx,
+):
+    LOGGER.debug("u_session_from_db")
+    with app_ctx:
+        u_session_data = {
+            "start_date": utc_timestamp(
+                datetime.datetime.utcnow(), return_type=datetime.datetime
+            ),
+            "user_id": user_from_db.id,
+            "ip": "127.0.0.1",
+            "end_date": utc_timestamp(
+                datetime.datetime.utcnow() + datetime.timedelta(minutes=20),
+                return_type=datetime.datetime,
+            ),
+        }
+        db_u_session = U_Session(
+            **u_session_data,
+        )
+        db.session.add(db_u_session)
+        db.session.commit()
+        db_query_u_session = U_Session.query.filter(
+            U_Session.user_id == user_from_db.id,
+            U_Session.ip == u_session_data["ip"],
+        ).first()
+        yield db_query_u_session
+        db.session.remove()
+
+
+@pytest.fixture
+def user_with_package_and_session_from_db(
+    user_with_package_from_db,
+    u_session_from_db,
+    app_ctx,
+):
+    LOGGER.debug("user_with_package_and_session_from_db")
+    with app_ctx:
+        user_with_package_from_db.sessions.append(u_session_from_db)
+        db.session.commit()
+        yield user_with_package_from_db
         db.session.remove()

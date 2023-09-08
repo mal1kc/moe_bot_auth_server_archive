@@ -1008,6 +1008,25 @@ def user_login() -> tuple[Response, int]:
     return unauthorized()
 
 
+@main_blueprint.route(endpoints.URLS.UInfo, methods=["GET"])
+def user_info() -> tuple[Response, int]:
+    req_id = generate_req_id(remote_addr=request.remote_addr)
+    LOGGER.debug(f"{req_id} - {request.method} {request.url}")
+    if request.method == "GET":
+        is_user = get_user_from_req(request)
+        LOGGER.debug(f"{req_id} - is_user : {is_user}")
+        if isinstance(is_user, User):
+            LOGGER.debug(f"{req_id} - trying to get user info")
+            return (
+                request_success_response(
+                    "user_info_success", extra={"user": is_user.__json__()}
+                ),
+                200,
+            )
+        return jsonify({"status": "error", "message": "user_cred_not_found"}), 404
+    return method_not_allowed()
+
+
 def get_user_from_req(request) -> bool | User | None:
     if request.headers.get("Authorization") is None:
         return None

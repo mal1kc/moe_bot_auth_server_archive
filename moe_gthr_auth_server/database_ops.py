@@ -529,6 +529,7 @@ class User(Base):
             self.u_accessible_sessions = []
         new_session = U_Session(
             user_id=self.id,
+            start_date=datetime.utcnow(),
             end_date=datetime.utcnow()
             + timedelta(minutes=current_app.config["USER_SESSION_TIMEOUT"]),
             ip=inamedr,

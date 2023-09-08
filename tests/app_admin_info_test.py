@@ -158,3 +158,30 @@ def test_info_u_package_not_found(
     assert response.json["status"] == "error"
     assert response.json["message"] == "u_package_not_found", response.json
     assert response.status_code == 404
+
+
+def test_info_user_with_package_and_session(
+    client,
+    user_with_package_and_session_from_db,
+    admin_data_auth,
+):
+    LOGGER.debug("test_info_user_with_package_and_session_from_db")
+    response = client.get(
+        URLS.AInfo.format(m_type=mType.user, m_id=user_with_package_and_session_from_db.id),
+        auth=admin_data_auth,
+    )
+
+    LOGGER.debug("response.json: %s", response.json)
+    assert response.json["message"] == "success", response.json
+    assert (
+        response.json["user"]["id"] == user_with_package_and_session_from_db.id
+    ), response.json
+    assert response.status_code == 200
+    assert response.json["user"][
+        "package"
+    ] == user_with_package_and_session_from_db.package.__json__(
+        user_incld=False
+    ), user_with_package_and_session_from_db.package.__json__()
+    assert response.json["user"]["sessions"] == [
+        session.__json__() for session in user_with_package_and_session_from_db.sessions
+    ], response.json
