@@ -2,7 +2,7 @@
 
 set -e
 
-PORT=2402
+PORT=5000
 CONTAINER_NAME="moe_gthr_auth_server"
 CONTAINER_TAG="dev$(poetry version --short)"
 CONTAINER_DEF_PORT=8080

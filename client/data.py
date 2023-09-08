@@ -1,7 +1,7 @@
 import datetime
 import enum
 
-from encryption import make_password_ready
+from client.encryption import make_password_ready
 
 
 class pContentEnum(enum.StrEnum):

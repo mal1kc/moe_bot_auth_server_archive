@@ -4,25 +4,25 @@
 
 - ne kadar güvenli emin degilim sifre kısmı
 
-** TODO eksikler - v1 [75%]
+** TODO eksikler - v1 [72%]
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
     - [X] testleri baştan yaz
-    - [-] harici bir şekilde kullanım testleri
-      - [-] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
-        - [ ] admin,user şeklinde
-        - [-] admin için [1/4]
+    - [X] harici bir şekilde kullanım testleri
+      - [X] normal testler dışında client klasöründe genel istek çeşitleri denemeli örneklenmeli
+        - [X] admin,user şeklinde
+        - [X] admin için [4/4]
           - [X] register
-          - [ ] update
-          - [ ] delete
-          - [ ] info
-        - [ ] user [0%]
-          - [ ] login
-            - [ ] also gets all info about user
-          - [ ] info
-            - [ ] u_package
-            - [ ] u_session
-            - [ ] self/user
+          - [X] update
+          - [X] delete
+          - [X] info
+        - [X] user [100%]
+          - [X] login
+            - [X] also gets all info about user
+          - [X] info
+            - [X] u_package
+            - [X] u_session
+            - [X] self/user
     - [X] u_package ekleme
     - [X] ekleme 'register' isteklerinde başarılı olursa beraberinde id de dönmeli
         #+begin_src python
@@ -77,7 +77,9 @@
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
-
+    - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli
+    - [ ] dockerfile
+      - [ ] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
 ** muhtemel v2 özellikleri
 
 - sessionlara token baglıyıp token üzerinden kontrol gerçekleştirme ve session ömrünü uzatma

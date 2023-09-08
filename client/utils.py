@@ -2,9 +2,8 @@ import logging
 import time
 import random
 
-import requests
 
-from data import sample_admin_data, pContentEnum
+from client.data import sample_admin_data, pContentEnum
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,8 +42,6 @@ def generate_random_sized_random_package_content_list(max_size: int = 4):
             result.append(p_content)
     return result
 
-
-requests_session = requests.Session()
 
 default_headers = {
     # "Content-Type": "application/json",
