@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Callable, List
 
+from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
 from sqlalchemy import DateTime, Enum, ForeignKey, String
@@ -15,7 +16,6 @@ from sqlalchemy.orm import (
     scoped_session,
 )
 from sqlalchemy.orm.decl_api import DeclarativeMeta
-from flask import current_app
 
 from .enums import DBOperationResult, loginError, pContentEnum
 

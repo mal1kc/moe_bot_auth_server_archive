@@ -1,10 +1,12 @@
 # ruff: noqa: E501
 import datetime
 import logging
+import sys
 import time
 from typing import Any
 
 import requests
+from user_requests import login_user
 
 from client.data import (
     mTypes,
@@ -17,14 +19,238 @@ from client.encryption import make_password_ready
 from client.endpoints import EndPoints
 from client.utils import (
     admin_header_kwargs,
-    took_time_decorator_ns,
     generate_random_sized_random_int_list,
+    took_time_decorator_ns,
 )
-from user_requests import login_user
-
-import sys
 
 LOGGER = logging.getLogger(__name__)
+
+
+@took_time_decorator_ns
+def register_user(
+    name: str = "ext_test_user",
+    password: str = "ext_test_user",
+) -> tuple[dict[str, Any], bool]:
+    user_data = sample_user_data.copy()
+    user_data["name"] = name
+    user_data["password_hash"] = make_password_ready(password)
+    request_json = {
+        "model": user_data,
+    }
+    LOGGER.debug(
+        f"registerinng user headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.user)}, json: {request_json}"
+    )
+
+    response = requests.post(
+        EndPoints.ARegister.format(m_type=mTypes.user),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def register_package(
+    package_contents: list[int] | None = None,
+    name: str = "ext_test_package",
+    detail: str = "ext_test_package_detail",
+    days: int = 30,
+) -> tuple[dict[str, Any], bool]:
+    package_data = sample_package_data.copy()
+    package_data["name"] = name
+    package_data["detail"] = detail
+    package_data["days"] = days
+    if package_contents is not None:
+        for package_content in package_contents:
+            if package_content not in package_data["package_contents"] and isinstance(
+                package_content, int
+            ):
+                package_data["package_contents"].append(package_content)
+    request_json = {
+        "model": package_data,
+    }
+    LOGGER.info(
+        f"registerinng package headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.package)}, json: {request_json}"
+    )
+    response = requests.post(
+        EndPoints.ARegister.format(m_type=mTypes.package),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def register_package_content(
+    name: str = "ext_test_package_content",
+    content_value: pContentEnum = pContentEnum.moe_gatherer,
+) -> tuple[dict[str, Any], bool]:
+    package_content_data = sample_package_content_data.copy()
+    package_content_data["name"] = name
+    package_content_data["content_value"] = content_value
+    request_json = {
+        "model": package_content_data,
+    }
+    LOGGER.debug(
+        f"registerinng package_content headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.package_content)}, json: {request_json}"
+    )
+    response = requests.post(
+        EndPoints.ARegister.format(m_type=mTypes.package_content),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def register_user_package(
+    user_id: int = 1,
+    package_id: int = 1,
+) -> tuple[dict[str, Any], bool]:
+    u_package_data = {
+        "start_date": int(
+            datetime.datetime.utcnow().timestamp()
+        ),  # IMPORTANT: this is in UTC and is int not float
+        "user": user_id,
+        "base_package": package_id,
+    }
+    request_json = {
+        "model": u_package_data,
+    }
+    LOGGER.debug(
+        f"registerinng user_package headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.u_package)}, json: {request_json}"
+    )
+    response = requests.post(
+        EndPoints.ARegister.format(m_type=mTypes.u_package),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def update_user(
+    user_id: int = 1,
+    name: str = "ext_test_user",
+) -> tuple[dict[str, Any], bool]:
+    user_data = sample_user_data.copy()
+    user_data["name"] = name
+    user_data["password_hash"] = make_password_ready(name)
+    request_json = {
+        "new_model": user_data,
+    }
+    LOGGER.debug(
+        f"registerinng user headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.user, m_id=user_id)}, json: {request_json}"
+    )
+
+    response = requests.put(
+        EndPoints.AUpdate.format(m_type=mTypes.user, m_id=user_id),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def update_package(
+    package_id: int = 1,
+    package_contents: list[int] | None = None,
+    name: str = "ext_test_package",
+    detail: str = "ext_test_package_detail",
+    days: int = 30,
+) -> tuple[dict[str, Any], bool]:
+    package_data = sample_package_data.copy()
+    package_data["name"] = name
+    package_data["detail"] = detail
+    package_data["days"] = days
+    if package_contents is not None:
+        for package_content in package_contents:
+            if package_content not in package_data["package_contents"] and isinstance(
+                package_content, int
+            ):
+                package_data["package_contents"].append(package_content)
+    request_json = {
+        "new_model": package_data,
+    }
+    LOGGER.info(
+        f"registerinng package headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.package, m_id=package_id)}, json: {request_json}"
+    )
+    response = requests.put(
+        EndPoints.AUpdate.format(m_type=mTypes.package, m_id=package_id),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def update_package_content(
+    package_content_id: int = 1,
+    name: str = "ext_test_package_content",
+    content_value: pContentEnum = pContentEnum.moe_gatherer,
+) -> tuple[dict[str, Any], bool]:
+    package_content_data = sample_package_content_data.copy()
+    package_content_data["name"] = name
+    package_content_data["content_value"] = content_value
+    request_json = {
+        "new_model": package_content_data,
+    }
+    LOGGER.debug(
+        f"registerinng package_content headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.package_content, m_id=package_content_id)}, json: {request_json}"
+    )
+    response = requests.put(
+        EndPoints.AUpdate.format(m_type=mTypes.package_content, m_id=package_content_id),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def update_user_package(
+    user_package_id: int = 1,
+    user_id: int = 1,
+    package_id: int = 1,
+) -> tuple[dict[str, Any], bool]:
+    u_package_data = {
+        "start_date": int(
+            datetime.datetime.utcnow().timestamp()
+        ),  # IMPORTANT: this is in UTC and is int not float
+        "user": user_id,
+        "base_package": package_id,
+    }
+    request_json = {
+        "new_model": u_package_data,
+    }
+    LOGGER.debug(
+        f"registerinng user_package headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.u_package, m_id=user_package_id)}, json: {request_json}"
+    )
+    response = requests.put(
+        EndPoints.AUpdate.format(m_type=mTypes.u_package, m_id=user_package_id),
+        json=request_json,
+        **admin_header_kwargs,
+    )
+
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def get_info(m_type, m_id, admin_header_kwargs):
+    response = requests.get(
+        EndPoints.AInfo.format(m_type=m_type, m_id=m_id),
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
+
+
+@took_time_decorator_ns
+def delete_model(m_type, m_id, admin_header_kwargs):
+    response = requests.delete(
+        EndPoints.ADelete.format(m_type=m_type, m_id=m_id),
+        **admin_header_kwargs,
+    )
+    return response.json(), response.ok
 
 
 @took_time_decorator_ns
@@ -281,232 +507,6 @@ def test_everything():
     LOGGER.debug(f"response_delete_user: {response_delete_user}")
     LOGGER.info("=" * 20 + "end of test" + "=" * 20)
     LOGGER.info("=" * 20 + "everything succeed" + "=" * 20)
-
-
-@took_time_decorator_ns
-def register_user(
-    name: str = "ext_test_user",
-) -> tuple[dict[str, Any], bool]:
-    user_data = sample_user_data.copy()
-    user_data["name"] = name
-    user_data["password_hash"] = make_password_ready(name)
-    request_json = {
-        "model": user_data,
-    }
-    LOGGER.debug(
-        f"registerinng user headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.user)}, json: {request_json}"
-    )
-
-    response = requests.post(
-        EndPoints.ARegister.format(m_type=mTypes.user),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def register_package(
-    package_contents: list[int] | None = None,
-    name: str = "ext_test_package",
-    detail: str = "ext_test_package_detail",
-    days: int = 30,
-) -> tuple[dict[str, Any], bool]:
-    package_data = sample_package_data.copy()
-    package_data["name"] = name
-    package_data["detail"] = detail
-    package_data["days"] = days
-    if package_contents is not None:
-        for package_content in package_contents:
-            if package_content not in package_data["package_contents"] and isinstance(
-                package_content, int
-            ):
-                package_data["package_contents"].append(package_content)
-    request_json = {
-        "model": package_data,
-    }
-    LOGGER.info(
-        f"registerinng package headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.package)}, json: {request_json}"
-    )
-    response = requests.post(
-        EndPoints.ARegister.format(m_type=mTypes.package),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def register_package_content(
-    name: str = "ext_test_package_content",
-    content_value: pContentEnum = pContentEnum.moe_gatherer,
-) -> tuple[dict[str, Any], bool]:
-    package_content_data = sample_package_content_data.copy()
-    package_content_data["name"] = name
-    package_content_data["content_value"] = content_value
-    request_json = {
-        "model": package_content_data,
-    }
-    LOGGER.debug(
-        f"registerinng package_content headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.package_content)}, json: {request_json}"
-    )
-    response = requests.post(
-        EndPoints.ARegister.format(m_type=mTypes.package_content),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def register_user_package(
-    user_id: int = 1,
-    package_id: int = 1,
-) -> tuple[dict[str, Any], bool]:
-    u_package_data = {
-        "start_date": int(
-            datetime.datetime.utcnow().timestamp()
-        ),  # IMPORTANT: this is in UTC and is int not float
-        "user": user_id,
-        "base_package": package_id,
-    }
-    request_json = {
-        "model": u_package_data,
-    }
-    LOGGER.debug(
-        f"registerinng user_package headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.u_package)}, json: {request_json}"
-    )
-    response = requests.post(
-        EndPoints.ARegister.format(m_type=mTypes.u_package),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def update_user(
-    user_id: int = 1,
-    name: str = "ext_test_user",
-) -> tuple[dict[str, Any], bool]:
-    user_data = sample_user_data.copy()
-    user_data["name"] = name
-    user_data["password_hash"] = make_password_ready(name)
-    request_json = {
-        "new_model": user_data,
-    }
-    LOGGER.debug(
-        f"registerinng user headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.user, m_id=user_id)}, json: {request_json}"
-    )
-
-    response = requests.put(
-        EndPoints.AUpdate.format(m_type=mTypes.user, m_id=user_id),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def update_package(
-    package_id: int = 1,
-    package_contents: list[int] | None = None,
-    name: str = "ext_test_package",
-    detail: str = "ext_test_package_detail",
-    days: int = 30,
-) -> tuple[dict[str, Any], bool]:
-    package_data = sample_package_data.copy()
-    package_data["name"] = name
-    package_data["detail"] = detail
-    package_data["days"] = days
-    if package_contents is not None:
-        for package_content in package_contents:
-            if package_content not in package_data["package_contents"] and isinstance(
-                package_content, int
-            ):
-                package_data["package_contents"].append(package_content)
-    request_json = {
-        "new_model": package_data,
-    }
-    LOGGER.info(
-        f"registerinng package headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.package, m_id=package_id)}, json: {request_json}"
-    )
-    response = requests.put(
-        EndPoints.AUpdate.format(m_type=mTypes.package, m_id=package_id),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def update_package_content(
-    package_content_id: int = 1,
-    name: str = "ext_test_package_content",
-    content_value: pContentEnum = pContentEnum.moe_gatherer,
-) -> tuple[dict[str, Any], bool]:
-    package_content_data = sample_package_content_data.copy()
-    package_content_data["name"] = name
-    package_content_data["content_value"] = content_value
-    request_json = {
-        "new_model": package_content_data,
-    }
-    LOGGER.debug(
-        f"registerinng package_content headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.package_content, m_id=package_content_id)}, json: {request_json}"
-    )
-    response = requests.put(
-        EndPoints.AUpdate.format(m_type=mTypes.package_content, m_id=package_content_id),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def update_user_package(
-    user_package_id: int = 1,
-    user_id: int = 1,
-    package_id: int = 1,
-) -> tuple[dict[str, Any], bool]:
-    u_package_data = {
-        "start_date": int(
-            datetime.datetime.utcnow().timestamp()
-        ),  # IMPORTANT: this is in UTC and is int not float
-        "user": user_id,
-        "base_package": package_id,
-    }
-    request_json = {
-        "new_model": u_package_data,
-    }
-    LOGGER.debug(
-        f"registerinng user_package headers: {admin_header_kwargs}, url: {EndPoints.AUpdate.format(m_type=mTypes.u_package, m_id=user_package_id)}, json: {request_json}"
-    )
-    response = requests.put(
-        EndPoints.AUpdate.format(m_type=mTypes.u_package, m_id=user_package_id),
-        json=request_json,
-        **admin_header_kwargs,
-    )
-
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def get_info(m_type, m_id, admin_header_kwargs):
-    response = requests.get(
-        EndPoints.AInfo.format(m_type=m_type, m_id=m_id),
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
-
-
-@took_time_decorator_ns
-def delete_model(m_type, m_id, admin_header_kwargs):
-    response = requests.delete(
-        EndPoints.ADelete.format(m_type=m_type, m_id=m_id),
-        **admin_header_kwargs,
-    )
-    return response.json(), response.ok
 
 
 def main():

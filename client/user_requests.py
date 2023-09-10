@@ -1,10 +1,10 @@
-import requests  # noqa
 import logging
 import sys
-
 from typing import Any
 
-from client.data import sample_user_data, mTypes
+import requests  # noqa
+
+from client.data import mTypes, sample_user_data
 from client.encryption import make_password_ready
 from client.endpoints import EndPoints
 from client.utils import LOGGER, admin_header_kwargs
