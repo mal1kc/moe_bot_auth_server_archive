@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # "set -xe" means: verbose, -x print commands and -e exit on error
 set -e
 
@@ -12,14 +10,18 @@ active_docker_cmd=$docker_cmd
 img_name="$app_name"
 img_tag="dev$app_version"
 
-if ! command -v $docker_cmd &> /dev/null
+# first check if alt_docker_cmd is available and use it if it is otherwise use docker_cmd
+
+if command -v $alt_docker_cmd &> /dev/null
 then
-    echo "$docker_cmd could not be found, trying $alt_docker_cmd"
+    echo "$alt_docker_cmd is available using it"
     active_docker_cmd=$alt_docker_cmd
-fi
-if ! command -v $alt_docker_cmd &> /dev/null
+elif command -v $docker_cmd &> /dev/null
 then
-    echo "$docker_cmd and $alt_docker_cmd could not be found exiting with error"
+    echo "$alt_docker_cmd is not available but $docker_cmd is using it"
+    active_docker_cmd=$docker_cmd
+else
+    echo "$alt_docker_cmd and $docker_cmd are not available exiting with error"
     exit 1
 fi
 

@@ -77,7 +77,7 @@
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
-    - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli
+    - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
     - [ ] dockerfile
       - [ ] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
 ** muhtemel v2 özellikleri

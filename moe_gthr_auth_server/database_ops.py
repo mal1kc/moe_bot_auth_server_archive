@@ -547,12 +547,8 @@ class User(Base):
         :return: None | U_Session
         """
         expired_sessions = filter_list(lambda x: x.is_expired(), self.u_accessible_sessions)
-        same_ip_expired_sessions = filter_list(
-            lambda x: x.k_oIp == inamedr, expired_sessions
-        )
-        other_ip_expired_sessions = filter_list(
-            lambda x: x.k_oIp != inamedr, expired_sessions
-        )
+        same_ip_expired_sessions = filter_list(lambda x: x.ip == inamedr, expired_sessions)
+        other_ip_expired_sessions = filter_list(lambda x: x.ip != inamedr, expired_sessions)
         self._disable_multiple_sessions_acess(other_ip_expired_sessions)
 
         if len(same_ip_expired_sessions) > 1:
