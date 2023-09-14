@@ -324,6 +324,7 @@ class U_Package(Base):
 
 
 class U_Session(Base):
+    __slots__ = ["u_package", "u_accessible_sessions"]
     __tablename__ = "user_sessions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
@@ -352,7 +353,7 @@ class U_Session(Base):
             "start_date": utc_timestamp(self.start_date),
             "end_date": utc_timestamp(self.end_date),
             "ip": self.ip,
-            "accesible": self.access,
+            "access": self.access,
         }
 
     @staticmethod
@@ -386,7 +387,7 @@ class U_Session(Base):
         self.end_date = datetime.utcnow() + timedelta(
             minutes=current_app.config["USER_SESSION_TIMEOUT"]
         )
-        self.acces = True
+        self.access = True
         db.session.commit()
 
     def is_expired(self) -> bool:
@@ -501,10 +502,10 @@ class User(Base):
             max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
             same_ip_expired_session = self._eleminate_expired_accessible_sessions(inamedr)
 
-            if len(self.u_accessible_sessions) >= max_sessions:
+            if len(self.u_accessible_sessions) > max_sessions:
                 return loginError.max_online_user
             if same_ip_expired_session is not None:
-                same_ip_expired_session.oturumuzat()
+                same_ip_expired_session.extend_session()
                 DB_LOGGER.info(
                     "user oturum uzatildi: id:%s, name:%s, ip:%s"
                     % (self.id, self.name, inamedr)
@@ -556,14 +557,12 @@ class User(Base):
         if len(same_ip_expired_sessions) > 1:
             same_ip_expired_sessions.sort(key=lambda x: x.end_date)
 
-            newest_same_ip_session = same_ip_expired_sessions[0]
+            newest_same_ip_session = same_ip_expired_sessions[-1]
             same_ip_expired_sessions.remove(newest_same_ip_session)
             self._disable_multiple_sessions_acess(same_ip_expired_sessions)
-            if (
-                not (
-                    newest_same_ip_session.end_date
-                    + timedelta(minutes=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
-                )
+            if not (
+                newest_same_ip_session.end_date
+                + timedelta(minutes=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
                 < datetime.utcnow()
             ):
                 self._disable_session_access(newest_same_ip_session)
@@ -572,10 +571,11 @@ class User(Base):
         return None
 
     def _disable_session_access(self, oturum: U_Session) -> None:
-        oturum.accessible = False
-        DB_LOGGER.info("user oturum kapatildi: id:%s, k_ad:%s" % (self.id, self.name))
+        oturum.access = False
+        DB_LOGGER.info("user oturum kapatildi: k_ad:%s  oturum:%s" % (self.id, oturum))
         self.u_accessible_sessions.remove(oturum)
-        self.sessions.append(oturum)
+        # self.sessions.append(oturum)
+        db.session.commit()
 
     def _disable_multiple_sessions_acess(self, oturumlar: List[U_Session]) -> None:
         DB_LOGGER.debug("disable_multiple_sessions_acess: %s" % oturumlar)
