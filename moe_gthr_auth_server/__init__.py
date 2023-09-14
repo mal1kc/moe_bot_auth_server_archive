@@ -26,7 +26,7 @@ def _ensure_secret_key() -> None:
     LOGGER.debug("Ensuring secret key file %s", paths.SECRET_KEY_PATH)
     if os.path.exists(paths.SECRET_KEY_PATH):
         return
-    conf_secret_key.write(conf_secret_key.generate_secret_key())
+    conf_secret_key.write(conf_secret_key.generate_random_bytes())
 
 
 def _ensure_db(app) -> None:

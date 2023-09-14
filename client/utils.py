@@ -6,7 +6,7 @@ from client.data import pContentEnum, sample_admin_data
 
 logging.basicConfig(level=logging.INFO)
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("client.utils")
 
 
 def took_time_decorator_ns(func):

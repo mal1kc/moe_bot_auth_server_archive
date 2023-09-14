@@ -62,7 +62,7 @@ class ReqDataErrors(Exception):
         pass
 
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("main_app")
 
 
 @main_blueprint.route("/", methods=["GET", "POST"])

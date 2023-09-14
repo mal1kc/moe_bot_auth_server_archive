@@ -8,7 +8,7 @@ from .secret_key import read as secret_key_read
 _SECRET_KEY = secret_key_read()
 _DEBUG = True
 _LOG_LEVEL = "DEBUG"
-_LOG_FILE_MAX_SIZE = 1024 * 1024 * 100
+_LOG_FILE_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 _LOG_MAX_FILES = 10
 _LOG_FILE_LOCATION = paths.LOG_PATH
 _SQLALCHEMY_DATABASE_URI = "sqlite:///" + paths.DB_PATH
@@ -156,12 +156,53 @@ class Config:
                         "class": "logging.StreamHandler",
                         "formatter": "default",
                     },
+                    "db_log_file": {
+                        "class": "logging.handlers.RotatingFileHandler",
+                        "formatter": "default",
+                        "filename": file_path.replace(".log", "_db.log"),
+                        "maxBytes": file_max_bytes,
+                        "backupCount": file_max_files,
+                    },
                 },
                 "root": {
                     "level": logging_level,
                     "handlers": ["file", "console"],
                 },
-            }
+                "loggers": {
+                    "gunicorn": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                        "propagate": False,
+                    },
+                    "gunicorn.access": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                        "propagate": False,
+                    },
+                    "gunicorn.error": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                        "propagate": False,
+                    },
+                    "sqlalchemy_db": {
+                        "level": logging_level,
+                        "handlers": ["db_log_file", "console"],
+                    },
+                    "data_schema_validation": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                        "propagate": False,
+                    },
+                    "cli": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                    },
+                    "main_app": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                    },
+                },
+            },
         )
 
 

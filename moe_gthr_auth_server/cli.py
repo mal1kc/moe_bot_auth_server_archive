@@ -18,7 +18,7 @@ from moe_gthr_auth_server.database_ops import (
 )
 
 cli_blueprint = Blueprint("cli", __name__)
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("cli")
 
 
 @cli_blueprint.cli.command("initdb")

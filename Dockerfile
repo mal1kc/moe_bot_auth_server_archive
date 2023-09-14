@@ -30,11 +30,11 @@ COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY moe_gthr_auth_server ./moe_gthr_auth_server
 
-COPY entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh gunicorn.conf.py ./
 
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/sh","/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh","./entrypoint.sh"]
 
 # base example dockerfile
 #

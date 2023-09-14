@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Iterable, Set, Type
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("data_schema_validation")
 
 
 class BaseSchemaValidationError(Exception):

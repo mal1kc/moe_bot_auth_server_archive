@@ -82,4 +82,6 @@
       - [ ] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
 ** muhtemel v2 özellikleri
 
-- sessionlara token baglıyıp token üzerinden kontrol gerçekleştirme ve session ömrünü uzatma
+- flask -> fastapi
+- sessionlara token baglıyıp token üzerinden kontrol gerçekleştirme ve session ömrünü uzatma (JWT veya benzer bir teknoloji)
+- async

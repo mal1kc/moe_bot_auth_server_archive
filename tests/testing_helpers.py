@@ -7,7 +7,7 @@ from moe_gthr_auth_server.database_ops import utc_timestamp  # noqa
 from moe_gthr_auth_server.database_ops import Admin, Package, PackageContent, User
 from moe_gthr_auth_server.enums import mType, pContentEnum  # noqa
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("testing_helpers")
 
 URLS = app_config_endpoints._init_urls(testing=True)
 

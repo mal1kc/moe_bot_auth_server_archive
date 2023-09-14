@@ -492,8 +492,7 @@ class User(Base):
         u_package: U_Package = self.package
         if u_package is not None:
             if u_package.is_expired():
-                db.session.delete(u_package)
-                db.session.commit()
+                delete_model(u_package, db.session)
                 return loginError.user_package_expired
             p_contents = u_package.base_package.package_contents
             extra_user_quota = list(
@@ -547,8 +546,11 @@ class User(Base):
         :return: None | U_Session
         """
         expired_sessions = filter_list(lambda x: x.is_expired(), self.u_accessible_sessions)
+        DB_LOGGER.debug("expired_sessions: %s" % expired_sessions)
         same_ip_expired_sessions = filter_list(lambda x: x.ip == inamedr, expired_sessions)
+        DB_LOGGER.debug("same_ip_expired_sessions: %s" % same_ip_expired_sessions)
         other_ip_expired_sessions = filter_list(lambda x: x.ip != inamedr, expired_sessions)
+        DB_LOGGER.debug("other_ip_expired_sessions: %s" % other_ip_expired_sessions)
         self._disable_multiple_sessions_acess(other_ip_expired_sessions)
 
         if len(same_ip_expired_sessions) > 1:
@@ -576,6 +578,7 @@ class User(Base):
         self.sessions.append(oturum)
 
     def _disable_multiple_sessions_acess(self, oturumlar: List[U_Session]) -> None:
+        DB_LOGGER.debug("disable_multiple_sessions_acess: %s" % oturumlar)
         if oturumlar is not None:
             for oturum in oturumlar:
                 self._disable_session_access(oturum)

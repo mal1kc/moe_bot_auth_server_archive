@@ -7,7 +7,7 @@ from pytest import fixture
 
 from moe_gthr_auth_server.data_schema_validation import And, Schema, SchemaValidationError
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("data_schema_validation_test")
 
 
 """

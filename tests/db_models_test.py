@@ -20,7 +20,7 @@ from moe_gthr_auth_server.database_ops import (
 
 test_db_engine = create_engine("sqlite:///:memory:")
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("db_models_test")
 
 
 @pytest.fixture(autouse=True)
