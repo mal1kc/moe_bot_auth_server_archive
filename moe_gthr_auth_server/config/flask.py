@@ -172,17 +172,14 @@ class Config:
                     "gunicorn": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
-                        "propagate": False,
                     },
                     "gunicorn.access": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
-                        "propagate": False,
                     },
                     "gunicorn.error": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
-                        "propagate": False,
                     },
                     "sqlalchemy_db": {
                         "level": logging_level,
@@ -191,13 +188,16 @@ class Config:
                     "data_schema_validation": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
-                        "propagate": False,
                     },
                     "cli": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
                     },
                     "main_app": {
+                        "level": logging_level,
+                        "handlers": ["file", "console"],
+                    },
+                    "admin_control": {
                         "level": logging_level,
                         "handlers": ["file", "console"],
                     },

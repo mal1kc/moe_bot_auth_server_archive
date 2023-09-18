@@ -17,6 +17,7 @@ from .err_handlrs import (
     unsupported_media_type,
 )
 from .main_app import main_blueprint
+from .admin_control import admin_control_blueprint
 
 LOGGER = logging.getLogger("app")
 
@@ -54,6 +55,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(error_blueprint)
     app.register_blueprint(main_blueprint)
     app.register_blueprint(cli_blueprint)
+    app.register_blueprint(admin_control_blueprint)
 
 
 def register_extensions(app: Flask, db=db) -> None:

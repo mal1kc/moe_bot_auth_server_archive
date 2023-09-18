@@ -75,6 +75,8 @@
     - [X] delete routelari
     - [X] routelar methodlarına göre ayrılacak - post,update,delete,put
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
+    - [ ] html sayfası
+        - [ ] listeleme (düzenleme , ekleme , silme)
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
     - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
