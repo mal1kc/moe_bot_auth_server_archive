@@ -14,6 +14,15 @@ class mType(enum.IntEnum):
     u_session = 4
 
 
+class mTypeStr(enum.StrEnum):
+    "model type StrEnum"
+    user = "user"
+    package_content = "package_content"
+    package = "package"
+    u_package = "u_package"
+    u_session = "u_session"
+
+
 class pContentEnum(enum.StrEnum):
     "package content StrEnum for package_content model"
     # TODO : maybe change in future for more flexibility

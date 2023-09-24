@@ -1,44 +1,35 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <!-- Container wrapper -->
-    <div class="container-fluid">
-        <!-- Toggle button -->
-        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
-            data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false"
-            aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
+<nav class="navbar">
         <!-- Collapsible wrapper -->
-        <div class="collapse navbar-collapse" id="navbarCollapse">
+        <div class="navbar-collapse" id="navbarCollapse">
             <!-- Left links -->
-            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-
-
+            <ul class="navbar-nav0">
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin_control/about">about</a>
+                </li>
                 {% if session["logged_in"] %}
                 <li class="nav-item">
-                    <a class="nav-link active" href="/">todos</a>
+                    <a class="nav-link" href="/admin_control">users table</a>
                 </li>
-                <li class="nav-item active">
-                    <a class="nav-link" href="/logout">logout</a>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin_control/logout">logout</a>
+
+                </li>
+                <li class="nav-item">
+            <p class="admin_name">
+                    {{ session["username"] }}
+            </p>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="/">home</a>
-                </li>
-                <li class="nav-item active">
-                    <a class="nav-link" href="/about">about</a>
-                </li>
-                <li class="nav-item active">
-                    <a class="nav-link" href="/login">login</a>
-                </li>
-                <li class="nav-item active">
-                    <a class="nav-link" href="/register">register</a>
+                    <a class="nav-link" href="/admin_control">login</a>
                 </li>
                 {% endif %}
             </ul>
             <!-- Left links -->
+            {% if session["logged_in"]: %}
+
+            {% endif %}
         </div>
         <!-- Collapsible wrapper -->
-    </div>
-    <!-- Container wrapper -->
 </nav>
+<hr>

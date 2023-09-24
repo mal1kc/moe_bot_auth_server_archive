@@ -5,7 +5,7 @@ import pytest
 from flask import Flask
 
 from moe_gthr_auth_server import register_blueprints, register_error_handlers
-from moe_gthr_auth_server.crpytion import make_password_hash, make_password_ready
+from moe_gthr_auth_server.cryption import make_password_hash, make_password_ready
 from moe_gthr_auth_server.database_ops import (
     Admin,
     Package,

@@ -6,8 +6,8 @@ from .. import paths
 from .secret_key import read as secret_key_read
 
 _SECRET_KEY = secret_key_read()
-_DEBUG = True
-_LOG_LEVEL = "DEBUG"
+_DEBUG = False
+_LOG_LEVEL = "INFO"
 _LOG_FILE_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 _LOG_MAX_FILES = 10
 _LOG_FILE_LOCATION = paths.LOG_PATH
@@ -33,6 +33,7 @@ class Config:
         "SECRET_KEY",
         "USE_SQLITE",
         "SQLITE_DATABASE_LOCATION",
+        "STATIC_FOLDER",
     ]
     DEBUG: bool
     LOG_LEVEL: str
@@ -47,6 +48,7 @@ class Config:
     SECRET_KEY: str
     USE_SQLITE: bool
     SQLITE_DATABASE_LOCATION: str
+    STATIC_FOLDER: str
 
     def __init__(
         self,
@@ -63,6 +65,7 @@ class Config:
         secret_key: str = _SECRET_KEY,
         use_sqlite: bool = True,
         sqlite_database_location: str = paths.DB_PATH,
+        static_folder: str = paths.STATIC_DIR,
     ):
         self.DEBUG = debug
         self.LOG_LEVEL = log_level
@@ -77,6 +80,7 @@ class Config:
         self.SECRET_KEY = secret_key
         self.USE_SQLITE = use_sqlite
         self.SQLITE_DATABASE_LOCATION = sqlite_database_location
+        self.STATIC_FOLDER = static_folder
 
     @staticmethod
     def config_from_defaults():

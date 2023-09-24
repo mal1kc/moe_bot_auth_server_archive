@@ -1,23 +1,108 @@
 {% extends 'layout.html' %}
 
 {% block title %}
-log in
+admin control panel
 {% endblock title %}
 
 {% block body %}
-<h3>log in</h3>
-<hr>
 
-<form method="post">
+<h2>Users</h2>
+  <div class="users_actions">
+    <button class="users_actions_add users_action"> ➕  add</button>
+    </div>
+  <table id="users_table">
 
-    <label for="usernameinput">username</label>
-        <input type="text" class="form-control" name="username" id="usernameinput" placeholder="your username..."
-            required><br>
+    <tr>
+      <th id="users_id">id</th>
+      <th id="users_name">name</th>
+      <th id="users_package">user package</th>
+      <th id="users_sessions">user sessions</th>
+      <th id="users_discord_id">discord id</th>
+      <th id="users_actions">actions</th>
+    </tr>
+  {% for user in users %}
+    <tr>
+      <td class="users_id">{{ user.id }}</td>
+      <td class="users_name">{{ user.name }}</td>
+      <td class="users_package">
+        <div class="user_package_detail">
+          {# try this later https://jsfiddle.net/amfphrqo/6/ #}
+          {% if user.package %}
+          {% set package_remaining_days = user.package.end_date - utc_now %}
+          <button class="users_package_info toggle_info"
+                  onclick="toggleDivDisplayById('user_package_info_{{ user.id }}')">
+          {# onmouseover="toggleDivDisplayById('user_package_info_{{ user.id }}')"> #}
+          toggle user_package info</button>
+          <p> package remaining time {{ package_remaining_days }}</p>
+          <div style="display:none" class=
+          "user_package_info user_package" id=
+          "user_package_info_{{ user.id }}">
+            <button class="users_package_info users_action"> ✎  edit</button>
+            <button class="users_package_info users_action"> ❌ delete</button>
+            <p><b>start_date:</b> {{ user.package.start_date
+            }}</p><br>
+            <p><b>end_date:</b> {{ user.package.end_date }}</p><br>
+            <p><b>remaining_days:</b>{{ package_remaining_days }}</p>
 
-        <label for="passwordinput">password</label>
-        <input type="password" class="form-control" placeholder="password" id="password" name="password" required><br>
-
-    <button type="submit" class="btn btn-primary">log in</button>
-</form>
-
+            <p class="remaining_days_p">{{
+            user.package.remaining_days }}</p>
+            <div class="users_package_info base_package">
+              <button class="base_package users_action"> ✎  edit</button>
+              <button class="base_package users_action"> ❌  delete</button>
+              <p><b>base_package:</b><br></p>
+              <p><b>name:</b> {{ user.package.base_package.name
+              }}</p>
+              {% for index,package_content in enumerate(user.package.base_package.package_contents)  %}
+              <div class=
+              "user_package_info package_contents" id=
+              "package_contents_{{ index }}">
+                  <button class="package_contents users_action"> ✎  edit</button>
+                  <button class="package_contents users_action"> ❌  delete</button>
+                <p><b>package_content:</b><br></p>
+                <p><b>name:</b> {{ package_content.name }}</p>
+                <p><b>value:</b> {{ package_content.content_value }}</p>
+              </div>
+                {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </td>
+      <td class="users_sessions_detail">
+          {% for index,session in enumerate(user.sessions) %}
+          <button class="users_sessions_info toggle_info"
+                  onclick="toggleDivDisplayById('user_sessions_info_{{ user.id }}_{{ session.id }}')">
+          {#
+                  onmouseover="toggleDivDisplayById('user_sessions_info_{{ user.id }}_{{ session.id }}')">
+          #}
+          s -> {{ session.id }} , {{ session.ip }}</button>
+          <div style="display:none" class=
+          "user_sessions_info user_session" id=
+          "user_sessions_info_{{ user.id }}_{{ session.id }}">
+        <form method="delete" id="users_sessions_delete_{{ user.id }}_{{ session.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
+        <button class="users_sessions_info users_action"> ❌  delete</button>
+        </form>
+        <form method="get" id="users_sessions_edit_{{ user.id }}_{{ session.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
+            <button class="users_sessions_info users_action" > ✎  edit</button>
+        </form>
+            <p><b>id:</b> {{ session.id }}</p>
+            <p><b>start_date:</b> {{ session.start_date }}</p>
+            <p><b>end_date:</b> {{ session.end_date }}</p>
+            <p><b>ip_adress:</b> {{ session.ip }}</p>
+            <p><b>accessible:</b> {{ session.accessible }}</p>
+          </div>
+        {% endfor %}
+      </td>
+      <td class="users_discord_id">{{ user.discord_id }}</td>
+      <td class="users_actions">
+        <form method="get" id="users_info_{{ user.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.user,model_id=user.id) }}">
+        <button class="users_actions_edit users_action">  ✎  edit</button>
+        </form>
+        <form method="delete" id="users_delete_{{ user.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.user,model_id=user.id) }}">
+        <button class="users_actions_delete users_action"> ❌  delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
 {% endblock body %}

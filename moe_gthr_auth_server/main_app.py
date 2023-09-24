@@ -43,7 +43,7 @@ from .base_responses import (
     request_success_response,
 )
 from .config import endpoints
-from .crpytion import compare_encypted_hashes, unmake_password_ready
+from .cryption import compare_encypted_hashes, unmake_password_ready
 from .err_handlrs import (
     bad_request,
     method_not_allowed,
@@ -1056,6 +1056,7 @@ def get_admin_from_req(request) -> bool | None:
 def generate_req_id(remote_addr: str | None) -> str:
     from uuid import uuid4
 
+    # TODO: this should be called session_id or something like that
     if hasattr(session, "req_id"):
         return session["req_id"]
     req_id = str(remote_addr) + "_" + str(uuid4())

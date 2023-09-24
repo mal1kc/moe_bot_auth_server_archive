@@ -1,10 +1,7 @@
-import sys
 import logging
-from client.admin_requests import (
-    register_user,
-    register_package,
-    register_user_package,
-)
+import sys
+
+from client.admin_requests import register_package, register_user, register_user_package
 from client.utils import LOGGER
 
 

@@ -4,6 +4,7 @@ import os
 from flask import Flask
 
 from . import paths
+from .admin_control import admin_control_blueprint
 from .cli import cli_blueprint
 from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
@@ -17,7 +18,6 @@ from .err_handlrs import (
     unsupported_media_type,
 )
 from .main_app import main_blueprint
-from .admin_control import admin_control_blueprint
 
 LOGGER = logging.getLogger("app")
 
@@ -80,7 +80,8 @@ def register_error_handlers(app: Flask):
 
 def register_modifications(app: Flask) -> None:
     LOGGER.debug("Registering modifications")
-    app.config.from_object(conf_flask.load_config_from_toml())
+    app_config = conf_flask.load_config_from_toml()
+    app.config.from_object(app_config)
     LOGGER.debug("config loaded")
     LOGGER.debug("config -> {}".format(app.config))
     # app.secret_key = conf_secret_key.read()

@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from moe_gthr_auth_server.crpytion import (
+from moe_gthr_auth_server.cryption import (
     encoding,
     encryption_password,
     make_password_hash,
