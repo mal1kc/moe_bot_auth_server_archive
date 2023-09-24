@@ -282,7 +282,6 @@ def admin_register_u_session(u_session_data: dict[str, str | int]) -> tuple[Resp
 
 @main_blueprint.route(endpoints.URLS.AUpdate, methods=["PUT"])
 def admin_update(m_type: int, m_id: int) -> tuple[Response, int]:
-    # TODO: refactor this : too complex
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     # can method be changed to PUT?

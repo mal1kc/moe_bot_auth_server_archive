@@ -28,15 +28,29 @@ function toggleCollapseNavbar(){
     }
 }
 
-function makeDeleteReqest(url){
-  var xhttp = new XMLHttpRequest();
-  xhttp.open("DELETE", url, true);
-  xhttp.send();
-}
+function checkPassword(){
+  // runs onkeyup
+  var input_password = document.getElementById("password");
+  var input_confirmPassword = document.getElementById("password_confirm");
+  var password = input_password.value;
+  var confirmPassword = input_confirmPassword.value;
+  var message = document.getElementById("message");
+  if ( message == null ){
+    message = document.createElement("p");
+    message.id = "message";
+    input_confirmPassword.parentNode.appendChild(message);
+  }
+  if ( password == confirmPassword ){
+    message.innerHTML = "Passwords Match";
+    message.style.color = "green";
+    // unblock submit
+    document.getElementById("submit-button").disabled = false;
+  }
+  else{
+    message.innerHTML = "Passwords Do Not Match";
+    message.style.color = "red";
+    // block submit
+    document.getElementById("submit-button").disabled = true;
+  }
 
-function makePutReqest(url,formId){
-  var xhttp = new XMLHttpRequest();
-  xhttp.open("PUT", url, true);
-  xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-  xhttp.send(document.getElementById(formId).serialize());
 }

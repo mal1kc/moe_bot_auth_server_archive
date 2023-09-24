@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Callable, List
-
+from werkzeug.datastructures import ImmutableMultiDict
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
@@ -18,6 +18,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 from .enums import DBOperationResult, loginError, pContentEnum
+from .cryption import make_password_hash
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
@@ -74,6 +75,14 @@ class PackageContent(Base):
         if "id" in data.keys():
             ret_package_content["id"] = data["id"]
         return PackageContent(**ret_package_content)
+
+    @staticmethod
+    def from_req_form(immutable_data: ImmutableMultiDict) -> PackageContent:
+        mutable_data: dict = immutable_data.to_dict()
+        for key, value in mutable_data.items():
+            if value is None or value == "":
+                mutable_data.pop(key)
+        return PackageContent.from_json(mutable_data)  # maybe nned to change
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -177,6 +186,14 @@ class Package(Base):
                     else:
                         raise SchemaError("not_valid_package_contents")
         return Package(**ret_package)
+
+    @staticmethod
+    def from_req_form(immutable_data: ImmutableMultiDict) -> Package:
+        mutable_data: dict = immutable_data.to_dict()
+        for key, value in mutable_data.items():
+            if value is None or value == "":
+                mutable_data.pop(key)
+        return Package.from_json(mutable_data)  # maybe nned to change
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -289,6 +306,14 @@ class U_Package(Base):
             raise SchemaError("user_not_found")
         DB_LOGGER.debug("ret_u_package: %s" % ret_u_package)
         return U_Package(**ret_u_package)
+
+    @staticmethod
+    def from_req_form(immutable_data: ImmutableMultiDict) -> U_Package:
+        mutable_data: dict = immutable_data.to_dict()
+        for key, value in mutable_data.items():
+            if value is None or value == "":
+                mutable_data.pop(key)
+        return U_Package.from_json(mutable_data)  # maybe nned to change
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -458,6 +483,44 @@ class User(Base):
         if "id" in data.keys():
             ret_user["id"] = data["id"]
         return User(**ret_user)
+
+    @staticmethod
+    def from_req_form(
+        immutable_data: ImmutableMultiDict, org_user: User | None = None
+    ) -> User:
+        DB_LOGGER.debug("org_user: %s" % org_user)
+        DB_LOGGER.debug("immutable_data: %s" % immutable_data)
+        mutable_data: dict = immutable_data.to_dict()
+        data_before_pop = immutable_data.to_dict()
+        for key, value in data_before_pop.items():
+            if value is None or value == "":
+                DB_LOGGER.debug("key: %s, value: %s" % (key, value))
+                mutable_data.pop(key)
+        del data_before_pop
+        if "password" in mutable_data.keys():
+            password_hash = make_password_hash(mutable_data["password"])
+            mutable_data["password_hash"] = password_hash
+            mutable_data.pop("password")
+        elif "id" in mutable_data.keys() or org_user is not None:
+            user = org_user if org_user is not None else get_user_by_id(mutable_data["id"])
+            if user is None:
+                raise SchemaError("user_not_found")
+            mutable_data["password_hash"] = user.password_hash
+        else:
+            raise SchemaError("password_or_id_not_found")
+        if "base_package" in mutable_data.keys():
+            base_package = get_package_by_id(mutable_data["base_package"])
+            if base_package is None:
+                raise SchemaError("base_package_not_found")
+            new_u_package = U_Package(
+                base_package_id=mutable_data["base_package"],
+                start_date=datetime.utcnow(),
+                end_date=datetime.utcnow() + timedelta(days=base_package.days),
+            )
+            mutable_data["package"] = new_u_package
+            mutable_data.pop("base_package")
+        DB_LOGGER.debug("mutable_data: %s" % mutable_data)
+        return User.from_json(mutable_data)  # maybe nned to change
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -908,7 +971,13 @@ def update_user(
         if new_user.discord_id is not None:
             db_user.discord_id = new_user.discord_id
         if new_user.package is not None:
-            db_user.package = new_user.package
+            if isinstance(new_user.package, int):
+                db_package = session.query(Package).filter_by(id=new_user.package).first()
+                if db_package is None:
+                    raise SchemaError("package_not_found")
+                db_user.package = db_package
+            else:
+                db_user.package = new_user.package
         session.commit()
         return DBOperationResult.success
     except Exception as e:
@@ -960,7 +1029,13 @@ def update_package(
         if new_package.detail is not None:
             db_package.detail = new_package.detail
         if new_package.package_contents is not None:
-            db_package.package_contents = new_package.package_contents
+            for package_content in new_package.package_contents:
+                if isinstance(package_content, int):
+                    db_package.package_contents.append(
+                        session.query(PackageContent).filter_by(id=package_content).first()
+                    )
+                else:
+                    db_package.package_contents.append(package_content)
         session.commit()
         return DBOperationResult.success
     except Exception as e:
@@ -1053,6 +1128,126 @@ def get_all_admins(session: scoped_session = db.session) -> List[Admin]:
 
 
 def get_all_users(
-    session: scoped_session = db.session, page: int = 1, per_page: int = 10
+    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
 ) -> List[User]:
-    return session.query(User).paginate(page=page, per_page=per_page).items
+    if page is None:
+        return session.query(User).all()
+    return session.query(User).paginate(page, per_page).items
+
+
+def get_all_packages(
+    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
+) -> List[Package]:
+    if page is None:
+        return session.query(Package).all()
+    return session.query(Package).paginate(page, per_page).items
+
+
+def get_all_package_contents(
+    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
+) -> List[PackageContent]:
+    if page is None:
+        return session.query(PackageContent).all()
+    return session.query(PackageContent).paginate(page, per_page).items
+
+
+def get_all_content_values():
+    return pContentEnum.__members__.keys()
+
+
+def get_all_u_packages(
+    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
+) -> List[U_Package]:
+    if page is None:
+        return session.query(U_Package).all()
+    return session.query(U_Package).paginate(page, per_page).items
+
+
+def get_all_u_sessions(
+    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
+) -> List[U_Session]:
+    if page is None:
+        return session.query(U_Session).all()
+    return session.query(U_Session).paginate(page, per_page).items
+
+
+def update_user_from_req_form(
+    old_user: User,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+):
+    try:
+        db_user = old_user
+        if db_user is None:
+            return DBOperationResult.model_not_found
+        form_user = User.from_req_form(form_data, org_user=db_user)
+        return update_user(db_user, form_user, session)
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating user to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_package_from_req_form(
+    old_package: Package,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+):
+    try:
+        db_package = old_package
+        if db_package is None:
+            return DBOperationResult.model_not_found
+        form_package = Package.from_req_form(form_data)
+        return update_package(db_package, form_package, session=session)
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating package to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_package_content_from_req_form(
+    old_package_content: PackageContent,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+):
+    try:
+        db_package_content = old_package_content
+        if db_package_content is None:
+            return DBOperationResult.model_not_found
+        form_package_content = PackageContent.from_req_form(form_data)
+        return update_package_content(
+            db_package_content, form_package_content, session=session
+        )
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating package_content to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_u_package_from_req_form(
+    old_u_package: U_Package,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+):
+    try:
+        db_u_package = old_u_package
+        if db_u_package is None:
+            return DBOperationResult.model_not_found
+        form_u_package = U_Package.from_req_form(form_data)
+        return update_u_package(db_u_package, form_u_package, session=session)
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating u_package to database %s" % e)
+    return DBOperationResult.unknown_error
+
+
+def update_u_session_from_req_form(
+    old_u_session: U_Session,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+):
+    try:
+        db_u_session = old_u_session
+        if db_u_session is None:
+            return DBOperationResult.model_not_found
+        form_u_session = U_Session.from_req_form(form_data)
+        return update_u_session(db_u_session, form_u_session, session=session)
+    except Exception as e:
+        DB_LOGGER.error("error accured while updating u_session to database %s" % e)
+    return DBOperationResult.unknown_error

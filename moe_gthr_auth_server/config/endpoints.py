@@ -49,7 +49,7 @@ def _init_urls(testing=False) -> _URLS:
 class _AdminControlURLS:
     __slots__ = [
         "AMain",
-        "AAdd",
+        "ACreate",
         "AInfo",
         "AUpdate",
         "ADelete",
@@ -58,7 +58,7 @@ class _AdminControlURLS:
         "AAbout",
     ]
     AMain: str  # main admin page
-    AAdd: str  # model register
+    ACreate: str  # model register
     AInfo: str
     AUpdate: str
     ADelete: str
@@ -69,7 +69,7 @@ class _AdminControlURLS:
     def __init__(
         self,
         AMain: str,
-        AAdd: str,
+        ACreate: str,
         AInfo: str,
         AUpdate: str,
         ADelete: str,
@@ -78,7 +78,7 @@ class _AdminControlURLS:
         AAbout: str | None = None,
     ):
         self.AMain = AMain
-        self.AAdd = AAdd
+        self.ACreate = ACreate
         self.AInfo = AInfo
         self.AUpdate = AUpdate
         self.ADelete = ADelete
@@ -90,7 +90,7 @@ class _AdminControlURLS:
 def _init_admin_control_urls() -> _AdminControlURLS:
     return _AdminControlURLS(
         AMain=URL_PREFIX_ADMIN_CONTROL,
-        AAdd=URL_PREFIX_ADMIN_CONTROL + "/<model_type>/add",
+        ACreate=URL_PREFIX_ADMIN_CONTROL + "/<model_type>/create",
         AInfo=URL_PREFIX_ADMIN_CONTROL
         + "/<model_type>/<int:model_id>/info",  # only get method
         AUpdate=URL_PREFIX_ADMIN_CONTROL
@@ -107,7 +107,7 @@ def _init_admin_control_urls() -> _AdminControlURLS:
 def _create_formatible_admin_control_urls() -> _AdminControlURLS:  # noqa
     return _AdminControlURLS(
         AMain=URL_PREFIX_ADMIN_CONTROL,
-        AAdd=URL_PREFIX_ADMIN_CONTROL + "/{model_type}/add",
+        ACreate=URL_PREFIX_ADMIN_CONTROL + "/{model_type}/create",
         AInfo=URL_PREFIX_ADMIN_CONTROL + "/{model_type}/{model_id}/info",  # only get method
         AUpdate=URL_PREFIX_ADMIN_CONTROL
         + "/{model_type}/{model_id}/update",  # only put method from info page

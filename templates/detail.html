@@ -1,11 +1,11 @@
 {# detaiil/edit page for models #}
 {% extends 'layout.html' %}
 {% block body %}
-    <h1>Update Model</h1>
-    <form method="{{ form_method }}" action="{{ form_action }}">
+    <h3>Update {{ model_type }}</h3>
+    <form method="{{ form_method }}" action="{{ form_action }}" class="update">
         {% include 'model_forms/{model_type}_form.html'.format(model_type=model_type) %}
         {# csrf_token gerçekten gerekiyor mu #}
         {#{% csrf_token %}#}
-        <button class="update" type="submit">Update</button>
+        <button class="submit-button update" type="submit" id="submit-button">Update</button>
     </form>
 {% endblock body %}

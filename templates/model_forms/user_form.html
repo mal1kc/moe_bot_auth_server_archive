@@ -1,0 +1,70 @@
+<!-- --
+<form>
+  ---->
+<label class="name"> <span class="text">Name : </span>
+  <input type="text" name="name" placeholder="Name" value="{{ model.name }}">
+</label>
+<label class="password"> <span class="text">Password : </span>
+  <input type="password" name="password" placeholder="new password" class="password" onkeyup="checkPassword();" id="password">
+</label>
+<label class="password_confirm"> <span class="text">Password Verify :</span>
+  <input type="password" name="password" placeholder="verify password" class="password_confirm" onkeyup="checkPassword();" id="password_confirm">
+</label>
+
+<label class="base_package"> <span class="text">Base Package :</span>
+    {% if model.package %}
+    {% set model_base_package = model.package.base_package %}
+    {{ base_packages.remove(model_base_package) if None}}
+    {% endif %}
+  <select name="base_package">
+    <option value="" selected>Select base package</option>
+    {% if model_base_package %}
+    <option value="{{ model_base_package.id }}"> active base package - {{ model_base_package.id }} {{ model_base_package.name }}</option>
+    {% endif %}
+    {% for base_package in base_packages %}
+    <option value="{{ base_package.id }}">{{ base_package.id }} {{ base_package.name }}</option>
+    {% endfor %}
+  </select>
+</label>
+
+{# currently discord_id is disabled ( not supported ) #}
+{# <label class="discord_id" style="display: none;"> <span class="text">Discord ID</span>
+  <input type="text" name="discord_id" placeholder="Discord ID">
+</label> #}
+
+<div class="user_package">
+    <span class="text"> User Package : </span>
+          {% if model.package %}
+          {% set package_remaining_days = model.package.end_date - utc_now %}
+          <span class="bold text" > package remaining time {{ package_remaining_days }}</span>
+          <button class="toggleinfo" onclick="toggleDivDisplayById('model_package_info_{{ model.id }}');return false;"> show user package info</button>
+          <div style="display:none" class="model_package_info model_package" id="model_package_info_{{ model.id }}">
+            <button class="models_package_info models_action" onclick="return false;"> ✎  edit</button>
+            <button class="models_package_info models_action" onclick="return false;"> ❌ delete</button>
+            <p><b>start_date:</b> {{ model.package.start_date }}</p>
+            <p><b>end_date:</b> {{ model.package.end_date }}</p>
+            <p><b>remaining_days:</b>{{ package_remaining_days }}</p>
+            <p class="remaining_days_p">{{  model.package.remaining_days }}</p>
+            <div class="models_package_info base_package">
+              <button class="base_package models_action" onclick="return false;"> ✎  edit</button>
+              <button class="base_package models_action" onclick="return false;"> ❌  delete</button>
+              <p><b>base_package:</b></p>
+              <p><b>name:</b> {{ model.package.base_package.name  }}</p>
+              {% for index,package_content in enumerate(model.package.base_package.package_contents)  %}
+              <div class="model_package_info package_contents" id="package_contents_{{ index }}">
+                  <button class="package_contents models_action" onclick="return false;"> ✎  edit</button>
+                  <button class="package_contents models_action" onclick="return false;"> ❌  delete</button>
+                <p><b>package_content:</b></p>
+                <p><b>name:</b> {{ package_content.name }}</p>
+                <p><b>value:</b> {{ package_content.content_value }}</p>
+              </div>
+                {% endfor %}
+          </div>
+        </div>
+        {% else %}
+         <span class="text bold">user not have any package</span>
+        {% endif %}
+</div>
+<!--
+  </form>
+  ---->
