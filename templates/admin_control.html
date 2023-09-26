@@ -6,9 +6,13 @@ admin control panel
 
 {% block body %}
 
+<script type="text/javascript" src="/static/warn.js"></script>
+
 <h2>Users</h2>
   <div class="users_actions">
-    <button class="users_actions_add users_action"> ➕  add</button>
+    <form method="get" id="users_add" action=" {{ endpoints.ACreate.format(model_type=mTypeStr.user) }}">
+    <button class="users_actions_add users_action" > ➕  add</button>
+    </form>
     </div>
   <table id="users_table">
 
@@ -31,24 +35,31 @@ admin control panel
           {% set package_remaining_days = user.package.end_date - utc_now %}
           <button class="users_package_info toggle_info"
                   onclick="toggleDivDisplayById('user_package_info_{{ user.id }}')">
-          {# onmouseover="toggleDivDisplayById('user_package_info_{{ user.id }}')"> #}
           toggle user_package info</button>
           <p> package remaining time {{ package_remaining_days }}</p>
           <div style="display:none" class=
           "user_package_info user_package" id=
           "user_package_info_{{ user.id }}">
-            <button class="users_package_info users_action"> ✎  edit</button>
-            <button class="users_package_info users_action"> ❌ delete</button>
-            <p><b>start_date:</b> {{ user.package.start_date
-            }}</p><br>
-            <p><b>end_date:</b> {{ user.package.end_date }}</p><br>
-            <p><b>remaining_days:</b>{{ package_remaining_days }}</p>
+            <form method="get" id="users_package_edit_{{ user.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package,model_id=user.package.id) }}">
 
+            <button class="users_package_info users_action"> ✎  edit</button>
+            </form>
+            <form class="delete_form" method="post" id="users_package_delete_{{ user.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package,model_id=user.package.id) }}">
+            <button class="users_package_info users_action delete_button"> ❌ delete</button>
+            </form>
+            <p><b>start_date:</b> {{ user.package.start_date
+            }}</p>
+            <p><b>end_date:</b> {{ user.package.end_date }}</p>
+            <p><b>remaining_days:</b>{{ package_remaining_days }}</p>
             <p class="remaining_days_p">{{
             user.package.remaining_days }}</p>
             <div class="users_package_info base_package">
+              <form method="get" id="base_package_edit_{{ user.package.base_package.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.base_package,model_id=user.package.base_package.id) }}">
               <button class="base_package users_action"> ✎  edit</button>
-              <button class="base_package users_action"> ❌  delete</button>
+              </form>
+              <form class="delete_form" method="post" id="base_package_delete_{{ user.package.base_package.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.base_package,model_id=user.package.base_package.id) }}">
+              <button class="base_package users_action  delete_button"> ❌  delete</button>
+              </form>
               <p><b>base_package:</b><br></p>
               <p><b>name:</b> {{ user.package.base_package.name
               }}</p>
@@ -56,8 +67,12 @@ admin control panel
               <div class=
               "user_package_info package_contents" id=
               "package_contents_{{ index }}">
+                <form method="get" id="package_contents_edit_{{ index }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
                   <button class="package_contents users_action"> ✎  edit</button>
-                  <button class="package_contents users_action"> ❌  delete</button>
+                </form>
+                <form class="delete_form" method="post" id="package_contents_delete_{{ index }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
+                  <button class="package_contents users_action  delete_button"> ❌  delete</button>
+                </form>
                 <p><b>package_content:</b><br></p>
                 <p><b>name:</b> {{ package_content.name }}</p>
                 <p><b>value:</b> {{ package_content.content_value }}</p>
@@ -66,6 +81,8 @@ admin control panel
             </div>
           </div>
         </div>
+        {% else %}
+         <span class="text bold">user not have any package</span>
         {% endif %}
       </td>
       <td class="users_sessions_detail">
@@ -79,11 +96,11 @@ admin control panel
           <div style="display:none" class=
           "user_sessions_info user_session" id=
           "user_sessions_info_{{ user.id }}_{{ session.id }}">
-        <form method="delete" id="users_sessions_delete_{{ user.id }}_{{ session.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
-        <button class="users_sessions_info users_action"> ❌  delete</button>
-        </form>
         <form method="get" id="users_sessions_edit_{{ user.id }}_{{ session.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
             <button class="users_sessions_info users_action" > ✎  edit</button>
+        </form>
+        <form class="delete_form" method="post" id="users_sessions_delete_{{ user.id }}_{{ session.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
+        <button class="users_sessions_info users_action  delete_button"> ❌  delete</button>
         </form>
             <p><b>id:</b> {{ session.id }}</p>
             <p><b>start_date:</b> {{ session.start_date }}</p>
@@ -98,8 +115,8 @@ admin control panel
         <form method="get" id="users_info_{{ user.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.user,model_id=user.id) }}">
         <button class="users_actions_edit users_action">  ✎  edit</button>
         </form>
-        <form method="delete" id="users_delete_{{ user.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.user,model_id=user.id) }}">
-        <button class="users_actions_delete users_action"> ❌  delete</button>
+        <form class="delete_form" method="post" id="users_delete_{{ user.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.user,model_id=user.id) }}">
+        <button class="users_actions_delete users_action  delete_button"> ❌  delete</button>
         </form>
       </td>
     </tr>

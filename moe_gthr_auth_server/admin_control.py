@@ -5,9 +5,10 @@ import logging
 
 from typing import Any
 
+from flask.wrappers import Response
+from werkzeug.wrappers import Response as BaseResponse
 from flask import (
     Blueprint,
-    Response,
     current_app,
     render_template,
     request,
@@ -66,6 +67,11 @@ admin_control_blueprint = Blueprint("admin_control", __name__, template_folder="
 
 LOGGER = logging.getLogger("app")
 
+url_for_main = partial(
+    url_for,
+    "admin_control.admin_control_main",
+)
+
 
 @admin_control_blueprint.route("/favicon.ico")
 def favicon():
@@ -77,8 +83,32 @@ def admin_control_about() -> Response | str | tuple[Response, int]:
     return render_template("about.html")
 
 
-@admin_control_blueprint.route(ADMIN_CONTROL_URLS.AMain, methods=["GET"])
-def admin_control_main() -> Response | str | tuple[Response, int]:
+def parse_char_list_to_str_list(char_list: list[str]) -> list[str]:
+    # example chr_list : "[" "'" "l" "o" "g" ... "'" , "'" ... "l" "'" , "]"
+    sentence_seprated_char_list = []
+    str_list = []
+    for char in char_list:
+        if char == "'" or char == "[":
+            continue
+        elif char == ",":
+            str_list.append("".join(sentence_seprated_char_list))
+            sentence_seprated_char_list.clear()
+        elif char == "]":
+            str_list.append("".join(sentence_seprated_char_list))
+            sentence_seprated_char_list.clear()
+        else:
+            sentence_seprated_char_list.append(char)
+    return str_list
+
+
+@admin_control_blueprint.route(
+    ADMIN_CONTROL_URLS.AMain, methods=["GET"], defaults={"messages": [""]}
+)
+@admin_control_blueprint.route(ADMIN_CONTROL_URLS.AMain + "<messages>", methods=["GET"])
+def admin_control_main(
+    messages: None | list[str] = None,
+) -> Response | str | tuple[Response, int]:
+    # example messages : "[" "'" "l" "o" "g" ... "'" , "'" ... "l" "'" , "]"
     req_id = generate_req_id(request.remote_addr)
     LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
     if request.method == "GET":
@@ -92,6 +122,9 @@ def admin_control_main() -> Response | str | tuple[Response, int]:
             "endpoints": _create_formatible_admin_control_urls(),
             "utc_now": datetime.datetime.utcnow(),
             "users": users,
+            "messages": parse_char_list_to_str_list(messages)
+            if messages is not None
+            else [],
         }
         return render_template(
             "admin_control.html",
@@ -101,7 +134,7 @@ def admin_control_main() -> Response | str | tuple[Response, int]:
 
 
 @admin_control_blueprint.route(ADMIN_CONTROL_URLS.ALogin, methods=["POST"])
-def admin_control_login() -> Response:
+def admin_control_login() -> BaseResponse | str | tuple[Response, int]:
     req_id = generate_req_id(request.remote_addr)
     LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
     if request.method == "POST":
@@ -110,13 +143,12 @@ def admin_control_login() -> Response:
         admin = login_check(username, password)
         if admin is False:
             return render_template("login.html", messages=["username or password is wrong"])
-
-        return redirect(url_for("admin_control.admin_control_main"))
+        return redirect(url_for_main(messages=["logged in"]))
     return method_not_allowed()
 
 
 @admin_control_blueprint.route(ADMIN_CONTROL_URLS.ALogout, methods=["GET"])
-def admin_control_logout() -> Response:
+def admin_control_logout() -> BaseResponse | Response | tuple[Response, int]:
     req_id = generate_req_id(request.remote_addr)
     LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
     if request.method == "GET":
@@ -135,9 +167,13 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
         if admin is False:
             return render_template("login.html")
         if model_type not in mTypeStr.__members__:
-            return render_template("admin_control.html", messages=["model type is wrong"])
+            return redirect(
+                render_template("admin_control.html", messages=["model type is wrong"])
+            )
         if model_id < 0:
-            return render_template("admin_control.html", messages=["model id is wrong"])
+            return redirect(
+                render_template("admin_control.html", messages=["model id is wrong"])
+            )
         model_type = mTypeStr[model_type]
         form_method = "POST"  # UPDATE # only get,post supported fck it
         form_action = url_for(
@@ -158,9 +194,8 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
         )
         if model_type == mTypeStr.user:
             user = get_user_by_id(model_id)
-
             if user is None:
-                return render_template("admin_control.html", messages=["user not found"])
+                return redirect(url_for_main(messages=["user not found"]))
             packages = get_all_packages()
             return render_detail_template_w_tvars(
                 model=user,
@@ -169,7 +204,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
         elif model_type == mTypeStr.package:
             package = get_package_by_id(model_id)
             if package is None:
-                return render_template("admin_control.html", messages=["package not found"])
+                return redirect(url_for_main(messages=["package not found"]))
             package_contents = get_all_package_contents()
             return render_detail_template_w_tvars(
                 model=package,
@@ -179,9 +214,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
             package_content = get_package_content_by_id(model_id)
 
             if package_content is None:
-                return render_template(
-                    "admin_control.html", messages=["package content not found"]
-                )
+                return redirect(url_for_main(messages=["package content not found"]))
             content_values = get_all_content_values()
             return render_detail_template_w_tvars(
                 model=package_content,
@@ -190,10 +223,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
         elif model_type == mTypeStr.u_package:
             u_package = get_u_package_by_id(model_id)
             if u_package is None:
-                return render_template(
-                    "admin_control.html",
-                    messages=["u_package not found"],
-                )
+                redirect(url_for_main(messages=["u_package not found"]))
             packages = get_all_packages()
             return render_detail_template_w_tvars(
                 model=u_package,
@@ -202,18 +232,16 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
         elif model_type == mTypeStr.u_session:
             u_session = get_u_session_by_id(model_id)
             if u_session is None:
-                return render_template(
-                    "admin_control.html", messages=["u_session not found"]
-                )
+                redirect(url_for_main(messages=["u_session not found"]))
             return render_detail_template_w_tvars(
                 model=u_session,
             )
         else:
-            return render_template("admin_control.html", messages=["model type is wrong"])
+            return redirect(url_for_main(messages=["model type is wrong"]))
     return method_not_allowed()
 
 
-@admin_control_blueprint.route(ADMIN_CONTROL_URLS.ACreate, methods=["GET"])
+@admin_control_blueprint.route(ADMIN_CONTROL_URLS.ACreate, methods=["GET", "POST"])
 def admin_control_create(model_type: str) -> Any:
     req_id = generate_req_id(request.remote_addr)
     LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
@@ -222,15 +250,7 @@ def admin_control_create(model_type: str) -> Any:
         if admin is False:
             return render_template("login.html")
         if model_type not in mTypeStr.__members__:
-            return render_template(
-                "admin_control.html",
-                messages=["model type is wrong"],
-                users=get_all_users(),
-                enumerate=enumerate,
-                endpoints=_create_formatible_admin_control_urls(),
-                mTypeStr=mTypeStr,
-                utc_now=datetime.datetime.utcnow(),
-            )
+            return redirect(url_for_main(messages=["model type is wrong"]))
         model_type = mTypeStr[model_type]
         form_action = url_for(
             "admin_control.admin_control_create",
@@ -254,65 +274,78 @@ def admin_control_create(model_type: str) -> Any:
         if admin is False:
             return render_template("login.html")
         if model_type not in mTypeStr.__members__:
-            return render_template("admin_control.html", messages=["model type is wrong"])
+            return redirect(url_for_main(messages=["model type is wrong"]))
         model_type = mTypeStr[model_type]
-        render_template_w_tvars = partial(
-            render_template,
-            "admin_control.html",
-            users=get_all_users(),
-            enumerate=enumerate,
-            endpoints=_create_formatible_admin_control_urls(),
-            mTypeStr=mTypeStr,
-            utc_now=datetime.datetime.utcnow(),
-        )
+
         if model_type == mTypeStr.user:
             user = User()
             db_result = update_user_from_req_form(user, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["user could not be created", "error: " + str(db_result)],
+                return redirect(
+                    url_for_main(
+                        messages=["user could not be created", "error: " + str(db_result)]
+                    )
                 )
-            return render_template_w_tvars(messages=["user created"])
+            return redirect(url_for_main(messages=["user created"]))
         elif model_type == mTypeStr.package:
             package = Package()
             db_result = update_package_from_req_form(package, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["package could not be created", "error: " + str(db_result)],
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package could not be created",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
-            return render_template_w_tvars(messages=["package created"])
+            return redirect(url_for_main(messages=["package created"]))
 
         elif model_type == mTypeStr.package_content:
             package_content = PackageContent()
             db_result = update_package_content_from_req_form(package_content, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=[
-                        "package content could not be created",
-                        "error: " + str(db_result),
-                    ],
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package content could not be created",
+                            "error: " + str(db_result),
+                        ],
+                    )
                 )
-            return render_template_w_tvars(
-                messages=["package content created"],
+            return redirect(
+                url_for_main(
+                    messages=["package content created"],
+                )
             )
         elif model_type == mTypeStr.u_package:
             u_package = U_Package()
             db_result = update_u_package_from_req_form(u_package, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["u_package could not be created", "error: " + str(db_result)],
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_package could not be created",
+                            "error: " + str(db_result),
+                        ],
+                    )
                 )
-            return render_template_w_tvars(messages=["u_package created"])
+            return redirect(url_for_main(messages=["u_package created"]))
         elif model_type == mTypeStr.u_session:
             u_session = U_Session()
             db_result = update_u_session_from_req_form(u_session, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["u_session could not be created", "error: " + str(db_result)],
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_session could not be created",
+                            "error: " + str(db_result),
+                        ],
+                    )
                 )
-            return render_template_w_tvars(messages=["u_session created"])
+            return redirect(url_for_main(messages=["u_session created"]))
         else:
-            return render_template_w_tvars(messages=["model type is wrong"])
+            return redirect(url_for_main(messages=["model type is wrong"]))
     return method_not_allowed()
 
 
@@ -329,67 +362,77 @@ def admin_control_update(model_type: str, model_id: int) -> Any:
         if model_id < 0:
             return render_template("admin_control.html", messages=["model id is wrong"])
         model_type = mTypeStr[model_type]
-        render_template_w_tvars = partial(
-            render_template,
-            "admin_control.html",
-            users=get_all_users(),
-            enumerate=enumerate,
-            endpoints=_create_formatible_admin_control_urls(),
-            mTypeStr=mTypeStr,
-            utc_now=datetime.datetime.utcnow(),
-        )
         if model_type == mTypeStr.user:
             user = get_user_by_id(model_id)
             if user is None:
-                return render_template_w_tvars(messages=["user not found"])
+                return redirect(url_for_main(messages=["user not found"]))
             db_result = update_user_from_req_form(user, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["user could not be updated", "error: " + str(db_result)]
+                return redirect(
+                    url_for_main(
+                        messages=["user could not be updated", "error: " + str(db_result)]
+                    )
                 )
-            return render_template_w_tvars(messages=["user updated"])
+            return redirect(url_for_main(messages=["user updated"]))
         elif model_type == mTypeStr.package:
             package = get_package_by_id(model_id)
             if package is None:
-                return render_template_w_tvars(messages=["package not found"])
+                return redirect(url_for_main(messages=["package not found"]))
             db_result = update_package_from_req_form(package, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["package could not be updated", "error: " + str(db_result)]
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package could not be updated",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
-            return render_template_w_tvars(messages=["package updated"])
+            return redirect(url_for_main(messages=["package updated"]))
         elif model_type == mTypeStr.package_content:
             package_content = get_package_content_by_id(model_id)
             if package_content is None:
-                return render_template_w_tvars(messages=["package content not found"])
+                return redirect(url_for_main(messages=["package content not found"]))
             db_result = update_package_content_from_req_form(package_content, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=[
-                        "package content could not be updated",
-                        "error: " + str(db_result),
-                    ]
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package content could not be updated",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
         elif model_type == mTypeStr.u_package:
             u_package = get_u_package_by_id(model_id)
             if u_package is None:
-                return render_template_w_tvars(messages=["u_package not found"])
+                return redirect(url_for_main(messages=["u_package not found"]))
             db_result = update_u_package_from_req_form(u_package, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["u_package could not be updated", "error: " + str(db_result)]
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_package could not be updated",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
-            return render_template_w_tvars(messages=["u_package updated"])
+            return redirect(url_for_main(messages=["u_package updated"]))
         elif model_type == mTypeStr.u_session:
             u_session = get_u_session_by_id(model_id)
             if u_session is None:
-                return render_template_w_tvars(messages=["u_session not found"])
+                return redirect(url_for_main(messages=["u_session not found"]))
             db_result = update_u_session_from_req_form(u_session, request.form)
             if db_result != DBOperationResult.success:
-                return render_template_w_tvars(
-                    messages=["u_session could not be updated", "error: " + str(db_result)]
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_session could not be updated",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
-            return render_template_w_tvars(messages=["u_session updated"])
+            return redirect(url_for_main(messages=["u_session updated"]))
 
 
 @admin_control_blueprint.route(ADMIN_CONTROL_URLS.ADelete, methods=["POST"])
@@ -401,59 +444,107 @@ def admin_control_delete(model_type: str, model_id: int) -> Any:
         if admin is False:
             return render_template("login.html")
         if model_type not in mTypeStr.__members__:
-            return render_template("admin_control.html", messages=["model type is wrong"])
+            return redirect(url_for_main(messages=["model type is wrong"]))
         if model_id < 0:
-            return render_template("admin_control.html", messages=["model id is wrong"])
+            return redirect(url_for_main(messages=["model id is wrong"]))
         model_type = mTypeStr[model_type]
         if model_type == mTypeStr.user:
             db_user = get_user_by_id(model_id)
             if db_user is None:
-                return render_template("admin_control.html", messages=["user not found"])
-            delete_model(db_user)
-            return render_template("admin_control.html", messages=["user deleted"])
+                return redirect(url_for_main(messages=["user not found"]))
+            db_result = delete_model(db_user)
+            if db_result != DBOperationResult.success:
+                return redirect(
+                    url_for_main(
+                        messages=["user could not be deleted", "error: " + str(db_result)]
+                    )
+                )
+            return redirect(url_for_main(messages=["user deleted"]))
         elif model_type == mTypeStr.package:
             db_package = get_package_by_id(model_id)
             if db_package is None:
-                return render_template("admin_control.html", messages=["package not found"])
-            delete_model(db_package)
-            return render_template("admin_control.html", messages=["package deleted"])
+                return redirect(url_for_main(messages=["package not found"]))
+            db_result = delete_model(db_package)
+            if db_result != DBOperationResult.success:
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package could not be deleted",
+                            "error: " + str(db_result),
+                        ]
+                    )
+                )
+            return redirect(url_for_main(messages=["package deleted"]))
         elif model_type == mTypeStr.package_content:
             db_package_content = get_package_content_by_id(model_id)
             if db_package_content is None:
-                return render_template(
-                    "admin_control.html", messages=["package content not found"]
+                return redirect(url_for_main(messages=["package content not found"]))
+            db_result = delete_model(db_package_content)
+            if db_result != DBOperationResult.success:
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "package content could not be deleted",
+                            "error: " + str(db_result),
+                        ]
+                    )
                 )
-            delete_model(db_package_content)
-            return render_template(
-                "admin_control.html", messages=["package content deleted"]
-            )
+            return redirect(url_for_main(messages=["package content deleted"]))
         elif model_type == mTypeStr.u_package:
             db_u_package = get_u_package_by_id(model_id)
             if db_u_package is None:
-                return render_template(
-                    "admin_control.html",
-                    messages=["u_package not found"],
+                return redirect(
+                    url_for_main(
+                        messages=["u_package not found"],
+                    )
                 )
-            delete_model(db_u_package)
-            return render_template("admin_control.html", messages=["u_package deleted"])
+            info_json = db_u_package.__json__()
+            db_result = delete_model(db_u_package)
+            if db_result != DBOperationResult.success:
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_package could not be deleted",
+                            "error: " + str(db_result),
+                        ]
+                    )
+                )
+            return redirect(url_for_main(messages=["u_package deleted" + info_json]))
         elif model_type == mTypeStr.u_session:
             db_u_session = get_u_session_by_id(model_id)
             if db_u_session is None:
-                return render_template(
-                    "admin_control.html", messages=["u_session not found"]
+                return redirect(url_for_main(messages=["u_session not found"]))
+            if db_u_session.access:
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_session is active, cannot be deleted",
+                        ]
+                    )
                 )
-            delete_model(db_u_session)
-            return render_template("admin_control.html", messages=["u_session deleted"])
+            db_result = delete_model(db_u_session)
+            if db_result != DBOperationResult.success:
+                return redirect(
+                    url_for_main(
+                        messages=[
+                            "u_session could not be deleted",
+                            "error: " + str(db_result),
+                        ]
+                    )
+                )
+            return redirect(url_for_main(messages=["u_session deleted"]))
         else:
-            return render_template("admin_control.html", messages=["model type is wrong"])
+            return redirect(url_for_main(messages=["model type is wrong"]))
     return method_not_allowed()
 
 
-def login_check(username: str, password: str) -> bool | Admin:
+def login_check(username: str | None, password: str | None) -> bool | Admin:
     LOGGER.info("checking login data")
     is_logged_in = login_check_session(session)
     if is_logged_in is not False:
         return is_logged_in
+    elif password is None or username is None:
+        return False
     else:
         admins = get_all_admins()
         if username not in [admin.name for admin in admins]:

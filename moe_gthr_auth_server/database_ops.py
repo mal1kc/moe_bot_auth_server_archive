@@ -492,6 +492,19 @@ class User(Base):
         DB_LOGGER.debug("immutable_data: %s" % immutable_data)
         mutable_data: dict = immutable_data.to_dict()
         data_before_pop = immutable_data.to_dict()
+        mutable_data = {
+            key: value
+            for key, value in mutable_data.items()
+            if key
+            in [
+                "id",
+                "name",
+                "password",
+                "discord_id",
+                "base_package",
+                "package",
+            ]
+        }
         for key, value in data_before_pop.items():
             if value is None or value == "":
                 DB_LOGGER.debug("key: %s, value: %s" % (key, value))
@@ -516,11 +529,12 @@ class User(Base):
                 base_package_id=mutable_data["base_package"],
                 start_date=datetime.utcnow(),
                 end_date=datetime.utcnow() + timedelta(days=base_package.days),
+                user_id=org_user.id if org_user is not None else mutable_data["id"],
             )
+            add_u_package(new_u_package)
             mutable_data["package"] = new_u_package
             mutable_data.pop("base_package")
-        DB_LOGGER.debug("mutable_data: %s" % mutable_data)
-        return User.from_json(mutable_data)  # maybe nned to change
+        return User(**mutable_data)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -530,8 +544,9 @@ class User(Base):
                 "name": And(str, len, error="not_valid_name"),
                 "password_hash": And(str, len, error="not_valid_password_hash"),
                 Optional("discord_id"): And(str, len, error="not_valid_discord_id"),
-                Optional("package"): And(
-                    Or(int, None), Use(_package_id_check), error="not_valid_package"
+                Optional("package"): Or(
+                    And(Or(int, None), Use(_package_id_check), error="not_valid_package"),
+                    U_Package,
                 ),
             },
             error="not_valid_data",
@@ -731,6 +746,7 @@ def add_db_model(
             return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while adding model to database %s" % e)
+        session.rollback()
         if "UNIQUE constraint failed" in str(e):
             DB_LOGGER.error("model already exists")
             return DBOperationResult.model_already_exists
@@ -748,6 +764,7 @@ def add_db_all_models(
             return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while adding model to database %s" % e)
+        session.rollback()
         if "UNIQUE constraint failed" in str(e):
             DB_LOGGER.error("model already exists")
             return DBOperationResult.model_already_exists
@@ -965,7 +982,8 @@ def update_user(
         if db_user is None:
             return DBOperationResult.model_not_found
         if new_user.name is not None:
-            db_user.name = new_user.name
+            if db_user.name != new_user.name:
+                db_user.name = new_user.name
         if new_user.password_hash is not None:
             db_user.password_hash = new_user.password_hash
         if new_user.discord_id is not None:
@@ -978,10 +996,12 @@ def update_user(
                 db_user.package = db_package
             else:
                 db_user.package = new_user.package
+        del new_user
         session.commit()
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while updating user to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1009,6 +1029,7 @@ def update_package_content(
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while updating package_content to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1040,6 +1061,7 @@ def update_package(
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while updating package to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1070,6 +1092,7 @@ def update_u_package(
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_package %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1099,6 +1122,7 @@ def update_u_session(
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_session to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1112,6 +1136,7 @@ def _delete_model(
         return DBOperationResult.success
     except Exception as e:
         DB_LOGGER.error("error accured while deleting model from database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1127,48 +1152,28 @@ def get_all_admins(session: scoped_session = db.session) -> List[Admin]:
     return session.query(Admin).all()
 
 
-def get_all_users(
-    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
-) -> List[User]:
-    if page is None:
-        return session.query(User).all()
-    return session.query(User).paginate(page, per_page).items
+def get_all_users(session: scoped_session = db.session) -> List[User]:
+    return session.query(User).all()
 
 
-def get_all_packages(
-    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
-) -> List[Package]:
-    if page is None:
-        return session.query(Package).all()
-    return session.query(Package).paginate(page, per_page).items
+def get_all_packages(session: scoped_session = db.session) -> List[Package]:
+    return session.query(Package).all()
 
 
-def get_all_package_contents(
-    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
-) -> List[PackageContent]:
-    if page is None:
-        return session.query(PackageContent).all()
-    return session.query(PackageContent).paginate(page, per_page).items
+def get_all_package_contents(session: scoped_session = db.session) -> List[PackageContent]:
+    return session.query(PackageContent).all()
 
 
 def get_all_content_values():
     return pContentEnum.__members__.keys()
 
 
-def get_all_u_packages(
-    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
-) -> List[U_Package]:
-    if page is None:
-        return session.query(U_Package).all()
-    return session.query(U_Package).paginate(page, per_page).items
+def get_all_u_packages(session: scoped_session = db.session) -> List[U_Package]:
+    return session.query(U_Package).all()
 
 
-def get_all_u_sessions(
-    session: scoped_session = db.session, page: int | None = None, per_page: int = 10
-) -> List[U_Session]:
-    if page is None:
-        return session.query(U_Session).all()
-    return session.query(U_Session).paginate(page, per_page).items
+def get_all_u_sessions(session: scoped_session = db.session) -> List[U_Session]:
+    return session.query(U_Session).all()
 
 
 def update_user_from_req_form(
@@ -1184,6 +1189,7 @@ def update_user_from_req_form(
         return update_user(db_user, form_user, session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating user to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1200,6 +1206,7 @@ def update_package_from_req_form(
         return update_package(db_package, form_package, session=session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating package to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1218,6 +1225,7 @@ def update_package_content_from_req_form(
         )
     except Exception as e:
         DB_LOGGER.error("error accured while updating package_content to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1234,6 +1242,7 @@ def update_u_package_from_req_form(
         return update_u_package(db_u_package, form_u_package, session=session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_package to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error
 
 
@@ -1250,4 +1259,5 @@ def update_u_session_from_req_form(
         return update_u_session(db_u_session, form_u_session, session=session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_session to database %s" % e)
+        session.rollback()
     return DBOperationResult.unknown_error

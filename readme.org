@@ -4,7 +4,7 @@
 
 - ne kadar güvenli emin degilim sifre kısmı
 
-** TODO eksikler - v1 [72%]
+** TODO eksikler - v1 [77%]
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
     - [X] testleri baştan yaz
@@ -58,7 +58,6 @@
             }
         }
         #+end_src
-    - [ ] tarih , k ad, paket bazlı sorgu sonucu bütün(kullanicya bağlı herşey) tablo
     - [X] register sonrası daha detayli çıktı ( package ve package_content için)
     - [X] admin için daha okunaklı bir çıktı
     - [X] admin için id ve name e göre info routelari
@@ -75,13 +74,37 @@
     - [X] delete routelari
     - [X] routelar methodlarına göre ayrılacak - post,update,delete,put
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
-    - [ ] html sayfası
-        - [ ] listeleme (düzenleme , ekleme , silme)
+    - [-] html sayfası
+      - [-] listeleme (düzenleme , ekleme , silme)
+        - [ ] listeleme
+          - [x] user
+          - [ ] package
+          - [ ] package content
+          - [ ] u_package
+          - [ ] u_session
+        - [ ] ekleme
+          - [ ] user
+          - [ ] package
+          - [ ] package content
+          - [ ] u_package
+          - +u_session+
+        - [ ] düzenleme
+          - [x] user
+          - [ ] package
+          - [ ] package content
+          - [ ] u_package
+          - [ ] u_session
+        - [-] silme
+          - [X] user
+          - [ ] package
+          - [X] package content
+          - [X] u_package
+          - [X] u_session
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
     - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
-    - [ ] dockerfile
-      - [ ] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
+    - [X] dockerfile
+      - [X] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
 ** muhtemel v2 özellikleri
 
 - flask -> fastapi

@@ -34,31 +34,69 @@
 
 <div class="user_package">
     <span class="text"> User Package : </span>
-          {% if model.package %}
+       {% if model.package %}
           {% set package_remaining_days = model.package.end_date - utc_now %}
-          <span class="bold text" > package remaining time {{ package_remaining_days }}</span>
-          <button class="toggleinfo" onclick="toggleDivDisplayById('model_package_info_{{ model.id }}');return false;"> show user package info</button>
-          <div style="display:none" class="model_package_info model_package" id="model_package_info_{{ model.id }}">
-            <button class="models_package_info models_action" onclick="return false;"> ✎  edit</button>
-            <button class="models_package_info models_action" onclick="return false;"> ❌ delete</button>
-            <p><b>start_date:</b> {{ model.package.start_date }}</p>
+          <button class="users_package_info toggle_info"
+                  onclick="toggleDivDisplayById('user_package_info_{{ model.id }}');return false;">
+          toggle user_package info</button>
+          <p> package remaining time {{ package_remaining_days }}</p>
+          <div style="display:none" class=
+          "user_package_info user_package" id=
+          "user_package_info_{{ model.id }}">
+            <form method="get" id="users_package_edit_{{ model.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package,model_id=model.package.id) }}">
+
+            <button class="users_package_info users_action"
+onclick="return false;"
+                    > ✎  edit</button>
+            </form>
+            <form class="delete_form" method="post" id="users_package_delete_{{ model.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package,model_id=model.package.id) }}">
+            <button class="users_package_info users_action delete_button"
+onclick="return false;"
+                    > ❌ delete</button>
+            </form>
+            <p><b>start_date:</b> {{ model.package.start_date
+            }}</p>
             <p><b>end_date:</b> {{ model.package.end_date }}</p>
             <p><b>remaining_days:</b>{{ package_remaining_days }}</p>
-            <p class="remaining_days_p">{{  model.package.remaining_days }}</p>
-            <div class="models_package_info base_package">
-              <button class="base_package models_action" onclick="return false;"> ✎  edit</button>
-              <button class="base_package models_action" onclick="return false;"> ❌  delete</button>
-              <p><b>base_package:</b></p>
-              <p><b>name:</b> {{ model.package.base_package.name  }}</p>
+            <p class="remaining_days_p">{{
+            model.package.remaining_days }}</p>
+            <div class="users_package_info base_package">
+              <form method="get" id="base_package_edit_{{ model.package.base_package.id }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.base_package,model_id=model.package.base_package.id) }}"
+                    >
+              <button class="base_package users_action"
+
+onclick="return false;"
+                      > ✎  edit</button>
+              </form>
+              <form class="delete_form" method="post" id="base_package_delete_{{ model.package.base_package.id }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.base_package,model_id=model.package.base_package.id) }}">
+              <button class="base_package users_action  delete_button"
+onclick="return false;"
+
+                      > ❌  delete</button>
+              </form>
+              <p><b>base_package:</b><br></p>
+              <p><b>name:</b> {{ model.package.base_package.name
+              }}</p>
               {% for index,package_content in enumerate(model.package.base_package.package_contents)  %}
-              <div class="model_package_info package_contents" id="package_contents_{{ index }}">
-                  <button class="package_contents models_action" onclick="return false;"> ✎  edit</button>
-                  <button class="package_contents models_action" onclick="return false;"> ❌  delete</button>
-                <p><b>package_content:</b></p>
+              <div class=
+              "user_package_info package_contents" id=
+              "package_contents_{{ index }}">
+                <form method="get" id="package_contents_edit_{{ index }}" action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
+                  <button class="package_contents users_action" onclick="return false;"
+> ✎  edit</button>
+                </form>
+                <form class="delete_form" method="post" id="package_contents_delete_{{ index }}" action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
+                  <button class="package_contents users_action  delete_button"
+onclick="return false;"
+
+                          > ❌  delete</button>
+                </form>
+                <p><b>package_content:</b><br></p>
                 <p><b>name:</b> {{ package_content.name }}</p>
                 <p><b>value:</b> {{ package_content.content_value }}</p>
               </div>
                 {% endfor %}
+            </div>
           </div>
         </div>
         {% else %}

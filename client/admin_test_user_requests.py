@@ -102,9 +102,36 @@ def login_with_packaged_user():
         LOGGER.info(f"Login is_ok: {is_ok}")
 
 
+def add_random_named_users(count: int = 15):
+    from client.admin_requests import register_user
+    from client.encryption import make_password_ready
+    from client.utils import LOGGER
+    import uuid
+
+    uuids = uuid.uuid4()
+    for i in range(count):
+        register_result, is_ok = register_user(
+            name=f"test_user_without_package_{uuids}_{i}",
+            password=make_password_ready(f"test_user_without_package_{uuids}_{i}"),
+        )
+
+        LOGGER.info(f"Register result: {register_result}")
+
+        LOGGER.info(f"Register is_ok: {is_ok}")
+
+        if not is_ok:
+            LOGGER.error(f"Register failed for user {i}")
+            return
+
+        LOGGER.info(f"Register is_ok: {is_ok}")
+
+        LOGGER.info(f"Register is_ok: {is_ok}")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "debug":
             LOGGER.setLevel(logging.DEBUG)
+    add_random_named_users()
     # main()
-    login_with_packaged_user()
+    # login_with_packaged_user()

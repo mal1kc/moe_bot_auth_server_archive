@@ -1,3 +1,4 @@
+#!/bin/env bash
 # "set -xe" means: verbose, -x print commands and -e exit on error
 set -e
 
@@ -40,6 +41,8 @@ then
 fi
 
 echo "Building container image"
+echo "clean up git untracked files"
+git clean -df
 $active_docker_cmd build -t "$img_name:$img_tag" -f ./Dockerfile .
 echo "Container image built"
 exit 0
