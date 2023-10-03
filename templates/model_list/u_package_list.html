@@ -1,0 +1,28 @@
+<table id="u_packages_table">
+    <tr>
+        <th id="u_packages_id">ID</th>
+        <th id="u_packages_owner">Owner</th>
+        <th id="u_packages_start_date">Start Date</th>
+        <th id="u_packages_end_date">End Date</th>
+        <th id="u_packages_base_package">Base Package</th>
+        <th id="u_packages_actions">Actions</th>
+    </tr>
+    {% for u_package in models %}
+        <tr>
+            <td>{{ u_package.id }}</td>
+            <td>{{ u_package.user.name }}</td>
+            <td>{{ u_package.start_date }}</td>
+            <td>{{ u_package.end_date }}</td>
+            <td>{{ u_package.base_package }}</td>
+            <td>
+                <a class="button-holder"
+                   href="{{ endpoints.AInfo.format(model_type=model_type, model_id=u_package.id) }}">
+                    <button>info/edit</button>
+                </a>
+                <a class="button-holder"
+                   href="{{ endpoints.ADelete.format(model_type=model_type, model_id=u_package.id) }}">
+                    <button>delete</button>
+                </a>
+            </tr>
+        {% endfor %}
+    </table>

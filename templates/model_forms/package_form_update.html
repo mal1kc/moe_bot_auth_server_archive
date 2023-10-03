@@ -1,0 +1,29 @@
+<form method="{{ form_method }}" action="{{ form_action }}" class="update">
+    <input type="hidden" name="id" value="{{ model.id }}">
+    <label class="name">
+        <span class="text">name :</span>
+        <input type="text" name="name" placeholder="{{ model.name }}">
+    </label>
+    <label class="days">
+        <span class="text">days :</span>
+        <input type="number" name="days" placeholder="{{ model.days }}" />
+    </label>
+    <label class="detail">
+        <span class="text">detail :</span>
+        <input type="text" name="detail" placeholder=" {{ model.detail }}">
+    </label>
+    {% for package_content in package_contents %}
+        <input type="checkbox"
+               id="package_content_{{ package_content.id }}"
+               name="{{ package_content.name }}"
+               value="{{ package_content.name }}"
+               {% if package_content in model.package_contents %}
+               checked
+            {% endif %}
+               />
+
+        <label class="package_contents"
+               for="package_content_{{ package_content.id }}">{{ package_content.name }}</label>
+    {% endfor %}
+    <button class="submit-button update" type="submit" id="submit-button">Update</button>
+</form>

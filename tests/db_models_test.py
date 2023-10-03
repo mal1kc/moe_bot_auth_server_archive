@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from moe_gthr_auth_server.crpytion import make_password_hash
+from moe_gthr_auth_server.cryption import make_password_hash
 from moe_gthr_auth_server.database_ops import (
     Admin,
     Base,

@@ -43,3 +43,6 @@ poetry/core/*
 *.db
 **secret_key
 **log
+.dir
+# i only hold venv config not need to vsc
+.dir-locals.el

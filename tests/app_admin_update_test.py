@@ -1,9 +1,6 @@
 from moe_gthr_auth_server.enums import mType
 from tests.testing_helpers import LOGGER, URLS, show_db_data
 
-# from moe_gthr_auth_server.database_ops import pContentEnum, utc_timestamp
-# from moe_gthr_auth_server.crpytion import make_password_ready
-
 
 def test_update_user_data(
     client, user_from_db, update_sample_user_data, admin_data_auth, app_ctx

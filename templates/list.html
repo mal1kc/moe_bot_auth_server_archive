@@ -1,0 +1,16 @@
+{% extends 'admin_layout.html' %}
+{% block title %}
+    {{ model_type.capitalize() }}
+{% endblock title %}
+{% block body %}
+    <h2>{{ model_type.capitalize() }}/s</h2>
+    <div class="list-container">
+        <div class="add_model">
+            <a class="button-holder"
+               href="{{ endpoints.ACreate.format(model_type=model_type) }}">
+                <button class="button">add {{ model_type }}</button>
+            </a>
+        </div>
+        {% include 'model_list/{model_type}_list.html'.format(model_type=model_type) %}
+    </div>
+{% endblock body %}

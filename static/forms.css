@@ -1,0 +1,87 @@
+
+.form_container form{
+  text-align: center;
+  padding: 1% 1%;
+  margin: 1% auto;
+  position: sticky;
+  background-color: rgba(0, 0, 0, 0.2);
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-items: center;
+  flex-direction: column;
+}
+
+.form_container form input {
+  margin: 0 1%
+  padding: 1% 1%;
+  width: 30%;
+  min-width: 150px;
+  min-height: 30px;
+  font-size: 1em;
+}
+
+.form_container form label {
+  width: 80%;
+}
+
+.form_container form div.user_package {
+  font-size: 1.5em;
+  width: 80%;
+  margin: 0 auto;
+  display: grid;
+}
+.form_container form div.user_package span.text {
+  width: 50%;
+  margin: 0 auto;
+  justify-content: center;
+  grid-column-start: 1;
+}
+
+.form_container div button {
+  font-size: 1em;
+  margin: 0 auto;
+  min-width: 150px;
+  min-height: 50px;
+  grid-column-start: 2;
+}
+
+.form_container button.models_action {
+  width: 20%;
+  height: 1%;
+  min-width: 40px;
+  min-height: 30px;
+  font-size: 1em;
+}
+
+.form_container {
+  width: 70%;
+  margin: 0 auto;
+  text-align: center;
+  padding: 1% 1%;
+  border: 1px dotted rgba(0, 0, 0, 0.7);
+  border-collapse: separate;
+  line-height: 1.8em;
+}
+
+.form_container div.user_package {
+  width: 80%;
+
+
+  margin: 0 auto;
+}
+
+form.only_button {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0 auto;
+    width: 100%;
+    letter-spacing: 0.1em;
+}
+
+form.only_button button {
+  margin: 0 auto;
+  min-width: 50px;
+  min-height: 50px;
+}

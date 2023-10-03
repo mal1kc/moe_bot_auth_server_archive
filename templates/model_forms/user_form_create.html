@@ -1,0 +1,38 @@
+<form method="{{ form_method }}" action="{{ form_action }}" class="create">
+    <label class="name">
+        <span class="text">Name :</span>
+        <input type="text" name="name" placeholder="Name">
+    </label>
+    <label class="password">
+        <span class="text">Password :</span>
+        <input type="password"
+               name="password"
+               placeholder="new password"
+               class="password"
+               onkeyup="checkPassword();"
+               id="password">
+    </label>
+    <label class="password_confirm">
+        <span class="text">Password Verify :</span>
+        <input type="password"
+               name="password"
+               placeholder="verify password"
+               class="password_confirm"
+               onkeyup="checkPassword();"
+               id="password_confirm">
+    </label>
+    <label class="base_package">
+        <span class="text">Base Package :</span>
+        <select name="base_package">
+            <option value="" selected>Select base package</option>
+            {% for base_package in base_packages %}
+                <option value="{{ base_package.id }}">{{ base_package.id }} {{ base_package.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    {# currently discord_id is disabled ( not supported ) #}
+    {# <label class="discord_id" style="display: none;"> <span class="text">Discord ID</span>
+  <input type="text" name="discord_id" placeholder="Discord ID">
+</label> #}
+    <button class="submit-button create" type="submit" id="submit-button">Create</button>
+</form>

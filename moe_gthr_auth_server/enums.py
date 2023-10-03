@@ -14,6 +14,15 @@ class mType(enum.IntEnum):
     u_session = 4
 
 
+class mTypeStr(enum.StrEnum):
+    "model type StrEnum"
+    user = "user"
+    package_content = "package_content"
+    package = "package"
+    u_package = "u_package"
+    u_session = "u_session"
+
+
 class pContentEnum(enum.StrEnum):
     "package content StrEnum for package_content model"
     # TODO : maybe change in future for more flexibility
@@ -47,6 +56,7 @@ class DBOperationResult(enum.Enum):
     model_name_too_short = enum.auto()
     model_name_too_long = enum.auto()
     model_passhash_too_short = enum.auto()
+    model_child_not_created = enum.auto()
 
     def __json__(self) -> dict[str, Any]:
         "serialize enum to json(dict[str, Any]))"

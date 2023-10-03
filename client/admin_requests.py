@@ -519,11 +519,10 @@ if __name__ == "__main__":
             LOGGER.setLevel(logging.INFO)
         elif sys.argv[1] == "--debug":
             LOGGER.setLevel(logging.DEBUG)
-    main()
-    # response = register_package(
-    #     package_contents=generate_random_sized_random_package_content_list(),
-    #     name="ext_test_package",
-    #     detail="ext_test_package_detail",
-    #     days=30,
-    # )[0]
+    # main()
+    response = requests.post(
+        EndPoints.ALogin,
+        **admin_header_kwargs,
+    )
+    print(response.json())
     # print(response)

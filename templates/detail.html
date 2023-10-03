@@ -1,0 +1,8 @@
+{# detaiil/edit page for models #}
+{% extends 'admin_layout.html' %}
+{% block body %}
+    <div class="container form_container">
+        <h3>{{ form_type.capitalize() }} {{ model_type }}</h3>
+        {% include 'model_forms/{model_type}_form_{form_type}.html'.format(model_type=model_type,form_type=form_type) %}
+    </div>
+{% endblock body %}

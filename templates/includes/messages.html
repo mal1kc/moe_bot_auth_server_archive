@@ -1,0 +1,13 @@
+{% if messages %}
+    {% for message in messages %}
+        <div class="message">
+            <hr>
+            {{ message }}
+            <button class="btn-close" onclick="toggleDivDisplayByClass('message')">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </button>
+        <hr>
+    </div>
+{% endfor %}
+{% endif %}

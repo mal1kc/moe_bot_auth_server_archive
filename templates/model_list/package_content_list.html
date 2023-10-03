@@ -1,0 +1,27 @@
+<table id="package_contents_table">
+    <tr>
+        <th id="package_contents_id">ID</th>
+        <th id="package_contents_name">Name</th>
+        <th id="package_contents_content_value">Content Value</th>
+        <th id="package_contents_content_type">packages</th>
+        <th id="package_contents_actions">Actions</th>
+    </tr>
+    {% for package_content in models %}
+        <tr>
+            <td>{{ package_content.id }}</td>
+            <td>{{ package_content.name }}</td>
+            <td>{{ package_content.content_value }}</td>
+            <td>{{ package_content.packages }}</td>
+            <td>
+                <a class="button-holder"
+                   href="{{ endpoints.AInfo.format(model_type=model_type, model_id=package_content.id) }}">
+                    <button>info/edit</button>
+                </a>
+                <a class="button-holder"
+                   href="{{ endpoints.ADelete.format(model_type=model_type, model_id=package_content.id) }}">
+                    <button>delete</button>
+                </a>
+            </td>
+        </tr>
+    {% endfor %}
+</table>

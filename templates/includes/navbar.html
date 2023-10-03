@@ -1,0 +1,31 @@
+<nav class="navbar">
+    <!-- Collapsible wrapper -->
+    <div class="navbar-collapse" id="navbarCollapse">
+        <!-- Left links -->
+        <ul class="navbar-nav0">
+            <li class="nav-item">
+                <a class="nav-link" href="/admin_control/about">about</a>
+            </li>
+            {#  TODO : make dynamic endpoints #}
+            {% if session["logged_in"] %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin_control">main page - users table</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin_control/logout">logout</a>
+                </li>
+                <li class="nav-item">
+                    <p class="admin_name">{{ session["username"] }}</p>
+                </li>
+            {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin_control">login</a>
+                </li>
+            {% endif %}
+        </ul>
+        <!-- Left links -->
+        {% if session["logged_in"]: %}{% endif %}
+    </div>
+    <!-- Collapsible wrapper -->
+</nav>
+<hr>

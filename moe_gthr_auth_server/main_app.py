@@ -43,7 +43,7 @@ from .base_responses import (
     request_success_response,
 )
 from .config import endpoints
-from .crpytion import compare_encypted_hashes, unmake_password_ready
+from .cryption import compare_encypted_hashes, unmake_password_ready
 from .err_handlrs import (
     bad_request,
     method_not_allowed,
@@ -68,10 +68,6 @@ LOGGER = logging.getLogger("main_app")
 @main_blueprint.route("/", methods=["GET", "POST"])
 def anasayfa():
     return jsonify({"status": "OK"})
-
-
-# TODO: add update package and package content, update user package
-# TODO: seperate admin endpoints to methods
 
 
 @main_blueprint.route(endpoints.URLS.ARegister, methods=["POST"])
@@ -282,7 +278,6 @@ def admin_register_u_session(u_session_data: dict[str, str | int]) -> tuple[Resp
 
 @main_blueprint.route(endpoints.URLS.AUpdate, methods=["PUT"])
 def admin_update(m_type: int, m_id: int) -> tuple[Response, int]:
-    # TODO: refactor this : too complex
     req_id = generate_req_id(remote_addr=request.remote_addr)
     LOGGER.debug(f"{req_id} - {request.method} {request.url}")
     # can method be changed to PUT?
@@ -1056,6 +1051,7 @@ def get_admin_from_req(request) -> bool | None:
 def generate_req_id(remote_addr: str | None) -> str:
     from uuid import uuid4
 
+    # TODO: this should be called session_id or something like that
     if hasattr(session, "req_id"):
         return session["req_id"]
     req_id = str(remote_addr) + "_" + str(uuid4())

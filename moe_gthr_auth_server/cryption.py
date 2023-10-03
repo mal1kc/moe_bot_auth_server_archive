@@ -34,6 +34,10 @@ def simple_dencrypt(
 ##    return simple_dencrypt(make_password_hash(password).encode(encoding), encrption_password).hex() # noqa
 
 
+def create_sha512_hash(data: str) -> str:
+    return hashlib.sha512(data.encode(encoding)).hexdigest()
+
+
 def generate_password_salt(password: str) -> str:
     return hashlib.sha256(password.encode(encoding)).hexdigest()
 
