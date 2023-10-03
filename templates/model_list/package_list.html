@@ -1,0 +1,31 @@
+<table id="packages_table">
+    <tr>
+        <th id="packages_id">ID</th>
+        <th id="packages_name">Name</th>
+        <th id="packages_details">Detail</th>
+        <th id="packages_days">Days</th>
+        <th id="packages_contents">Contents</th>
+        <th id="packages_u_packages">U_Packages</th>
+        <th id="packages_actions">Actions</th>
+    </tr>
+    {% for package in models %}
+        <tr>
+            {# TODO: add loop for u packages and contents like in users list #}
+            <td>{{ package.id }}</td>
+            <td>{{ package.name }}</td>
+            <td>{{ package.detail }}</td>
+            <td>{{ package.days }}</td>
+            <td>{{ package.package_contents }}</td>
+            <td>{{ package.u_packages }}</td>
+            <td>
+                <a class="button-holder"
+                   href="{{ endpoints.AInfo.format(model_type=model_type,model_id=package.id) }}">
+                    <button>edit</button>
+                </a>
+                <a class="button-holder delete_anchor"
+                   href="{{ endpoints.ADelete.format(model_type=model_type,model_id=package.id) }}">
+                    <button class="delete_button" data-item-name="package/base_package">delete</button>
+                </a>
+            </tr>
+        {% endfor %}
+    </table>

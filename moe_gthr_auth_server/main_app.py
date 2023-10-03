@@ -70,10 +70,6 @@ def anasayfa():
     return jsonify({"status": "OK"})
 
 
-# TODO: add update package and package content, update user package
-# TODO: seperate admin endpoints to methods
-
-
 @main_blueprint.route(endpoints.URLS.ARegister, methods=["POST"])
 def admin_register(m_type: mType) -> tuple[Response, int]:
     """

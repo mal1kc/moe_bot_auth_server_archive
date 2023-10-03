@@ -1,0 +1,30 @@
+<table id="u_sessions_table">
+    <tr>
+        <th id="u_sessions_id">ID</th>
+        <th id="u_sessions_owner">Owner</th>
+        <th id="u_sessions_access">Access</th>
+        <th id="u_sessions_access">ip address</th>
+        <th id="u_sessions_start_date">Start Date</th>
+        <th id="u_sessions_end_date">End Date</th>
+        <th id="u_sessions_actions">Actions</th>
+    </tr>
+    {% for u_session in models %}
+        <tr>
+            <td>{{ u_session.id }}</td>
+            <td>{{ u_session.user.name }}</td>
+            <td>{{ u_session.access }}</td>
+            <td>{{ u_session.ip }}</td>
+            <td>{{ u_session.start_date }}</td>
+            <td>{{ u_session.end_date }}</td>
+            <td>
+                <a class="button-holder"
+                   href="{{ endpoints.AInfo.format(model_type=model_type, model_id=u_session.id) }}">
+                    <button>info/edit</button>
+                </a>
+                <a class="button-holder"
+                   href="{{ endpoints.ADelete.format(model_type=model_type, model_id=u_session.id) }}">
+                    <button>delete</button>
+                </a>
+            </tr>
+        {% endfor %}
+    </table>

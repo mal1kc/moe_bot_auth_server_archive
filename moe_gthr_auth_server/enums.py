@@ -56,6 +56,7 @@ class DBOperationResult(enum.Enum):
     model_name_too_short = enum.auto()
     model_name_too_long = enum.auto()
     model_passhash_too_short = enum.auto()
+    model_child_not_created = enum.auto()
 
     def __json__(self) -> dict[str, Any]:
         "serialize enum to json(dict[str, Any]))"

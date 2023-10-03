@@ -1,55 +1,58 @@
 from __future__ import annotations
-import datetime
-from functools import partial
-import logging
 
+import datetime
+import logging
+from functools import partial
 from typing import Any
 
-from flask.wrappers import Response
-from werkzeug.wrappers import Response as BaseResponse
 from flask import (
     Blueprint,
     current_app,
+    redirect,
     render_template,
     request,
     session,
     url_for,
-    redirect,
 )
 from flask.sessions import SessionMixin  # noqa
+from flask.wrappers import Response
+from werkzeug.wrappers import Response as BaseResponse
 
+from moe_gthr_auth_server.config.endpoints import (
+    ADMIN_CONTROL_URLS,
+    _create_formatible_admin_control_urls,
+)
 from moe_gthr_auth_server.cryption import create_sha512_hash, make_password_hash
 from moe_gthr_auth_server.database_ops import (
     Admin,
-    User,
     Package,
+    PackageContent,
     U_Package,
     U_Session,
-    PackageContent,
+    User,
+    create_model_from_req_form,
+    delete_model,
     get_all_admins,
-    get_all_users,
-    get_all_packages,
-    get_all_package_contents,
     get_all_content_values,
+    get_all_package_contents,
+    get_all_packages,
+    get_all_u_packages,
+    get_all_u_sessions,
+    get_all_users,
     get_package_by_id,
     get_package_content_by_id,
     get_u_package_by_id,
     get_u_session_by_id,
     get_user_by_id,
-    update_user_from_req_form,
-    update_package_from_req_form,
     update_package_content_from_req_form,
-    update_u_session_from_req_form,
+    update_package_from_req_form,
     update_u_package_from_req_form,
-    delete_model,
+    update_u_session_from_req_form,
+    update_user_from_req_form,
 )
 from moe_gthr_auth_server.enums import DBOperationResult, mTypeStr
 from moe_gthr_auth_server.err_handlrs import method_not_allowed
 from moe_gthr_auth_server.main_app import generate_req_id
-from moe_gthr_auth_server.config.endpoints import (
-    ADMIN_CONTROL_URLS,
-    _create_formatible_admin_control_urls,
-)
 
 """
 One Page Admin Control Panel
@@ -83,7 +86,7 @@ def admin_control_about() -> Response | str | tuple[Response, int]:
     return render_template("about.html")
 
 
-def parse_char_list_to_str_list(char_list: list[str]) -> list[str]:
+def parse_char_list_to_str_list(char_list: list[str] | str) -> list[str]:
     # example chr_list : "[" "'" "l" "o" "g" ... "'" , "'" ... "l" "'" , "]"
     sentence_seprated_char_list = []
     str_list = []
@@ -102,11 +105,13 @@ def parse_char_list_to_str_list(char_list: list[str]) -> list[str]:
 
 
 @admin_control_blueprint.route(
-    ADMIN_CONTROL_URLS.AMain, methods=["GET"], defaults={"messages": [""]}
+    ADMIN_CONTROL_URLS.AMain,
+    methods=["GET"],
+    defaults={"messages": [""]},
 )
 @admin_control_blueprint.route(ADMIN_CONTROL_URLS.AMain + "<messages>", methods=["GET"])
 def admin_control_main(
-    messages: None | list[str] = None,
+    messages: None | str = None,
 ) -> Response | str | tuple[Response, int]:
     # example messages : "[" "'" "l" "o" "g" ... "'" , "'" ... "l" "'" , "]"
     req_id = generate_req_id(request.remote_addr)
@@ -158,6 +163,47 @@ def admin_control_logout() -> BaseResponse | Response | tuple[Response, int]:
     return method_not_allowed()
 
 
+@admin_control_blueprint.route(ADMIN_CONTROL_URLS.AList, methods=["GET"])
+def admin_control_list(
+    model_type: str,
+) -> Any:
+    req_id = generate_req_id(request.remote_addr)
+    LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
+    if request.method == "GET":
+        admin = login_check_session(session)
+        if admin is False:
+            return render_template("login.html")
+        if model_type not in mTypeStr.__members__:
+            return redirect(url_for_main(messages=["model type is wrong"]))
+        model_type = mTypeStr[model_type]
+        render_template_w_tvars = partial(
+            render_template,
+            "list.html",
+            enumerate=enumerate,
+            endpoints=_create_formatible_admin_control_urls(),
+            mTypeStr=mTypeStr,
+            model_type=model_type,
+            utc_now=datetime.datetime.utcnow(),
+        )
+        if model_type == mTypeStr.user:
+            users = get_all_users()
+            return render_template_w_tvars(models=users)
+        elif model_type == mTypeStr.package:
+            packages = get_all_packages()
+            return render_template_w_tvars(models=packages)
+        elif model_type == mTypeStr.package_content:
+            package_contents = get_all_package_contents()
+            return render_template_w_tvars(models=package_contents)
+        elif model_type == mTypeStr.u_package:
+            u_packages = get_all_u_packages()
+            return render_template_w_tvars(models=u_packages)
+        elif model_type == mTypeStr.u_session:
+            u_sessions = get_all_u_sessions()
+            return render_template_w_tvars(models=u_sessions)
+        else:
+            return redirect(url_for_main(messages=["model type is wrong"]))
+
+
 @admin_control_blueprint.route(ADMIN_CONTROL_URLS.AInfo, methods=["GET"])
 def admin_control_info(model_type: str, model_id: int) -> Any:
     req_id = generate_req_id(request.remote_addr)
@@ -190,6 +236,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
             model_type=model_type,
             form_method=form_method,
             form_action=form_action,
+            form_type="update",
             utc_now=datetime.datetime.utcnow(),
         )
         if model_type == mTypeStr.user:
@@ -225,16 +272,20 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
             if u_package is None:
                 redirect(url_for_main(messages=["u_package not found"]))
             packages = get_all_packages()
+            users = get_all_users()
             return render_detail_template_w_tvars(
                 model=u_package,
                 base_packages=packages,
+                users=users,
             )
         elif model_type == mTypeStr.u_session:
             u_session = get_u_session_by_id(model_id)
+            users = get_all_users()
             if u_session is None:
                 redirect(url_for_main(messages=["u_session not found"]))
             return render_detail_template_w_tvars(
                 model=u_session,
+                users=users,
             )
         else:
             return redirect(url_for_main(messages=["model type is wrong"]))
@@ -259,14 +310,26 @@ def admin_control_create(model_type: str) -> Any:
         formattible_endpoints = _create_formatible_admin_control_urls()
         form_method = "POST"  # CREATE
         template_vars = {
+            "form_type": "create",
             "form_method": form_method,
             "form_action": form_action,
             "endpoints": formattible_endpoints,
             "model_type": model_type,
             "mTypeStr": mTypeStr,
         }
+
+        if model_type == mTypeStr.user:
+            template_vars["base_packages"] = get_all_packages()
+        elif model_type == mTypeStr.package:
+            template_vars["package_contents"] = get_all_package_contents()
+        elif model_type == mTypeStr.package_content:
+            template_vars["content_values"] = get_all_content_values()
+        elif model_type == mTypeStr.u_package:
+            template_vars["base_packages"] = get_all_packages()
+            template_vars["users"] = get_all_users()
+
         return render_template(
-            "create.html",
+            "detail.html",
             **template_vars,
         )
     elif request.method == "POST":
@@ -279,7 +342,7 @@ def admin_control_create(model_type: str) -> Any:
 
         if model_type == mTypeStr.user:
             user = User()
-            db_result = update_user_from_req_form(user, request.form)
+            db_result = create_model_from_req_form(user, request.form)
             if db_result != DBOperationResult.success:
                 return redirect(
                     url_for_main(
@@ -289,7 +352,7 @@ def admin_control_create(model_type: str) -> Any:
             return redirect(url_for_main(messages=["user created"]))
         elif model_type == mTypeStr.package:
             package = Package()
-            db_result = update_package_from_req_form(package, request.form)
+            db_result = create_model_from_req_form(package, request.form)
             if db_result != DBOperationResult.success:
                 return redirect(
                     url_for_main(
@@ -303,7 +366,7 @@ def admin_control_create(model_type: str) -> Any:
 
         elif model_type == mTypeStr.package_content:
             package_content = PackageContent()
-            db_result = update_package_content_from_req_form(package_content, request.form)
+            db_result = create_model_from_req_form(package_content, request.form)
             if db_result != DBOperationResult.success:
                 return redirect(
                     url_for_main(
@@ -320,7 +383,7 @@ def admin_control_create(model_type: str) -> Any:
             )
         elif model_type == mTypeStr.u_package:
             u_package = U_Package()
-            db_result = update_u_package_from_req_form(u_package, request.form)
+            db_result = create_model_from_req_form(u_package, request.form)
             if db_result != DBOperationResult.success:
                 return redirect(
                     url_for_main(
@@ -333,7 +396,7 @@ def admin_control_create(model_type: str) -> Any:
             return redirect(url_for_main(messages=["u_package created"]))
         elif model_type == mTypeStr.u_session:
             u_session = U_Session()
-            db_result = update_u_session_from_req_form(u_session, request.form)
+            db_result = create_model_from_req_form(u_session, request.form)
             if db_result != DBOperationResult.success:
                 return redirect(
                     url_for_main(
@@ -403,6 +466,7 @@ def admin_control_update(model_type: str, model_id: int) -> Any:
                         ]
                     )
                 )
+            return redirect(url_for_main(messages=["package content updated"]))
         elif model_type == mTypeStr.u_package:
             u_package = get_u_package_by_id(model_id)
             if u_package is None:
@@ -498,7 +562,8 @@ def admin_control_delete(model_type: str, model_id: int) -> Any:
                         messages=["u_package not found"],
                     )
                 )
-            info_json = db_u_package.__json__()
+            # TODO: maybe user_incld=True sometimes ?
+            info_json = db_u_package.__json__(user_incld=False)
             db_result = delete_model(db_u_package)
             if db_result != DBOperationResult.success:
                 return redirect(
@@ -509,7 +574,8 @@ def admin_control_delete(model_type: str, model_id: int) -> Any:
                         ]
                     )
                 )
-            return redirect(url_for_main(messages=["u_package deleted" + info_json]))
+            info_message = json_to_message(info_json)
+            return redirect(url_for_main(messages=["u_package deleted", info_message]))
         elif model_type == mTypeStr.u_session:
             db_u_session = get_u_session_by_id(model_id)
             if db_u_session is None:
@@ -583,3 +649,19 @@ def login_check_session(session: "SessionMixin") -> bool | Admin:
             return possible_admin
         else:
             return False
+
+
+def json_to_message(data: dict[str, Any]) -> str:
+    message = "{"
+    remove = "password_hash", "id"
+    replace_chars = "[", "]", "'", ","
+    replace = "<<", ">>", " ", "|"
+    # this remove_chars are for better looking message
+    # TODO: maybe update parse_char_list_to_str_list change later
+    for key in data:
+        if key not in remove:
+            message += f"{key} : {data[key]}"
+    for indx in range(len(replace_chars)):
+        message = message.replace(replace_chars[indx], replace[indx])
+    message += "}"
+    return message

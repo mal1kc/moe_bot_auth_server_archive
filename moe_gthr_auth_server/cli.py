@@ -53,6 +53,15 @@ def initdb_command(recreate: bool = False):
     LOGGER.info("veritabanı içeriği oluşturuluyor")
     LOGGER.info("admin ekleniyor")
     if (
+        # TODO: admin passwordu envden al
+        # TODO: admin name envden al
+        # TODO: eğer MULTIPLE_ADMIN_ENABLE envde true ise birden fazla admin ekle
+        # .env
+        #  MULTIPLE_ADMIN_ENABLE=true
+        #  ADMIN_NAME=mal1kc
+        #  ADMIN_PASSWORD=deov04ın-!ıj0dı12klsa
+        #  ADMIN_NAME2=mal1kc2
+        #  ADMIN_PASSWORD2=deov04ın-!ıj0dı12klsa2
         db_op_result := add_admin(
             Admin(name="mal1kc", password_hash=make_password_hash("deov04ın-!ıj0dı12klsa"))
         )

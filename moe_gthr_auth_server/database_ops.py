@@ -79,10 +79,21 @@ class PackageContent(Base):
     @staticmethod
     def from_req_form(immutable_data: ImmutableMultiDict) -> PackageContent:
         mutable_data: dict = immutable_data.to_dict()
-        for key, value in mutable_data.items():
-            if value is None or value == "":
+        for key, value in immutable_data.to_dict().items():
+            if value is None or value == "" or key not in ["id", "name", "content_value"]:
                 mutable_data.pop(key)
-        return PackageContent.from_json(mutable_data)  # maybe nned to change
+            elif key == "id":
+                if isinstance(value, str):
+                    mutable_data[key] = int(value)
+                elif isinstance(value, int):
+                    mutable_data[key] = value
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+        if "name" not in mutable_data.keys():
+            mutable_data["name"] = (
+                "pcontent" + pContentEnum(mutable_data["content_value"]).name
+            )
+        return PackageContent.from_json(mutable_data)  # maybe need to change
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -93,8 +104,8 @@ class PackageContent(Base):
                     Use(
                         lambda x: x
                         in [p_content.id for p_content in PackageContent.query.all()],
-                        error="not_valid_id",
                     ),
+                    error="not_valid_id",
                 ),
                 "name": And(str, len, error="not_valid_name"),
                 "content_value": And(
@@ -127,6 +138,10 @@ class Package(Base):
 
     package_contents: Mapped[List[PackageContent]] = relationship(
         "PackageContent", back_populates="packages", secondary=pcontent_packages_conn_table
+    )
+
+    u_packages: Mapped[List[U_Package]] = relationship(
+        "U_Package", backref="base_package", cascade="all, delete-orphan"
     )
 
     def __repr__(self):
@@ -188,12 +203,31 @@ class Package(Base):
         return Package(**ret_package)
 
     @staticmethod
-    def from_req_form(immutable_data: ImmutableMultiDict) -> Package:
+    def from_req_form(
+        immutable_data: ImmutableMultiDict, org_package: Package = None, session=db.session
+    ) -> Package:
         mutable_data: dict = immutable_data.to_dict()
-        for key, value in mutable_data.items():
-            if value is None or value == "":
+        all_package_contents = PackageContent.query.all()
+        possible_package_content_keys = [pcontent.name for pcontent in all_package_contents]
+        possible_keys = ["id", "name", "days", "detail"] + possible_package_content_keys
+        mutable_data["package_contents"] = []
+        for key, value in immutable_data.to_dict().items():
+            if value is None or value == "" or key not in possible_keys:
                 mutable_data.pop(key)
-        return Package.from_json(mutable_data)  # maybe nned to change
+            elif key in possible_package_content_keys:
+                if isinstance(value, str) and len(value) > 0:
+                    mutable_data["package_contents"].append(
+                        all_package_contents[possible_package_content_keys.index(key)]
+                    )
+                    mutable_data.pop(key)
+            else:
+                if key in ["id", "days"]:
+                    mutable_data[key] = int(value)
+                elif key in ["name", "detail"]:
+                    mutable_data[key] = str(value)
+        if len(mutable_data["package_contents"]) == 0:
+            mutable_data.pop("package_contents")
+        return Package(**mutable_data)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -228,9 +262,10 @@ class U_Package(Base):
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     base_package_id: Mapped[int] = mapped_column(ForeignKey("packages.id"), nullable=False)
-    base_package: Mapped[Package] = relationship(
-        "Package", uselist=False, backref="user_packages"
-    )
+    # delete u_package when package deleted
+    # base_package: Mapped[Package] = relationship(
+    #     "Package", uselist=False, backref="user_packages"
+    # )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
@@ -308,12 +343,52 @@ class U_Package(Base):
         return U_Package(**ret_u_package)
 
     @staticmethod
-    def from_req_form(immutable_data: ImmutableMultiDict) -> U_Package:
+    def from_req_form(immutable_data: ImmutableMultiDict, sessions=db.session) -> U_Package:
         mutable_data: dict = immutable_data.to_dict()
+        possible_keys = ["id", "base_package_id", "start_date", "end_date", "user_id"]
+        all_packages = Package.query.all()
+
         for key, value in mutable_data.items():
             if value is None or value == "":
                 mutable_data.pop(key)
-        return U_Package.from_json(mutable_data)  # maybe nned to change
+            elif key not in possible_keys:
+                mutable_data.pop(key)
+            elif key in ["id", "base_package_id", "user_id"]:
+                if isinstance(value, str):
+                    mutable_data[key] = int(value)
+                elif isinstance(value, int):
+                    mutable_data[key] = value
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+            elif key in ["start_date", "end_date"]:
+                if isinstance(value, int):
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                elif isinstance(value, datetime):
+                    mutable_data[key] = value
+                elif isinstance(value, str):
+                    value = datetime.strptime(
+                        value, "%Y-%m-%dT%H:%M"
+                    )  # html5 datetime-local
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+
+        if "end_date" not in mutable_data.keys():
+            base_package = list(
+                filter(  # type: ignore
+                    lambda x: x.id == int(mutable_data["base_package_id"]), all_packages
+                )
+            ).pop()
+            if base_package is None:
+                raise SchemaError("base_package_not_found")
+            if not hasattr(base_package, "days"):
+                raise SchemaError("base_package.days_not_found")
+            base_package_days = base_package.days
+            mutable_data["end_date"] = utc_timestamp(
+                mutable_data["start_date"], return_type=datetime
+            ) + timedelta(days=base_package_days)
+
+        return U_Package(**mutable_data)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -380,6 +455,52 @@ class U_Session(Base):
             "ip": self.ip,
             "access": self.access,
         }
+
+    @staticmethod
+    def from_req_form(immutable_data: ImmutableMultiDict, session=db.session) -> U_Session:
+        mutable_data: dict = immutable_data.to_dict()
+        possible_keys = ["id", "user_id", "start_date", "end_date", "ip", "access"]
+        for key, value in immutable_data.to_dict().items():
+            if value is None or value == "":
+                mutable_data.pop(key)
+            elif key not in possible_keys:
+                mutable_data.pop(key)
+            elif key in ["id", "user_id"]:
+                if isinstance(value, str):
+                    mutable_data[key] = int(value)
+                elif isinstance(value, int):
+                    mutable_data[key] = value
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+            elif key in ["start_date", "end_date"]:
+                if isinstance(value, int):
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                elif isinstance(value, datetime):
+                    mutable_data[key] = value
+                elif isinstance(value, str):
+                    value = datetime.strptime(
+                        value, "%Y-%m-%dT%H:%M"
+                    )  # html5 datetime-local
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+            elif key == "ip":
+                if isinstance(value, str):
+                    mutable_data[key] = value
+                else:
+                    raise SchemaError("not_valid_%s" % key)
+        if "access" in mutable_data.keys():
+            if isinstance(value, str):
+                mutable_data[key] = value == "on"
+            else:
+                raise SchemaError("not_valid_%s" % key)
+        else:
+            mutable_data["access"] = False
+        if "end_date" not in mutable_data.keys():
+            mutable_data["end_date"] = utc_timestamp(
+                mutable_data["start_date"], return_type=datetime
+            ) + timedelta(minutes=current_app.config["USER_SESSION_TIMEOUT"])
+        return U_Session(**mutable_data)
 
     @staticmethod
     def validate(data: dict) -> None:
@@ -525,14 +646,22 @@ class User(Base):
             base_package = get_package_by_id(mutable_data["base_package"])
             if base_package is None:
                 raise SchemaError("base_package_not_found")
-            new_u_package = U_Package(
-                base_package_id=mutable_data["base_package"],
-                start_date=datetime.utcnow(),
-                end_date=datetime.utcnow() + timedelta(days=base_package.days),
-                user_id=org_user.id if org_user is not None else mutable_data["id"],
-            )
-            add_u_package(new_u_package)
-            mutable_data["package"] = new_u_package
+            if org_user is not None:
+                new_u_package = U_Package(
+                    base_package_id=mutable_data["base_package"],
+                    start_date=datetime.utcnow(),
+                    end_date=datetime.utcnow() + timedelta(days=base_package.days),
+                    user_id=org_user.id,
+                )
+
+                add_u_package(new_u_package)
+                mutable_data["package"] = new_u_package
+            else:
+                mutable_data["package"] = U_Package(
+                    base_package_id=mutable_data["base_package"],
+                    start_date=datetime.utcnow(),
+                    end_date=datetime.utcnow() + timedelta(days=base_package.days),
+                )
             mutable_data.pop("base_package")
         return User(**mutable_data)
 
@@ -711,7 +840,7 @@ def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | 
 
     note: i lose some presition but is it need to be that precise
     """
-    DB_LOGGER.debug(f"dt: {dt},return_type: {return_type}")
+    # DB_LOGGER.debug(f"dt: {dt},return_type: {return_type}")
     if return_type is None:
         if isinstance(dt, datetime):
             return int(dt.timestamp())
@@ -719,7 +848,7 @@ def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | 
             return datetime.utcfromtimestamp(float(dt))
     else:
         new_dt = utc_timestamp(dt, return_type=None)
-        DB_LOGGER.debug(f"new_dt: {new_dt}")
+        # DB_LOGGER.debug(f"new_dt: {new_dt}")
         for _ in range(2):
             if isinstance(new_dt, return_type):
                 return new_dt
@@ -772,15 +901,29 @@ def add_db_all_models(
 
 
 def add_user(user: User, session: scoped_session = db.session) -> DBOperationResult:
+    temp_package = None
     if len(user.password_hash) < 16:  # AESBlockSize 16
         return DBOperationResult.model_passhash_too_short
     if user.package is not None:
-        if add_u_package(user.package, session) != DBOperationResult.success:
-            return DBOperationResult.model_not_created
+        temp_package = user.package
+        del user.package
     if is_exits := session.query(User).filter_by(name=user.name).first():
         DB_LOGGER.info("user already exists %s" % is_exits)
         return DBOperationResult.model_already_exists
-    return add_db_model(user, session)
+    db_result = add_db_model(user, session)
+    try:
+        if db_result == DBOperationResult.success and temp_package is not None:
+            user = session.query(User).filter_by(name=user.name).first()
+            if user is None:
+                raise RuntimeError("user not found")
+            user.package = temp_package
+            if add_u_package(user.package, session) != DBOperationResult.success:
+                return DBOperationResult.model_child_not_created
+    except Exception as e:
+        DB_LOGGER.error("error accured while adding model to database %s" % e)
+        session.rollback()
+        return DBOperationResult.unknown_error
+    return db_result
 
 
 def add_admin(admin: Admin, session: scoped_session = db.session) -> DBOperationResult:
@@ -1050,13 +1193,38 @@ def update_package(
         if new_package.detail is not None:
             db_package.detail = new_package.detail
         if new_package.package_contents is not None:
-            for package_content in new_package.package_contents:
-                if isinstance(package_content, int):
-                    db_package.package_contents.append(
-                        session.query(PackageContent).filter_by(id=package_content).first()
-                    )
+            all_package_contents = session.query(PackageContent).all()
+            # if exists in db model but not in new_package -> delete from db_model
+            # if not exists in db model but exists in new_package -> add to db_model
+            # if exists in db model and exists in new_package -> ignore
+            if new_package.package_contents is None:
+                new_package.package_contents = []
+
+            for possible_pcontent in new_package.package_contents.copy():
+                if isinstance(possible_pcontent, int):
+                    pcontent = list(
+                        filter(lambda x: x.id == possible_pcontent, all_package_contents)
+                    ).pop()
+                    if pcontent is not None:
+                        new_package.package_contents.append(pcontent)
+                    new_package.package_contents.remove(possible_pcontent)
+                elif isinstance(possible_pcontent, PackageContent):
+                    continue
                 else:
-                    db_package.package_contents.append(package_content)
+                    new_package.package_contents.remove(possible_pcontent)
+            delete_package_contents = set()
+            for db_package_content in all_package_contents:
+                if db_package_content in db_package.package_contents:
+                    if db_package_content not in new_package.package_contents:
+                        delete_package_contents.add(db_package_content)
+                    else:
+                        continue
+                else:
+                    if db_package_content in new_package.package_contents:
+                        db_package.package_contents.append(db_package_content)
+            for delete_package_content in delete_package_contents:
+                delete_package_content.packages.remove(db_package)
+
         session.commit()
         return DBOperationResult.success
     except Exception as e:
@@ -1202,7 +1370,9 @@ def update_package_from_req_form(
         db_package = old_package
         if db_package is None:
             return DBOperationResult.model_not_found
-        form_package = Package.from_req_form(form_data)
+        form_package = Package.from_req_form(
+            form_data, org_package=db_package, session=session
+        )
         return update_package(db_package, form_package, session=session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating package to database %s" % e)
@@ -1259,5 +1429,32 @@ def update_u_session_from_req_form(
         return update_u_session(db_u_session, form_u_session, session=session)
     except Exception as e:
         DB_LOGGER.error("error accured while updating u_session to database %s" % e)
+        session.rollback()
+    return DBOperationResult.unknown_error
+
+
+def create_model_from_req_form(
+    model: User | Admin | Package | PackageContent | U_Package | U_Session,
+    form_data: ImmutableMultiDict,
+    session: scoped_session = db.session,
+) -> DBOperationResult:
+    try:
+        if isinstance(model, User):
+            form_model = User.from_req_form(form_data)
+            return add_user(form_model, session)
+        elif isinstance(model, Package):
+            form_model = Package.from_req_form(form_data, session=session)
+            return add_package(form_model, session)
+        elif isinstance(model, PackageContent):
+            form_model = PackageContent.from_req_form(form_data)
+            return add_package_content(form_model, session)
+        elif isinstance(model, U_Package):
+            form_model = U_Package.from_req_form(form_data)
+            return add_u_package(form_model, session)
+        elif isinstance(model, U_Session):
+            form_model = U_Session.from_req_form(form_data)
+            return add_db_model(form_model, session)
+    except Exception as e:
+        DB_LOGGER.error("error accured while creating model to database %s" % e)
         session.rollback()
     return DBOperationResult.unknown_error

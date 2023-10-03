@@ -5,21 +5,19 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/forms.css">
+        <script type="text/javascript" src="/static/main.js"></script>
+        <script type="text/javascript" src="/static/warn.js"></script>
         <title>
             {% block title %}
-                webapp
             {% endblock title %}
-        </title>
+        - admin control moebot server</title>
     </head>
     <body>
         {% include "includes/navbar.html" %}
         <div class="main-container">
             {% include "includes/messages.html" %}
             {% block body %}
-                {%
-                endblock body %}
-            </div>
-            <body>
-                <script type="text/javascript" src="/static/main.js"></script>
-            </body>
-        </html>
+            {% endblock body %}
+        </div>
+    </html>

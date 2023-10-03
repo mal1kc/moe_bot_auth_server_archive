@@ -105,7 +105,7 @@ div.user_session {
   padding: 1% 2%;
 }
 
-button.users_action {
+button.models_action {
   padding: 1% 1%;
   float: right;
   margin: 1% auto;
@@ -125,13 +125,54 @@ button.users_action {
   margin: 1%;
 }
 
-.users_actions_add {
-    text-align: left;
-  display: block;
-  padding: 10% 10%;
+div.add_model{
+  padding: 1%;
+  margin: 1%;
+  border: 1px dotted rgba(0, 0, 0, 0.7);
+  border-collapse: separate;
+  border-radius: 2px;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  transition: background-color 0.5s ease-in;
 }
 
-div.users_actions {
+div.add_model:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  transition: background-color 0.5s ease-out;
+}
+
+div.add_model p {
+  color: #7621b2;
+  width: 70%;
+  margin: 0 auto;
+  grid-row: 1;
+  text-align: center;
+  font-size: 1.5em;
+}
+
+select.models_action {
+  grid-row: 1;
+  width: 20%;
+  padding: 1% 1%;
+  margin: 1% auto;
+  border: 2px solid;
+  border-color: gray;
+  border-radius: 20px;
+  text-align: center;
+  transition: background-color 0.5s ease-in;
+  font-size: 1.2em;
+  option {
+    font-size: 1em;
+    text-align: center;
+  }
+}
+
+select.models_action:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  transition: background-color 0.5s ease-out;
+}
+
+div.models_actions {
   padding: 0% 1%;
   margin-inline-start: 0%;
   float: right;
@@ -208,36 +249,22 @@ h3:hover {
   color: rgba(100, 120, 190, 1);
 }
 
+/* --- forms general --- */
+
 form {
+  margin: 2% auto;
   width: 70%;
+  animation: fadein 2s;
+  transition: background-color 0.5s ease-in;
   margin: 0 auto;
   text-align: center;
-}
-
-form input {
-  width: 33%;
-  padding: 1%;
-  margin: 1%;
-  border: 1px solid silver;
-}
-form input:hover {
+  padding: 3% 3%;
+  border: 1px dotted rgba(0, 0, 0, 0.7);
+  border-collapse: separate;
+  border-radius: 2px;
   background-color: rgba(0, 0, 0, 0.2);
-  cursor: text;
 }
 
-form button {
-  width: 10%;
-  height: 5%;
-  padding: 1%;
-  margin: 1%;
-  border: 1px solid silver;
-  min-width: 180px;
-}
-
-form button:hover {
-  background-color: rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-}
 
 form label {
   width: 10%;
@@ -247,6 +274,21 @@ form label {
   font-size: 1.5em;
   min-width: 150px;
 }
+
+form button,a button {
+  width: 10%;
+  height: 5%;
+  padding: 1%;
+  margin: 1%;
+  border: 1px solid silver;
+  min-width: 100px;
+}
+
+form button:hover,a button:hover  {
+  background-color: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
 form select {
   width: 33%;
   padding: 1%;
@@ -262,65 +304,23 @@ form select:hover {
   transition: background-color 0.5s ease-out;
 }
 
-option {
+form input {
+  width: 33%;
+  padding: 1%;
+  margin: 1%;
+  border: 1px solid silver;
+  transition: background-color 0.5s ease-in;
+}
+input:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  cursor: text;
+  transition: background-color 0.5s ease-out;
+}
+
+.option {
   font-size: 1.5em;
   font-family: Consolas, monaco, monospace;
 }
-
-form.update{
-  text-align: center;
-  padding: 1% 1%;
-  margin: 1% auto;
-  position: sticky;
-  background-color: rgba(0, 0, 0, 0.2);
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  justify-items: center;
-  flex-direction: column;
-}
-form.update input {
-  margin: 0 1%
-  padding: 1% 1%;
-  width: 30%;
-  min-width: 150px;
-  min-height: 30px;
-  font-size: 1em;
-}
-form.update label {
-  width: 80%;
-}
-
-form.update div.user_package {
-  font-size: 1.5em;
-  width: 80%;
-  margin: 0 auto;
-  display: grid;
-}
-
-form.update div.user_package span.text {
-  width: 50%;
-  margin: 0 auto;
-  justify-content: center;
-  grid-column-start: 1;
-}
-
-form.update div button {
-  font-size: 1em;
-  margin: 0 auto;
-  min-width: 150px;
-  min-height: 50px;
-  grid-column-start: 2;
-}
-
-form.update button.models_action {
-  width: 20%;
-  height: 1%;
-  min-width: 40px;
-  min-height: 30px;
-  font-size: 1em;
-}
-
 
 
 input[type="text"] , input[type="password"] {
@@ -381,4 +381,30 @@ p.admin_name {
   border-color: rgba(69,140,138,1);
   border-radius: 10px;
   text-decoration: none;
+}
+
+span.warn {
+  color: red;
+  font-size: 0.8em;
+}
+
+span.success {
+  color: green;
+  font-size: 0.8em;
+}
+
+a.button_holder {
+  text-decoration: none;
+  color: rgba(0, 0, 0, 0.7);
+  font-size: 1.5em;
+  padding: 1% 1%;
+  margin: 1% auto;
+  width: 80%;
+  transition: background-color 0.5s ease-in;
+  transition: font-size 0.8s ease-in;
+}
+
+span.boldtext {
+  font-weight: bold;
+  font-size: 1.5em;
 }

@@ -1,0 +1,26 @@
+<form method="{{ form_method }}" action="{{ form_action }}" class="update">
+    <input type="hidden" name="id" value="{{ model.id }}">
+    <label class="end_date">end date :</label>
+    <input type="datetime-local"
+           name="end_date"
+           value="{{ model.end_date.strftime("%Y-%m-%dT%H:%M") }}" />
+    <label class="base_package_id">base package :</label>
+    <span class="boldtext warning">
+        current base package : {{ model.base_package.id }} - {{ model.base_package.name }} ( {{ model.base_package.days }} )
+    </span>
+    <select name="base_package_id">
+        <option value="">Select a base package</option>
+        {% for base_package in base_packages %}
+            <option value="{{ base_package.id }}">
+                {{ base_package.id }} {{ base_package.name }} ( {{ base_package.days }} )
+            </option>
+        {% endfor %}
+    </select>
+    <label class="user_id">user :</label>
+    <span class="boldtext warning">current user : {{ model.user.id }} - {{ model.user.name }}</span>
+    <select name="user_id">
+        <option value="">Select a user</option>
+        {% for user in users %}<option value="{{ user.id }}">{{ user.id }}  {{ user.name }}</option>{% endfor %}
+    </select>
+    <button class="submit-button update" type="submit" id="submit-button">Update</button>
+</form>

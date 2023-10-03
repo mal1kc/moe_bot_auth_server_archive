@@ -76,27 +76,29 @@
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
     - [-] html sayfası
       - [-] listeleme (düzenleme , ekleme , silme)
-        - [ ] listeleme
+        - [-] listeleme
+          - [ ] geliştirilmeli -> alt itemleri
+          - [X] sadece listeleme
           - [x] user
-          - [ ] package
-          - [ ] package content
-          - [ ] u_package
-          - [ ] u_session
-        - [ ] ekleme
-          - [ ] user
-          - [ ] package
-          - [ ] package content
-          - [ ] u_package
-          - +u_session+
-        - [ ] düzenleme
-          - [x] user
-          - [ ] package
-          - [ ] package content
-          - [ ] u_package
-          - [ ] u_session
-        - [-] silme
+          - [X] package
+          - [X] package content
+          - [X] u_package
+          - [X] u_session
+        - [X] ekleme
           - [X] user
-          - [ ] package
+          - [X] package
+          - [X] package content
+          - [X] u_package
+          - +u_session+
+        - [X] düzenleme
+          - [x] user
+          - [X] package
+          - [X] package content
+          - [X] u_package
+          - [X] u_session
+        - [X] silme
+          - [X] user
+          - [X] package
           - [X] package content
           - [X] u_package
           - [X] u_session
@@ -109,4 +111,5 @@
 
 - flask -> fastapi
 - sessionlara token baglıyıp token üzerinden kontrol gerçekleştirme ve session ömrünü uzatma (JWT veya benzer bir teknoloji)
+- sessionlar socket gibi olabilir
 - async
