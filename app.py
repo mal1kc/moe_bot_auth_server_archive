@@ -2,14 +2,15 @@ import os
 import sys
 import logging
 
-from moe_gthr_auth_server import create_app
+from moe_bot_auth_server import create_app
 
 
 def start_server(host: str, port: int, args: dict | None = None):
     if args is None:  # mutable guard
         args = {"certfile": "config/ssl/cert.pem", "keyfile": "config/ssl/key.pem"}
     app.logger.setLevel(logging.INFO)
-    app.run(host=host, port=port, ssl_context=(args["certfile"], args["keyfile"]))
+    # app.run(host=host, port=port, ssl_context=(args["certfile"], args["keyfile"]))
+    app.run(host=host, port=port)
 
 
 def start_debug_server(host: str, port: int, args: dict | None = None):

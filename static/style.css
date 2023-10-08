@@ -212,7 +212,7 @@ button {
 .nav-link:hover {
   parent::background-color: rgba(0, 0, 0, 0.2);
   transition: font-size .7s ease-out;
-  font-size: 4em;
+  font-size: 2.5em;
 }
 
 .navbar {

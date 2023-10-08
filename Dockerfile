@@ -29,9 +29,8 @@ ENV VIRTUAL_ENV=/app/.venv \
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 WORKDIR /app
- # moe_gthr_auth_server/ config/ templates/ ./static/
 
-COPY moe_gthr_auth_server/ /app/moe_gthr_auth_server/
+COPY moe_bot_auth_server/ /app/moe_bot_auth_server/
 
 COPY config/ /app/config/
 

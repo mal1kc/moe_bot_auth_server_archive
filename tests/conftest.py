@@ -4,9 +4,9 @@ import random
 import pytest
 from flask import Flask
 
-from moe_gthr_auth_server import register_blueprints, register_error_handlers
-from moe_gthr_auth_server.cryption import make_password_hash, make_password_ready
-from moe_gthr_auth_server.database_ops import (
+from moe_bot_auth_server import register_blueprints, register_error_handlers
+from moe_bot_auth_server.cryption import make_password_hash, make_password_ready
+from moe_bot_auth_server.database_ops import (
     Admin,
     Package,
     PackageContent,
@@ -23,7 +23,7 @@ from tests.testing_helpers import LOGGER, generate_random_sized_random_package_c
 
 @pytest.fixture
 def app():
-    app = Flask("moe_gatherer_server")
+    app = Flask("moe_bot_auth_server")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["TESTING"] = True
     app.config["SECRET_KEY"] = "test_secret_key"

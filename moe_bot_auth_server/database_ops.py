@@ -22,7 +22,7 @@ from .cryption import make_password_hash
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
-DB_LOGGER = getLogger("sqlalchemy_db")
+DB_LOGGER = getLogger(__name__)
 
 # DEVLOG -> serilize datetime as utc_timestamp
 

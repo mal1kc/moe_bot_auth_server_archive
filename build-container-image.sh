@@ -2,7 +2,7 @@
 # "set -xe" means: verbose, -x print commands and -e exit on error
 set -e
 
-app_name="moe_gthr_auth_server"
+app_name="moe_bot_auth_server"
 app_version="$(poetry version --short)"
 
 docker_cmd="docker"

@@ -1,5 +1,4 @@
 import logging
-import os
 
 from flask import Flask
 
@@ -22,12 +21,11 @@ from .main_app import main_blueprint
 LOGGER = logging.getLogger("app")
 
 
-def _ensure_secret_key() -> None:
-    """Ensure that a secret key exists."""
-    LOGGER.debug("Ensuring secret key file %s", paths.SECRET_KEY_PATH)
-    if os.path.exists(paths.SECRET_KEY_PATH):
-        return
-    conf_secret_key.write(conf_secret_key.generate_random_bytes())
+def _ensure_secret_key(app) -> None:
+    if app.config["SECRET_KEY"] is None:
+        LOGGER.debug("Generating secret key")
+        app.config["SECRET_KEY"] = conf_secret_key.generate_secret_key()
+        LOGGER.debug("Secret key generated")
 
 
 def _ensure_db(app) -> None:
@@ -35,15 +33,14 @@ def _ensure_db(app) -> None:
     LOGGER.debug(
         "Ensuring database file %s", app.config["SQLALCHEMY_DATABASE_URI"].split("///")[1]
     )
-    if os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].split("///")[1]):
-        return
     db.create_all()
 
 
 def create_app() -> Flask:
-    app = Flask("moe_gatherer_server")
-    _ensure_secret_key()
+    app = Flask("moe_bot_auth_server")
     register_modifications(app)
+    register_folders(app)
+    _ensure_secret_key(app)
     register_extensions(app)
     register_blueprints(app)
     register_error_handlers(app)
@@ -60,11 +57,6 @@ def register_blueprints(app: Flask) -> None:
 
 def register_extensions(app: Flask, db=db) -> None:
     db.init_app(app)
-    print(
-        "app.config['SQLALCHEMY_DATABASE_URI'] -> {}".format(
-            app.config["SQLALCHEMY_DATABASE_URI"]
-        )
-    )
     with app.app_context():
         _ensure_db(app)
 
@@ -80,8 +72,18 @@ def register_error_handlers(app: Flask):
 
 def register_modifications(app: Flask) -> None:
     LOGGER.debug("Registering modifications")
-    app_config = conf_flask.load_config_from_toml()
+    app_config = conf_flask.Config.from_toml(paths.CONFIG_FILE_PATH)
     app.config.from_object(app_config)
     LOGGER.debug("config loaded")
     LOGGER.debug("config -> {}".format(app.config))
-    # app.secret_key = conf_secret_key.read()
+
+
+def register_folders(app: Flask) -> None:
+    LOGGER.debug("Registering folders")
+    # print("static folder ->",app.config["STATIC_FOLDER"])
+    # print("template folder ->",app.config["TEMPLATE_FOLDER"])
+    app.static_folder = app.config["STATIC_FOLDER"]
+    app.template_folder = app.config["TEMPLATE_FOLDER"]
+    # print("static folder ->",app.static_folder)
+    # print("template folder ->",app.template_folder)
+    LOGGER.debug("Folders registered")

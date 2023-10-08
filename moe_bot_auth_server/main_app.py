@@ -6,7 +6,7 @@ from schema import And, Schema, SchemaError, SchemaWrongKeyError, Use
 from sqlalchemy.orm import scoped_session
 from werkzeug.exceptions import UnsupportedMediaType
 
-from moe_gthr_auth_server.database_ops import (
+from moe_bot_auth_server.database_ops import (
     Admin,
     DBOperationResult,
     Package,
@@ -34,7 +34,7 @@ from moe_gthr_auth_server.database_ops import (
     update_u_session,
     update_user,
 )
-from moe_gthr_auth_server.enums import mType
+from moe_bot_auth_server.enums import mType
 
 from .base_responses import (
     req_data_incomplete,

@@ -3,8 +3,8 @@ from click.testing import CliRunner
 from flask import Flask
 from testing_helpers import LOGGER
 
-from moe_gthr_auth_server import db, register_blueprints, register_error_handlers
-from moe_gthr_auth_server.cli import initdb_command, resetdb_command
+from moe_bot_auth_server import db, register_blueprints, register_error_handlers
+from moe_bot_auth_server.cli import initdb_command, resetdb_command
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def runner():
 
 @pytest.fixture
 def app():
-    app = Flask("moe_gatherer_server")
+    app = Flask("moe_bot_auth_server")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["TESTING"] = True
     LOGGER.debug("app: %s", app)

@@ -18,12 +18,12 @@ from flask.sessions import SessionMixin  # noqa
 from flask.wrappers import Response
 from werkzeug.wrappers import Response as BaseResponse
 
-from moe_gthr_auth_server.config.endpoints import (
+from moe_bot_auth_server.config.endpoints import (
     ADMIN_CONTROL_URLS,
     _create_formatible_admin_control_urls,
 )
-from moe_gthr_auth_server.cryption import create_sha512_hash, make_password_hash
-from moe_gthr_auth_server.database_ops import (
+from moe_bot_auth_server.cryption import create_sha512_hash, make_password_hash
+from moe_bot_auth_server.database_ops import (
     Admin,
     Package,
     PackageContent,
@@ -50,9 +50,9 @@ from moe_gthr_auth_server.database_ops import (
     update_u_session_from_req_form,
     update_user_from_req_form,
 )
-from moe_gthr_auth_server.enums import DBOperationResult, mTypeStr
-from moe_gthr_auth_server.err_handlrs import method_not_allowed
-from moe_gthr_auth_server.main_app import generate_req_id
+from moe_bot_auth_server.enums import DBOperationResult, mTypeStr
+from moe_bot_auth_server.err_handlrs import method_not_allowed
+from moe_bot_auth_server.main_app import generate_req_id
 
 """
 One Page Admin Control Panel
@@ -66,9 +66,12 @@ One Page Admin Control Panel
 """
 
 # Blueprint
-admin_control_blueprint = Blueprint("admin_control", __name__, template_folder="templates")
+admin_control_blueprint = Blueprint(
+    "admin_control",
+    __name__,
+)
 
-LOGGER = logging.getLogger("app")
+LOGGER = logging.getLogger("admin_control")
 
 url_for_main = partial(
     url_for,

@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from pytest import fixture
 
-from moe_gthr_auth_server.data_schema_validation import And, Schema, SchemaValidationError
+from moe_bot_auth_server.data_schema_validation import And, Schema, SchemaValidationError
 
 LOGGER = logging.getLogger("data_schema_validation_test")
 

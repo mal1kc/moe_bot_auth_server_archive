@@ -2,13 +2,13 @@ import datetime
 
 import pytest
 
-from moe_gthr_auth_server.cryption import (
+from moe_bot_auth_server.cryption import (
     encoding,
     encryption_password,
     make_password_hash,
     simple_dencrypt,
 )
-from moe_gthr_auth_server.enums import mType
+from moe_bot_auth_server.enums import mType
 from tests.testing_helpers import LOGGER, URLS, show_db_data, utc_timestamp
 
 # all of function arguments are fixtures from conftest.py

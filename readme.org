@@ -4,7 +4,7 @@
 
 - ne kadar güvenli emin degilim sifre kısmı
 
-** TODO eksikler - v1 [77%]
+** TODO eksikler - v1 [83%]
     - [X] login islemi gözden geçirilmesi lazım
     - [X] logine test lazım
     - [X] testleri baştan yaz
@@ -104,7 +104,7 @@
           - [X] u_session
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
-    - [ ] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
+    - [X] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
     - [X] dockerfile
       - [X] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
 ** muhtemel v2 özellikleri

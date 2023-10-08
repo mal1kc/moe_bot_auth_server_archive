@@ -1,4 +1,4 @@
-from moe_gthr_auth_server.enums import mType
+from moe_bot_auth_server.enums import mType
 from tests.testing_helpers import LOGGER, URLS, show_db_data
 
 

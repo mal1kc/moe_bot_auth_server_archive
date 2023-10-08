@@ -1,4 +1,4 @@
-from moe_gthr_auth_server.cryption import (
+from moe_bot_auth_server.cryption import (
     compare_encypted_hashes,
     make_password_hash,
     unmake_password_ready,
