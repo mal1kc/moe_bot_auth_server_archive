@@ -64,8 +64,23 @@ def initdb_command(recreate: bool = False, init: bool = True):
             "pcontent_packages_conn_table",
         ]
         if all([table in tables for table in olmasi_gereken_tablolar]):
-            LOGGER.info(" ☑ veritabanı tablolari var ☑ , çıkılıyor")
-            return
+            # check admins exists
+            if len(Admin.query.all()) > 0:
+                LOGGER.info(" ☑ veritabanı içeriği bulundu ☑ , eklemeye gerek yok")
+                db_packageler = [package.__json__() for package in Package.query.all()]
+                db_package_contentleri = [
+                    package_content.__json__()
+                    for package_content in PackageContent.query.all()
+                ]
+                db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
+                db_adminler = [admin.__json__() for admin in Admin.query.all()]
+                LOGGER.info("veritabanı içeriği : ")
+                LOGGER.info("packageler -> {}".format(db_packageler))
+                LOGGER.info("package İçerikleri -> {}".format(db_package_contentleri))
+                LOGGER.info("kullanıcılar -> {}".format(db_kullanicilar))
+                LOGGER.info("adminler -> {}".format(db_adminler))
+                return
+
         LOGGER.info("veritabanı tabloları oluşturuluyor")
 
     db.create_all()
