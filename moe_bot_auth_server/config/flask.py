@@ -64,7 +64,6 @@ class Config:
                 setattr(self, key, default_config[key])
 
         self.configure_logging()
-        print("config -> {}".format(self))
 
     def __repr__(self) -> str:
         return "<Config {}>".format([(key, getattr(self, key)) for key in self.__slots__])
@@ -156,20 +155,39 @@ class Config:
                         "formatter": "default",
                     },
                 },
-                "": {
-                    "level": self.LOG_LEVEL,
-                    "handlers": ["file", "console"],
-                    "propagate": False,
-                },
-                "cli": {
-                    "level": self.LOG_LEVEL,
-                    "handlers": ["console"],
-                    "propagate": False,
-                },
-                "moe_bot_auth_server.database_ops": {
-                    "level": self.LOG_LEVEL,
-                    "handlers": ["db_op_file"],
-                    "propagate": False,
+                "loggers": {
+                    "gunicorn": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "gunicorn.access": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "gunicorn.error": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "sqlalchemy_db": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["db_op_file", "console"],
+                    },
+                    "data_schema_validation": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "cli": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "main_app": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
+                    "admin_control": {
+                        "level": self.LOG_LEVEL,
+                        "handlers": ["file", "console"],
+                    },
                 },
             }
         )

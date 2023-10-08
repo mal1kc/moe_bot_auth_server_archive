@@ -42,7 +42,7 @@ class PackageContent(Base):
 
     name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     content_value: Mapped[str] = mapped_column(
-        Enum(*[e for e in pContentEnum]), nullable=False
+        Enum(*[e for e in pContentEnum], name="pContentEnum"), nullable=False
     )
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
     packages: Mapped[List[Package]] = relationship(

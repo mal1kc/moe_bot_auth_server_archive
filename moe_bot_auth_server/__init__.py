@@ -30,9 +30,7 @@ def _ensure_secret_key(app) -> None:
 
 def _ensure_db(app) -> None:
     """Ensure that a database exists."""
-    LOGGER.debug(
-        "Ensuring database file %s", app.config["SQLALCHEMY_DATABASE_URI"].split("///")[1]
-    )
+    LOGGER.debug("Ensuring database url %s", app.config["SQLALCHEMY_DATABASE_URI"])
     db.create_all()
 
 
