@@ -178,7 +178,7 @@ class Config:
                     },
                     "cli": {
                         "level": self.LOG_LEVEL,
-                        "handlers": ["file", "console"],
+                        "handlers": ["console"],
                     },
                     "main_app": {
                         "level": self.LOG_LEVEL,

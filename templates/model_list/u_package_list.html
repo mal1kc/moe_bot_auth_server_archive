@@ -1,11 +1,11 @@
 <table id="u_packages_table">
     <tr>
         <th id="u_packages_id">ID</th>
-        <th id="u_packages_owner">Owner</th>
-        <th id="u_packages_start_date">Start Date</th>
-        <th id="u_packages_end_date">End Date</th>
-        <th id="u_packages_base_package">Base Package</th>
-        <th id="u_packages_actions">Actions</th>
+        <th id="u_packages_owner">Kullanıcı</th>
+        <th id="u_packages_start_date">Başlangıç Tarihi</th>
+        <th id="u_packages_end_date">Bitiş Tarihi</th>
+        <th id="u_packages_base_package">Sepeti</th>
+        <th id="u_packages_actions">Aksiyonlar</th>
     </tr>
     {% for u_package in models %}
         <tr>
@@ -13,15 +13,14 @@
             <td>{{ u_package.user.name }}</td>
             <td>{{ u_package.start_date }}</td>
             <td>{{ u_package.end_date }}</td>
-            <td>{{ u_package.base_package }}</td>
+            <td> - {{ u_package.base_package.name }}, {{ u_package.base_package.days }}, {{ u_package.base_package.detail }}</td>
             <td>
                 <a class="button-holder"
                    href="{{ endpoints.AInfo.format(model_type=model_type, model_id=u_package.id) }}">
-                    <button>info/edit</button>
-                </a>
+<button class ="edit_button info_button">Düzenle</button>                </a>
                 <a class="button-holder"
                    href="{{ endpoints.ADelete.format(model_type=model_type, model_id=u_package.id) }}">
-                    <button>delete</button>
+                    <button  class="delete-button" >SİL</button>
                 </a>
             </tr>
         {% endfor %}

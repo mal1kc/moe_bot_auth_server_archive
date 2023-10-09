@@ -1,14 +1,15 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="create">
     <label class="name">
-        <span class="text">name :</span>
-        <input type="text" name="name" placeholder="Name">
+        <span class="text">İçerik Adı :</span>
+        <input type="text" name="name">
     </label>
     <label class="content_value">
-        <span class="text">content value :</span>
+        <span class="text">İçerik Değeri :</span>
         <select name="content_value">
             <option value="" selected>Select content value</option>
             {% for content_value in content_values %}<option value="{{ content_value }}">{{ content_value }}</option>{% endfor %}
         </select>
     </label>
-    <button class="submit-button create" type="submit" id="submit-button">Create</button>
+    <button class="submit-button create" type="submit" id="submit-button">OLUŞTUR</button>
+
 </form>

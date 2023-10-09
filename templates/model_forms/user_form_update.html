@@ -4,153 +4,121 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="update">
     <input type="hidden" name="id" value="{{ model.id }}">
     <label class="name">
-        <span class="text">Name :</span>
+        <span class="text">Kullanıcı Adı :</span>
         <input type="text" name="name" placeholder="Name" value="{{ model.name }}">
     </label>
     <label class="password">
-        <span class="text">Password :</span>
-        <input type="password"
-            name="password"
-            placeholder="new password"
-            class="password"
-            onkeyup="checkPassword();"
-            id="password">
-        </label>
-        <label class="password_confirm">
-            <span class="text">Password Verify :</span>
-            <input type="password"
-                name="password"
-                placeholder="verify password"
-                class="password_confirm"
-                onkeyup="checkPassword();"
-                id="password_confirm">
-            </label>
-            <label class="base_package">
-                <span class="text">Base Package :</span>
-                {% if model.package %}
-                    {% set model_base_package = model.package.base_package %}
-                    {{ base_packages.remove(model_base_package) if None }}
-                {% endif %}
-                <select name="base_package">
-                    <option value="" selected>Select base package</option>
-                    {% if model_base_package %}
-                        <option value="{{ model_base_package.id }}">
-                            active base package - {{ model_base_package.id }} {{ model_base_package.name }}
-                        </option>
-                    {% endif %}
-                    {% for base_package in base_packages %}
-                        <option value="{{ base_package.id }}">{{ base_package.id }} {{ base_package.name }}</option>
-                    {% endfor %}
-                </select>
-                <p>
-                    <span class="text warn"> if you selected any base package new user package created and overwrite active one (if any active user package of user)</span>
-                </p>
-            </label>
-            {# currently discord_id is disabled ( not supported ) #}
-            {# <label class="discord_id" style="display: none;"> <span class="text">Discord ID</span>
-  <input type="text" name="discord_id" placeholder="Discord ID">
-</label>#}
-            <button class="submit-button update" type="submit" id="submit-button">Update</button>
-        </form>
-        <span class="text">User Package :</span>
-        <div class="user_package">
-            {% if model.package %}
-                {% set package_remaining_days = model.package.end_date - utc_now %}
-                <button class="users_package_info toggle_info"
-                    onclick="toggleDivDisplayById('user_package_info_{{ model.id }}');return false;">
-                    toggle user_package info
-                </button>
-                <p>package remaining time {{ package_remaining_days }}</p>
-                <div style="display:none"
-                    class="user_package_info user_package"
-                    id="user_package_info_{{ model.id }}">
-                    <form class="only_button"
-                        method="get"
-                        id="users_package_edit_{{ model.id }}"
-                        action=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_package,model_id=model.package.id) }}">
-                        <button class="users_package_info models_action" onclick="return false;">✎  edit</button>
-                    </form>
-                    <form class="delete_form only_button"
-                        method="post"
-                        id="users_package_delete_{{ model.id }}"
-                        action=" {{ endpoints.ADelete.format(model_type=mTypeStr.u_package,model_id=model.package.id) }}">
-                        <button class="users_package_info models_action delete_button"
-                            data-item-name="user's package"
-                            >❌ delete</button>
-                    </form>
-                    <p>
-                        <b>start_date:</b> {{ model.package.start_date
-                        }}
-                    </p>
-                    <p>
-                        <b>end_date:</b> {{ model.package.end_date }}
-                    </p>
-                    <p>
-                        <b>remaining_days:</b>{{ package_remaining_days }}
-                    </p>
-                    <p class="remaining_days_p">
-                        {{
-                        model.package.remaining_days }}
-                    </p>
-                    <div class="users_package_info base_package">
-                        <form class="only_button"
-                            method="get"
-                            id="base_package_edit_{{ model.package.base_package.id }}"
-                            action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package,model_id=model.package.base_package.id) }}">
-                            <button class="base_package models_action"  onclick="return false;">✎  edit</button>
-                        </form>
-                        <form class="delete_form only_button"
-                            method="post"
-                            id="base_package_delete_{{ model.package.base_package.id }}"
-                            action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package,model_id=model.package.base_package.id) }}">
-                            <button class="base_package models_action  delete_button"
-                                data-item-name="base package"
-                                >❌  delete</button>
-                        </form>
-                        <p>
-                            <b>base_package:</b>
-                            <br>
-                        </p>
-                        <p>
-                            <b>name:</b> {{ model.package.base_package.name
-                            }}
-                        </p>
-                        {% for index,package_content in enumerate(model.package.base_package.package_contents) %}
-                            <div class="user_package_info package_contents"
-                                id="package_contents_{{ index }}">
-                                <form class="only_button"
-                                    method="get"
-                                    id="package_contents_edit_{{ index }}"
-                                    action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
-                                    <button class="package_contents models_action" onclick="return false;">✎  edit</button>
-                                </form>
-                                <form class="delete_form only_button"
-                                    method="post"
-                                    id="package_contents_delete_{{ index }}"
-                                    action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
-                                    <button class="package_contents models_action  delete_button"
-                                        data-item-name="package content"
-                                        >❌  delete</button>
-                                </form>
-                                <p>
-                                    <b>package_content:</b>
-                                    <br>
-                                </p>
-                                <p>
-                                    <b>name:</b> {{ package_content.name }}
-                                </p>
-                                <p>
-                                    <b>value:</b> {{ package_content.content_value }}
-                                </p>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        {% else %}
-            <span class="text bold">user not have any package</span>
+        <span class="text">Şifre :</span>
+        <input type="password" name="password" class="password" onkeyup="checkPassword();" id="password">
+    </label>
+    <label class="password_confirm">
+        <span class="text">Şifre Doğrula :</span>
+        <input type="password" name="password" class="password_confirm" onkeyup="checkPassword();"
+            id="password_confirm">
+    </label>
+    <label class="base_package">
+        <span class="text">Sepet :</span>
+        {% if model.package %}
+        {% set model_base_package = model.package.base_package %}
+        {{ base_packages.remove(model_base_package) if None }}
         {% endif %}
+        <select name="base_package">
+            <option value="" selected>Sepeti Seçiniz</option>
+            {% if model_base_package %}
+            <option value="{{ model_base_package.id }}">
+                aktif Sepet - {{ model_base_package.id }} {{ model_base_package.name }}
+            </option>
+            {% endif %}
+            {% for base_package in base_packages %}
+            <option value="{{ base_package.id }}">{{ base_package.id }} {{ base_package.name }}</option>
+            {% endfor %}
+        </select>
+        <p>
+            <span class="text warn"> Mevcut Sepet dışında bir seçim yapılması halinde kullanıcı paket içeriği ve tarihi
+                sıfırlanarak yeniden başlayacaktır.</span>
+        </p>
+    </label>
+    {# currently discord_id is disabled ( not supported ) #}
+    {# <label class="discord_id" style="display: none;"> <span class="text">Discord ID</span>
+        <input type="text" name="discord_id" placeholder="Discord ID">
+    </label>#}
+    <button class="submit-button update" type="submit" id="submit-button"> GÜNCELLE </button>
+</form>
+<span class="text" style="font-size: 1.8em;">Mevcut Kullanıcı Paketi :</span>
+<div class="user_package">
+    {% if model.package %}
+    {% set package_remaining_days = model.package.end_date - utc_now %}
+    <button class="users_package_info toggle_info"
+        onclick="toggleDivDisplayById('user_package_info_{{ model.id }}');return false;">
+        Ayrıntı Göster
+    </button>
+    <p>Mevcut Paket Kalan Süresi {{ package_remaining_days }}</p>
+    <div style="display:none" class="user_package_info user_package" id="user_package_info_{{ model.id }}">
+        <a class="button-holder"
+            href="{{ endpoints.AInfo.format(model_type=mTypeStr.u_package,model_id=model.package.id) }}">
+            <button class="edit_button info_button">Düzenle</button> </a>
+        <a class="button-holder"
+            href="{{ endpoints.ADelete.format(model_type=mTypeStr.u_package,model_id=model.package.id) }}">
+            <button class="delete-button" data-item-name="Kullanıcı Paketini">SİL</button>
+        </a>
+        <p>
+            <b>Başlangıç Tarihi:</b> {{ model.package.start_date
+            }}
+        </p>
+        <p>
+            <b>Bitiş Tarihi:</b> {{ model.package.end_date }}
+        </p>
+        <p>
+            <b>Kalan Süre:</b>{{ package_remaining_days }}
+        </p>
+        <p class="remaining_days_p">
+            {{
+            model.package.remaining_days }}
+        </p>
+        <div class="users_package_info base_package">
+            <a class="button-holder"
+                href=" {{ endpoints.AInfo.format(model_type=mTypeStr.package,model_id=model.package.base_package.id) }}">
+                <button class="edit_button info_button">Düzenle</button> </a>
+            <a class="button-holder"
+                href="{{ endpoints.ADelete.format(model_type=mTypeStr.package, model_id=model.package.base_package.id) }}">
+                <button class="delete-button" data-item-name="Paketi">SİL</button>
+            </a>
+            <p>
+                <b>Sepet Bilgisi:</b>
+                <br>
+            </p>
+            <p>
+                <b>Sepet Adı:</b> {{ model.package.base_package.name
+                }}
+            </p>
+            {% for index,package_content in enumerate(model.package.base_package.package_contents) %}
+            <div class="user_package_info package_contents" id="package_contents_{{ index }}">
+                <a class="button-holder"
+                    href=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
+                    <button class="edit_button info_button">Düzenle</button> </a>
+                <a class="button-holder"
+                    href="{{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
+                    <button class="delete-button" data-item-name="Paket içeriğini">SİL</button>
+                </a>
+                <p>
+                    <b>Paket İçeriği Bilgisi:</b>
+                    <br>
+                </p>
+                <p>
+                    <b>Paket İçeriği Adı:</b> {{ package_content.name }}
+                </p>
+                <p>
+                    <b>Paket İçeriği:</b> {{ package_content.content_value }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
     </div>
-    <!--
+</div>
+{% else %}
+<span class="text bold warn" style="font-size: 1.6em;">Kullanıcıya ait aktif paket BULUNMAMAKTADIR !!!</span>
+{% endif %}
+</div>
+<!--
   </form>
   ---->

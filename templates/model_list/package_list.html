@@ -1,30 +1,72 @@
 <table id="packages_table">
     <tr>
         <th id="packages_id">ID</th>
-        <th id="packages_name">Name</th>
-        <th id="packages_details">Detail</th>
-        <th id="packages_days">Days</th>
-        <th id="packages_contents">Contents</th>
-        <th id="packages_u_packages">U_Packages</th>
-        <th id="packages_actions">Actions</th>
+        <th id="packages_name">Paket Adı</th>
+        <th id="packages_details">Paket Detayı</th>
+        <th id="packages_days">Süre</th>
+        <th id="packages_contents">Sepet İçeriği</th>
+        <th id="packages_u_packages">Sepete Bağlı Kullanıcı Paketleri</th>
+        <th id="packages_actions">Aksiyonlar</th>
     </tr>
     {% for package in models %}
         <tr>
             {# TODO: add loop for u packages and contents like in users list #}
-            <td>{{ package.id }}</td>
-            <td>{{ package.name }}</td>
-            <td>{{ package.detail }}</td>
-            <td>{{ package.days }}</td>
-            <td>{{ package.package_contents }}</td>
-            <td>{{ package.u_packages }}</td>
+            <td class="packages_id">{{ package.id }}</td>
+            <td class="packages_name">{{ package.name }}</td>
+            <td class="packages_detail">{{ package.detail }}</td>
+            <td class="packages_days">{{ package.days }}</td>
+            <td class="packages_package_contents">
+                <ul>
+                    <hr class="table_row_inline_sep">
+
+                    {% for index,p_content in enumerate(package.package_contents) %}
+                    <li class="packages_info package_contents" id="package_contents_{{ p_content.id }}_{{ index }}">
+                        <p>
+                            {{ p_content.name }}
+                        </p>
+                        <a class="button-holder"
+                        href=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=p_content.id) }}">
+                        <button class="edit_button info_button">Düzenle</button> </a>
+                    <a class="button-holder"
+                        href="{{ endpoints.ADelete.format(model_type=mTypeStr.package_content, model_id=p_content.id) }}">
+                        <button class="delete-button" data-item-name="Paketi">SİL</button>
+                    </a>
+                    </li>
+                    <hr class="table_row_inline_sep">
+
+                    {%endfor%}
+
+                </ul>
+            </td>
+            <td class="packages_u_packages">    <ul>
+                <hr class="table_row_inline_sep">
+
+                {% for index,u_package in enumerate(package.u_packages) %}
+                <li class="packages_info u_packages" id="u_packages{{ u_package.id }}_{{ index }}">
+                    <p>
+                        {{ u_package.user.id }} - {{ u_package.user.name }}
+                    </p>
+                    <a class="button-holder"
+                    href=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_package,model_id=u_package.id) }}">
+                    <button class="edit_button info_button">Düzenle</button> </a>
+                <a class="button-holder"
+                    href="{{ endpoints.ADelete.format(model_type=mTypeStr.u_package, model_id=u_package.id) }}">
+                    <button class="delete-button" data-item-name="Paketi">SİL</button>
+                </a>
+                </li>
+                <hr class="table_row_inline_sep">
+
+                {%endfor%}
+
+            </ul></td>
             <td>
                 <a class="button-holder"
                    href="{{ endpoints.AInfo.format(model_type=model_type,model_id=package.id) }}">
-                    <button>edit</button>
+                    <button>Düzenle</button>
                 </a>
-                <a class="button-holder delete_anchor"
+                <a class="button-holder delete-anchor"
                    href="{{ endpoints.ADelete.format(model_type=model_type,model_id=package.id) }}">
-                    <button class="delete_button" data-item-name="package/base_package">delete</button>
+                    <button class="delete-button" data-item-name="package/base_package">SİL</button>
                 </a>
             </tr>
         {% endfor %}

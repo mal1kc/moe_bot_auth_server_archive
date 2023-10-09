@@ -1,9 +1,9 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="create">
-    <label class="start_date">start date :</label>
+    <label class="start_date">Başlangıç Tarihi :</label>
     <input type="datetime-local" name="start_date" required/>
-    <label class="base_package_id">base package :</label>
+    <label class="base_package_id">Sepet :</label>
     <select name="base_package_id" required>
-        <option value="">Select a base package</option>
+        <option value="">Sepet Seçiniz</option>
         {% for base_package in base_packages %}
             <option value="{{ base_package.id }}">
                 {{ base_package.id }} {{ base_package.name }} ( {{ base_package.days }} )
@@ -11,8 +11,8 @@
         {% endfor %}
     </select>
     <select name="user_id" required>
-        <option value="">Select a user</option>
+        <option value="">Kullanıcı Seçiniz</option>
         {% for user in users %}<option value="{{ user.id }}">{{ user.id }}  {{ user.name }}</option>{% endfor %}
     </select>
-    <button class="submit-button create" type="submit" id="submit-button">Create</button>
+    <button class="submit-button create" type="submit" id="submit-button">OLUŞTUR</button>
 </form>

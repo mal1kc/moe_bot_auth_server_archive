@@ -1,18 +1,16 @@
-
 body {
-  // background-color: rgba(119, 171, 68, 0.79);
-background: rgb(5,155,156);
-background: linear-gradient(90deg, rgba(5,155,156) 0%, rgba(3,206,113,0.8) 57%, rgba(119,221,68,0.79) 100%);
+  background: rgb(55, 79, 79);
+  background: linear-gradient(90deg, rgb(55, 79, 79) 0%, rgba(92, 145, 121, 0.8) 57%, rgba(91, 121, 76, 0.79) 100%);
   font-family: Consolas, monaco, monospace;
 }
 
 .main-container {
-    width: 70%;
+  width: 70%;
   margin: 0 auto;
   min-width: 300px;
 }
 
-button{
+button {
   font-size: 1.2em;
 }
 
@@ -35,7 +33,7 @@ h2 {
 
 h2:hover {
   cursor: default;
-  color: rebeccapurple;
+  color: rgb(37, 30, 45);
 }
 
 tr.td {
@@ -44,9 +42,11 @@ tr.td {
   padding: 6%;
 }
 
-tr:hover,td:hover {
+tr:hover,
+td:hover {
   opacity: 1;
 }
+
 th:first-child {
   width: 3%;
   margin: 0 auto;
@@ -57,7 +57,8 @@ th:last-child {
   margin: 0 auto;
 }
 
-td,th {
+td,
+th {
   border: 1px dotted #dddddd;
   border-radius: 2px;
   text-align: center;
@@ -82,9 +83,11 @@ div.package_contents {
   border: 1px dotted rgba(0, 0, 0, 0.7);
   border-collapse: separate;
 }
+
 div.package_contents b {
   padding: 1% 1%;
 }
+
 div.package_contents,
 div.user_session {
   border: 1px dotted rgba(0, 0, 0, 0.6);
@@ -93,12 +96,13 @@ div.user_session {
   border-left: 2%;
   border-color: rgba(24, 124, 235, 0.3);
 }
+
 .user_sessions {
   padding: 1%;
 }
 
 .remaining_days_p {
-  color: red;
+  color: rgb(99, 57, 57);
 }
 
 .user_sessions_info {
@@ -115,7 +119,7 @@ button.models_action {
   text-align: center;
 }
 
-.user_package_detail > p {
+.user_package_detail>p {
   padding: 1%;
   font-style: bold;
   float: right;
@@ -125,7 +129,7 @@ button.models_action {
   margin: 1%;
 }
 
-div.add_model{
+div.add_model {
   padding: 1%;
   margin: 1%;
   border: 1px dotted rgba(0, 0, 0, 0.7);
@@ -142,7 +146,7 @@ div.add_model:hover {
 }
 
 div.add_model p {
-  color: #7621b2;
+  color: #430a69;
   width: 70%;
   margin: 0 auto;
   grid-row: 1;
@@ -161,6 +165,7 @@ select.models_action {
   text-align: center;
   transition: background-color 0.5s ease-in;
   font-size: 1.2em;
+
   option {
     font-size: 1em;
     text-align: center;
@@ -198,21 +203,21 @@ button {
 
 .nav-link {
   color: #00bfff;
-  font-size: 2em;
+  font-size: 1.7em;
   text-decoration: none;
   transition: background-color 0.5s ease-in;
   transition: font-size 0.8s ease-in;
   border-spacing: 1px;
   border-width: 2px;
   border-style: dotted;
-  border-color: rgba(69,68,68,0.5);
+  border-color: rgba(69, 68, 68, 0.5);
   border-radius: 10px;
 }
 
 .nav-link:hover {
-  parent::background-color: rgba(0, 0, 0, 0.2);
+  parent: :background-color: rgba(0, 0, 0, 0.2);
   transition: font-size .7s ease-out;
-  font-size: 2.5em;
+  font-size: 1.8em;
 }
 
 .navbar {
@@ -275,7 +280,8 @@ form label {
   min-width: 150px;
 }
 
-form button,a button {
+form button,
+a button {
   width: 10%;
   height: 5%;
   padding: 1%;
@@ -284,7 +290,8 @@ form button,a button {
   min-width: 100px;
 }
 
-form button:hover,a button:hover  {
+form button:hover,
+a button:hover {
   background-color: rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
@@ -311,6 +318,7 @@ form input {
   border: 1px solid silver;
   transition: background-color 0.5s ease-in;
 }
+
 input:hover {
   background-color: rgba(0, 0, 0, 0.2);
   cursor: text;
@@ -323,35 +331,35 @@ input:hover {
 }
 
 
-input[type="text"] , input[type="password"] {
+input[type="text"],
+input[type="password"] {
   width: 33%;
   padding: 1%;
   margin: 1%;
   font-family: Consolas, monaco, monospace;
   font-size: 1.5em;
   letter-spacing: 0.07em;
-   border: 10% solid silver;
-   min-width: 190px;
-   min-height: 30px
-
+  border: 10% solid silver;
+  min-width: 190px;
+  min-height: 30px
 }
 
 button.btn-close {
   font-style: thin;
-  color:red;
+  color: red;
   background: none;
-  border:none;
+  border: none;
   top right: 1;
 }
 
 div.message {
-  background-color: rgba(12,123,123,.4);
+  background-color: rgba(12, 123, 123, .4);
   width: 70%;
   margin: auto;
   text-align: center;
-  font-size: 1em;
-   padding: 0.6% 0.2%;
-  border: 10% solid rgba(0,0,0,0.1);
+  font-size: 1.6em;
+  padding: 0.6% 0.2%;
+  border: 10% solid rgba(0, 0, 0, 0.1);
   margin-top: 1%;
   margin-bottom: 1%;
   position: sticky;
@@ -362,9 +370,9 @@ div.message {
 
 div.message:hover {
   cursor: default;
-  background-color: rgba(12,123,123,.6);
-  border: 10% solid rgba(0,0,0,0.2);
-  font-size: 2em;
+  background-color: rgba(12, 123, 123, .6);
+  border: 10% solid rgba(0, 0, 0, 0.2);
+  font-size: 1.6em;
   transition: background-color 0.5s ease-out;
   transition: font-size .7s ease-out;
 }
@@ -378,14 +386,15 @@ p.admin_name {
   width: 70%;
   border-width: 2px;
   border-style: solid;
-  border-color: rgba(69,140,138,1);
+  border-color: rgba(69, 140, 138, 1);
   border-radius: 10px;
   text-decoration: none;
 }
 
 span.warn {
-  color: red;
+  color: rgb(0, 0, 0);
   font-size: 0.8em;
+  font-style: oblique;
 }
 
 span.success {

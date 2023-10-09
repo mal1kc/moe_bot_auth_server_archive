@@ -1,5 +1,4 @@
-
-.form_container form{
+.form_container form {
   text-align: center;
   padding: 1% 1%;
   margin: 1% auto;
@@ -13,7 +12,7 @@
 }
 
 .form_container form input {
-  margin: 0 1%
+  margin: 0 1%;
   padding: 1% 1%;
   width: 30%;
   min-width: 150px;
@@ -31,6 +30,7 @@
   margin: 0 auto;
   display: grid;
 }
+
 .form_container form div.user_package span.text {
   width: 50%;
   margin: 0 auto;
@@ -72,16 +72,20 @@
 }
 
 form.only_button {
-    border: none;
-    background: none;
-    padding: 0;
-    margin: 0 auto;
-    width: 100%;
-    letter-spacing: 0.1em;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0 auto;
+  width: 100%;
+  letter-spacing: 0.1em;
 }
 
 form.only_button button {
   margin: 0 auto;
   min-width: 50px;
   min-height: 50px;
+}
+
+.table_row_inline_sep {
+  color: black;
 }

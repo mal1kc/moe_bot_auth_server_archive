@@ -1,195 +1,36 @@
 {% extends 'admin_layout.html' %}
 {% block title %}
-    admin control panel
+admin control panel
 {% endblock title %}
 {% block body %}
-    <script type="text/javascript" src="/static/warn.js"></script>
-    <h2>Users</h2>
-    <div class="add_model">
-        <p>
-            <span class="text"> < add > </span>
-        </p>
-        <select class="models_action"
-                onchange="window.location=this.options[this.selectedIndex].value">
-            <option value="_" selected>add model</option>
-            {% for model_type in mTypeStr %}
-                <option value="{{ endpoints.ACreate.format(model_type=model_type) }}">add {{ model_type }}</option>
-            {% endfor %}
-        </select>
-        <p>
-            <span class="text"> < list > </span>
-        </p>
-        <select class="models_action"
-                onchange="window.location=this.options[this.selectedIndex].value">
-            <option value="_" selected>list models</option>
-            {% for model_type in mTypeStr %}
-                <option value="{{ endpoints.AList.format(model_type=model_type) }}">list {{ model_type }}s</option>
-            {% endfor %}
-        </select>
-    </div>
-    {# TODO delete this table use user_list instead#}
-    <table id="users_table">
-        <tr>
-            <th id="users_id">id</th>
-            <th id="users_name">name</th>
-            <th id="users_package">user package</th>
-            <th id="users_sessions">user sessions</th>
-            <th id="users_discord_id">discord id</th>
-            <th id="models_actions">actions</th>
-        </tr>
-        {% for user in users %}
-            <tr>
-                <td class="users_id">{{ user.id }}</td>
-                <td class="users_name">{{ user.name }}</td>
-                <td class="users_package">
-                    <div class="user_package_detail">
-                        {# try this later https://jsfiddle.net/amfphrqo/6/ #}
-                        {% if user.package %}
-                            {% set package_remaining_days = user.package.end_date - utc_now %}
-                            <button class="users_package_info toggle_info"
-                                    onclick="toggleDivDisplayById('user_package_info_{{ user.id }}')">
-                                toggle user_package info
-                            </button>
-                            <p>
-                                <span class"text">package remaining time {{ package_remaining_days }}</span>
-                            </p>
-                            <div style="display:none"
-                                 class="user_package_info user_package"
-                                 id="user_package_info_{{ user.id }}">
-                                <form class="only_button"
-                                      method="get"
-                                      id="users_package_edit_{{ user.id }}"
-                                      action=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_package,model_id=user.package.id) }}">
-                                    <button class="users_package_info models_action">✎  edit</button>
-                                </form>
-                                <form class="delete_form only_button"
-                                      method="post"
-                                      id="users_package_delete_{{ user.id }}"
-                                      action="{{ endpoints.ADelete.format(model_type=mTypeStr.u_package,model_id=user.package.id) }}">
-                                    <button class="users_package_info models_action delete_button">❌ delete</button>
-                                </form>
-                                <p>
-                                    <b>start_date:</b>{{ user.package.start_date }}
-                                </p>
-                                <p>
-                                    <b>end_date:</b> {{ user.package.end_date }}
-                                </p>
-                                <p>
-                                    <b>remaining_days:</b>{{ package_remaining_days }}
-                                </p>
-                                <p class="remaining_days_p">{{ user.package.remaining_days }}</p>
-                                <div class="users_package_info base_package">
-                                    <form class="only_button"
-                                          method="get"
-                                          id="base_package_edit_{{ user.package.base_package.id }}"
-                                          action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package,model_id=user.package.base_package.id) }}">
-                                        <button class="base_package models_action">✎  edit</button>
-                                    </form>
-                                    <form class="delete_form only_button"
-                                          method="post"
-                                          id="base_package_delete_{{ user.package.base_package.id }}"
-                                          action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package,model_id=user.package.base_package.id) }}">
-                                        <button class="base_package models_action  delete_button">❌  delete</button>
-                                    </form>
-                                    <p>
-                                        <b>base_package:</b>
-                                        <br>
-                                    </p>
-                                    <p>
-                                        <b>name:</b> {{ user.package.base_package.name }}
-                                    </p>
-                                    {% for index,package_content in enumerate(user.package.base_package.package_contents) %}
-                                        <div class="user_package_info package_contents"
-                                             id="package_contents_{{ index }}">
-                                            <form class="only_button"
-                                                  method="get"
-                                                  id="package_contents_edit_{{ index }}"
-                                                  action=" {{ endpoints.AInfo.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
-                                                <button class="package_contents models_action">✎  edit</button>
-                                            </form>
-                                            <form class="delete_form only_button"
-                                                  method="post"
-                                                  id="package_contents_delete_{{ index }}"
-                                                  action=" {{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
-                                                <button class="package_contents models_action  delete_button">❌  delete</button>
-                                            </form>
-                                            <p>
-                                                <b>package_content:</b>
-                                                <br>
-                                            </p>
-                                            <p>
-                                                <b>name:</b> {{ package_content.name }}
-                                            </p>
-                                            <p>
-                                                <b>value:</b> {{ package_content.content_value }}
-                                            </p>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                    {% else %}
-                        <span class="text bold">user not have any package</span>
-                    {% endif %}
-                </td>
-                <td class="users_sessions_detail">
-                    {% for index,session in enumerate(user.sessions) %}
-                        <button class="users_sessions_info toggle_info"
-                                onclick="toggleDivDisplayById('user_sessions_info_{{ user.id }}_{{ session.id }}')">
-                            {#
-                  onmouseover="toggleDivDisplayById('user_sessions_info_{{ user.id }}_{{ session.id }}')">
-          #}
-                            s -> {{ session.id }} , {{ session.ip }}
-                        </button>
-                        <div style="display:none"
-                             class="user_sessions_info user_session"
-                             id="user_sessions_info_{{ user.id }}_{{ session.id }}">
-                            <form class="only_button"
-                                  method="get"
-                                  id="users_sessions_edit_{{ user.id }}_{{ session.id }}"
-                                  action=" {{ endpoints.AInfo.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
-                                <button class="users_sessions_info models_action">✎  edit</button>
-                            </form>
-                            <form class="delete_form only_button"
-                                  method="post"
-                                  id="users_sessions_delete_{{ user.id }}_{{ session.id }}"
-                                  action=" {{ endpoints.ADelete.format(model_type=mTypeStr.u_session,model_id=session.id) }}">
-                                <button class="users_sessions_info models_action  delete_button">❌  delete</button>
-                            </form>
-                            <p>
-                                <b>id:</b> {{ session.id }}
-                            </p>
-                            <p>
-                                <b>start_date:</b> {{ session.start_date }}
-                            </p>
-                            <p>
-                                <b>end_date:</b> {{ session.end_date }}
-                            </p>
-                            <p>
-                                <b>ip_adress:</b> {{ session.ip }}
-                            </p>
-                            <p>
-                                <b>accessible:</b> {{ session.access }}
-                            </p>
-                        </div>
-                    {% endfor %}
-                </td>
-                <td class="users_discord_id">{{ user.discord_id }}</td>
-                <td class="models_actions">
-                    <form class="only_button"
-                          method="get"
-                          id="users_info_{{ user.id }}"
-                          action=" {{ endpoints.AInfo.format(model_type=mTypeStr.user,model_id=user.id) }}">
-                        <button class="models_actions_edit users_action">✎  edit</button>
-                    </form>
-                    <form class="delete_form only_button"
-                          method="post"
-                          id="users_delete_{{ user.id }}"
-                          action=" {{ endpoints.ADelete.format(model_type=mTypeStr.user,model_id=user.id) }}">
-                        <button class="models_actions_delete users_action  delete_button">❌  delete</button>
-                    </form>
-                </td>
-            </tr>
+<script type="text/javascript" src="/static/warn.js"></script>
+<h2>Kullanıcılar</h2>
+<div class="add_model">
+    <p>
+        <span class="text">
+            < EKLEME>
+        </span>
+    </p>
+    <select class="models_action" onchange="window.location=this.options[this.selectedIndex].value">
+        <option value="_" selected>İçerik Seçiniz</option>
+        {% for model_type in mTypeStr %}
+        <option value="{{ endpoints.ACreate.format(model_type=model_type) }}">{{ mTypeCnt[model_type] }} Ekle</option>
         {% endfor %}
-    </table>
+    </select>
+    <p>
+        <span class="text">
+            < LİSTELEME>
+        </span>
+    </p>
+    <select class="models_action" onchange="window.location=this.options[this.selectedIndex].value">
+        <option value="_" selected>İçerik Listele</option>
+        {% for model_type in mTypeStr %}
+        <option value="{{ endpoints.AList.format(model_type=model_type) }}">{{ mTypeCnt[model_type] }} Listele</option>
+        {% endfor %}
+    </select>
+</div>
+{# TODO delete this table use user_list instead#}
+{%set models = users%}
+{% include 'model_list/{model_type}_list.html'.format(model_type="user") %}
+
 {% endblock body %}

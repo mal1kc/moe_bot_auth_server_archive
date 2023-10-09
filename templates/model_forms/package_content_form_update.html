@@ -1,16 +1,18 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="create">
     <input type="hidden" name="id" value="{{ model.id }}">
     <label class="name">
-        <span class="text">name :</span>
+        <span class="text">İçerik Adı :</span>
         <input type="text" name="name" placeholder="{{ model.name }}">
     </label>
+
     <label class="content_value">
-        <span class="text">content value :</span>
+        <span class="text">İçerik Değeri :</span>
         <select name="content_value">
-            <option value="" selected>Select content value</option>
+            <option value="" selected>İçerik Değerini Seçiniz</option>
             {% for content_value in content_values %}<option value="{{ content_value }}">{{ content_value }}</option>{% endfor %}
         </select>
-        <span class="boldtext">currently {{ model.content_value }}</span>
+
     </label>
-    <button class="submit-button update" type="submit" id="submit-button">Update</button>
+    <span class="boldtext">Aktif İçerik {{ model.content_value }}</span>
+    <button class="submit-button update" type="submit"  id="submit-button"> GÜNCELLE </button>
 </form>

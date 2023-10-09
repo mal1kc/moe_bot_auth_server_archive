@@ -1,30 +1,28 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="create">
     <label class="name">
-        <span class="text">Name :</span>
-        <input type="text" name="name" placeholder="Name">
+        <span class="text">Kullanıcı Adı :</span>
+        <input type="text" name="name" >
     </label>
     <label class="password">
-        <span class="text">Password :</span>
+        <span class="text">Şifre :</span>
         <input type="password"
                name="password"
-               placeholder="new password"
                class="password"
                onkeyup="checkPassword();"
                id="password">
     </label>
     <label class="password_confirm">
-        <span class="text">Password Verify :</span>
+        <span class="text">Şifre Doğrula :</span>
         <input type="password"
                name="password"
-               placeholder="verify password"
                class="password_confirm"
                onkeyup="checkPassword();"
                id="password_confirm">
     </label>
     <label class="base_package">
-        <span class="text">Base Package :</span>
+        <span class="text">Sepet :</span>
         <select name="base_package">
-            <option value="" selected>Select base package</option>
+            <option value="" selected>Sepeti Seçiniz</option>
             {% for base_package in base_packages %}
                 <option value="{{ base_package.id }}">{{ base_package.id }} {{ base_package.name }}</option>
             {% endfor %}
@@ -34,5 +32,5 @@
     {# <label class="discord_id" style="display: none;"> <span class="text">Discord ID</span>
   <input type="text" name="discord_id" placeholder="Discord ID">
 </label> #}
-    <button class="submit-button create" type="submit" id="submit-button">Create</button>
+    <button class="submit-button create" type="submit" id="submit-button">OLUŞTUR</button>
 </form>

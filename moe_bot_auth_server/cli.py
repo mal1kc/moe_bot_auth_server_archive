@@ -10,10 +10,10 @@ from moe_bot_auth_server.database_ops import (
     PackageContent,
     User,
     add_admin,
-    add_package,
-    add_package_content,
+    add_package,  # noqa
+    add_package_content,  # noqa
     db,
-    pContentEnum,
+    pContentEnum,  # noqa
 )
 
 cli_blueprint = Blueprint("cli", __name__)
@@ -40,14 +40,14 @@ def initdb_command(recreate: bool = False, init: bool = True):
             "‼ eski veritabani tablolari bulundu‼ \neski veritabanı silinsin mi? (y/n) : "
         )
         if ask_for_confirmation == "y":
-            LOGGER.info(" ✅ eski veritabanı silindi ✅ ")
+            LOGGER.info(" ✅ eski veritabani silindi ✅ ")
             recreate = True
         else:
-            LOGGER.info(" ❌ eski veritabanı silinmedi ❌ ")
+            LOGGER.info(" ❌ eski veritabani silinmedi ❌ ")
             return
 
     if recreate:
-        LOGGER.info("eski veritabani droplanıyor")
+        LOGGER.info("eski veritabani droplaniyor")
         db.drop_all()
 
     if init:
@@ -74,18 +74,18 @@ def initdb_command(recreate: bool = False, init: bool = True):
                 ]
                 db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
                 db_adminler = [admin.__json__() for admin in Admin.query.all()]
-                LOGGER.info("veritabanı içeriği : ")
+                LOGGER.info("veritabani içeriği : ")
                 LOGGER.info("packageler -> {}".format(db_packageler))
                 LOGGER.info("package İçerikleri -> {}".format(db_package_contentleri))
-                LOGGER.info("kullanıcılar -> {}".format(db_kullanicilar))
+                LOGGER.info("kullanicilar -> {}".format(db_kullanicilar))
                 LOGGER.info("adminler -> {}".format(db_adminler))
                 return
 
-        LOGGER.info("veritabanı tabloları oluşturuluyor")
+        LOGGER.info("veritabani tablolari oluşturuluyor")
 
     db.create_all()
-    LOGGER.info(" ✅ veritabanı tablolari oluşturuldu ✅ ")
-    LOGGER.info("veritabanı içeriği oluşturuluyor")
+    LOGGER.info(" ✅ veritabani tablolari oluşturuldu ✅ ")
+    LOGGER.info("veritabani içeriği oluşturuluyor")
     LOGGER.info("configden admin ekleniyor")
     # in config
     # ADMIN_USERNAME_1 = "mustafa"
@@ -100,55 +100,55 @@ def initdb_command(recreate: bool = False, init: bool = True):
             db_op_result = add_admin(admin_)
         if db_op_result != DBOperationResult.success:
             LOGGER.info(" ❌ admin eklenemedi ❌ ")
-            LOGGER.info(" ❌ veritabanı oluşturulamadı ❌ ")
+            LOGGER.info(" ❌ veritabani oluşturulamadi ❌ ")
             LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
             return
     LOGGER.info(" ☑ admin eklendi")
     db.session.commit()
 
-    LOGGER.info("temel package icerikler ekleniyor")
-    for package_content_deger in pContentEnum:
-        p_icerik = PackageContent(
-            name=package_content_deger.name,
-            content_value=package_content_deger,
-        )
-        add_package_content(p_icerik)
-    LOGGER.info(" ☑ temel package icerikler eklendi")
-    LOGGER.info("temel packageler ekleniyor")
-    db_op_result = add_package(
-        Package(
-            name="moe_gatherer",
-            package_contents=[
-                PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-            ],
-            days=60,
-        )
-    )
-    if db_op_result != DBOperationResult.success:
-        LOGGER.info(" ❌ package eklenemedi ❌ ")
-        LOGGER.info(" ❌ veritabanı oluşturulamadı ❌ ")
-        LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
-        return
+    # LOGGER.info("temel package icerikler ekleniyor")
+    # for package_content_deger in pContentEnum:
+    #     p_icerik = PackageContent(
+    #         name=package_content_deger.name,
+    #         content_value=package_content_deger,
+    #     )
+    #     add_package_content(p_icerik)
+    # LOGGER.info(" ☑ temel package icerikler eklendi")
+    # LOGGER.info("temel packageler ekleniyor")
+    # db_op_result = add_package(
+    #     Package(
+    #         name="moe_gatherer",
+    #         package_contents=[
+    #             PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
+    #         ],
+    #         days=60,
+    #     )
+    # )
+    # if db_op_result != DBOperationResult.success:
+    #     LOGGER.info(" ❌ package eklenemedi ❌ ")
+    #     LOGGER.info(" ❌ veritabanı oluşturulamadı ❌ ")
+    #     LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
+    #     return
 
-    if (
-        db_op_result := add_package(
-            Package(
-                name="moe_gatherer+eksra_user",
-                package_contents=[
-                    PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-                    PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
-                ],
-                days=60,
-            ),
-        )
-        != DBOperationResult.success
-    ):
-        LOGGER.info(" ❌ package eklenemedi ❌ ")
-        LOGGER.info(" ❌ veritabanı oluşturulamadı ❌ ")
-        LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
-        return
+    # if (
+    #     db_op_result := add_package(
+    #         Package(
+    #             name="moe_gatherer+eksra_user",
+    #             package_contents=[
+#                 PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
+#                 PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
+    #             ],
+    #             days=60,
+    #         ),
+    #     )
+    #     != DBOperationResult.success
+    # ):
+    #     LOGGER.info(" ❌ package eklenemedi ❌ ")
+    #     LOGGER.info(" ❌ veritabanı oluşturulamadı ❌ ")
+    #     LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
+    #     return
 
-    LOGGER.info(" ☑ temel package eklendi")
+    # LOGGER.info(" ☑ temel package eklendi")
     db.session.commit()
     db_packageler = [package.__json__() for package in Package.query.all()]
     db_package_contentleri = [

@@ -499,7 +499,7 @@ class U_Session(Base):
         if "end_date" not in mutable_data.keys():
             mutable_data["end_date"] = utc_timestamp(
                 mutable_data["start_date"], return_type=datetime
-            ) + timedelta(minutes=current_app.config["USER_SESSION_TIMEOUT"])
+            ) + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
         return U_Session(**mutable_data)
 
     @staticmethod
@@ -531,7 +531,7 @@ class U_Session(Base):
 
     def extend_session(self) -> None:
         self.end_date = datetime.utcnow() + timedelta(
-            minutes=current_app.config["USER_SESSION_TIMEOUT"]
+            seconds=current_app.config["USER_SESSION_TIMEOUT"]
         )
         self.access = True
         db.session.commit()
@@ -738,7 +738,7 @@ class User(Base):
             user_id=self.id,
             start_date=datetime.utcnow(),
             end_date=datetime.utcnow()
-            + timedelta(minutes=current_app.config["USER_SESSION_TIMEOUT"]),
+            + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"]),
             ip=inamedr,
         )
         self.sessions.append(new_session)
@@ -769,7 +769,7 @@ class User(Base):
             self._disable_multiple_sessions_acess(same_ip_expired_sessions)
             if not (
                 newest_same_ip_session.end_date
-                + timedelta(minutes=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
+                + timedelta(hours=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
                 < datetime.utcnow()
             ):
                 self._disable_session_access(newest_same_ip_session)

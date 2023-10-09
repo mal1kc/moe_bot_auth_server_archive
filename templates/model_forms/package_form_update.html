@@ -1,15 +1,15 @@
 <form method="{{ form_method }}" action="{{ form_action }}" class="update">
     <input type="hidden" name="id" value="{{ model.id }}">
     <label class="name">
-        <span class="text">name :</span>
+        <span class="text">Paket Adı :</span>
         <input type="text" name="name" placeholder="{{ model.name }}">
     </label>
     <label class="days">
-        <span class="text">days :</span>
+        <span class="text">Gün :</span>
         <input type="number" name="days" placeholder="{{ model.days }}" />
     </label>
     <label class="detail">
-        <span class="text">detail :</span>
+        <span class="text">Detay :</span>
         <input type="text" name="detail" placeholder=" {{ model.detail }}">
     </label>
     {% for package_content in package_contents %}
@@ -25,5 +25,5 @@
         <label class="package_contents"
                for="package_content_{{ package_content.id }}">{{ package_content.name }}</label>
     {% endfor %}
-    <button class="submit-button update" type="submit" id="submit-button">Update</button>
+    <button class="submit-button update" type="submit"  id="submit-button"> GÜNCELLE </button>
 </form>

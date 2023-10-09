@@ -50,7 +50,7 @@ from moe_bot_auth_server.database_ops import (
     update_u_session_from_req_form,
     update_user_from_req_form,
 )
-from moe_bot_auth_server.enums import DBOperationResult, mTypeStr
+from moe_bot_auth_server.enums import DBOperationResult, mTypeCnt, mTypeStr
 from moe_bot_auth_server.err_handlrs import method_not_allowed
 from moe_bot_auth_server.main_app import generate_req_id
 
@@ -84,9 +84,9 @@ def favicon():
     return current_app.send_static_file("favicon.ico")
 
 
-@admin_control_blueprint.route(ADMIN_CONTROL_URLS.AAbout, methods=["GET"])
-def admin_control_about() -> Response | str | tuple[Response, int]:
-    return render_template("about.html")
+# @admin_control_blueprint.route(ADMIN_CONTROL_URLS.AAbout, methods=["GET"])
+# def admin_control_about() -> Response | str | tuple[Response, int]:
+#     return render_template("about.html")
 
 
 def parse_char_list_to_str_list(char_list: list[str] | str) -> list[str]:
@@ -127,6 +127,7 @@ def admin_control_main(
         template_vars = {
             "enumerate": enumerate,
             "mTypeStr": mTypeStr,
+            "mTypeCnt": mTypeCnt,
             "endpoints": _create_formatible_admin_control_urls(),
             "utc_now": datetime.datetime.utcnow(),
             "users": users,
@@ -185,6 +186,7 @@ def admin_control_list(
             enumerate=enumerate,
             endpoints=_create_formatible_admin_control_urls(),
             mTypeStr=mTypeStr,
+            mTypeCnt=mTypeCnt,
             model_type=model_type,
             utc_now=datetime.datetime.utcnow(),
         )
@@ -236,6 +238,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
             enumerate=enumerate,
             endpoints=_create_formatible_admin_control_urls(),
             mTypeStr=mTypeStr,
+            mTypeCnt=mTypeCnt,
             model_type=model_type,
             form_method=form_method,
             form_action=form_action,
@@ -319,6 +322,7 @@ def admin_control_create(model_type: str) -> Any:
             "endpoints": formattible_endpoints,
             "model_type": model_type,
             "mTypeStr": mTypeStr,
+            "mTypeCnt": mTypeCnt,
         }
 
         if model_type == mTypeStr.user:
@@ -502,11 +506,11 @@ def admin_control_update(model_type: str, model_id: int) -> Any:
             return redirect(url_for_main(messages=["u_session updated"]))
 
 
-@admin_control_blueprint.route(ADMIN_CONTROL_URLS.ADelete, methods=["POST"])
+@admin_control_blueprint.route(ADMIN_CONTROL_URLS.ADelete, methods=["GET"])
 def admin_control_delete(model_type: str, model_id: int) -> Any:
     req_id = generate_req_id(request.remote_addr)
     LOGGER.info(f"Request ID: {req_id} - url: {request.url}")
-    if request.method == "POST":
+    if request.method == "GET":
         admin = login_check_session(session)
         if admin is False:
             return render_template("login.html")

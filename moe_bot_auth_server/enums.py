@@ -23,6 +23,15 @@ class mTypeStr(enum.StrEnum):
     u_session = "u_session"
 
 
+class mTypeCnt(enum.StrEnum):
+    "model type StrEnum"
+    user = "Kullanıcılar"
+    package_content = "Paket İçeriği"
+    package = "Paket"
+    u_package = "Kullanıcı Paketi"
+    u_session = "Kullanıcı Oturumu"
+
+
 class pContentEnum(enum.StrEnum):
     "package content StrEnum for package_content model"
     # TODO : maybe change in future for more flexibility

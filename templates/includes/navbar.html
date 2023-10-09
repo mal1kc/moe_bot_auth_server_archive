@@ -4,22 +4,22 @@
         <!-- Left links -->
         <ul class="navbar-nav0">
             <li class="nav-item">
-                <a class="nav-link" href="/admin_control/about">about</a>
+                <a class="nav-link" href="#" >MOE AUTO-BOT</a>
             </li>
             {#  TODO : make dynamic endpoints #}
             {% if session["logged_in"] %}
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin_control">main page - users table</a>
+                    <a class="nav-link" href="/admin_control">Anasayfa - Kullanıcı Listesi</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin_control/logout">logout</a>
+                    <a class="nav-link" href="/admin_control/logout">Çıkış</a>
                 </li>
                 <li class="nav-item">
                     <p class="admin_name">{{ session["username"] }}</p>
                 </li>
             {% else %}
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin_control">login</a>
+                    <a class="nav-link" href="/admin_control">Giriş</a>
                 </li>
             {% endif %}
         </ul>
