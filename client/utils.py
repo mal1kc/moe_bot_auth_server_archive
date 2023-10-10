@@ -2,7 +2,7 @@ import logging
 import random
 import time
 
-from client.data import pContentEnum, sample_admin_data
+from data import pContentEnum, sample_admin_data
 
 logging.basicConfig(level=logging.INFO)
 

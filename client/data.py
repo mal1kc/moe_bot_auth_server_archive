@@ -1,7 +1,7 @@
 import datetime
 import enum
 
-from client.encryption import make_password_ready
+from encryption import make_password_ready
 
 
 class pContentEnum(enum.StrEnum):
@@ -25,8 +25,8 @@ class mTypes(enum.IntEnum):
 
 
 sample_admin_data = {
-    "name": "mal1kc",
-    "password_hash": make_password_ready("deov04ın-!ıj0dı12klsa"),
+    "name": "ncmdn",
+    "password_hash": make_password_ready("159753aA"),
 }
 
 sample_user_data = {

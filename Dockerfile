@@ -19,7 +19,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN touch README.md
 
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --without dev --no-root
+RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --no-root --only main
 
 FROM python:3.11-slim-bookworm as runtime
 

@@ -4,10 +4,10 @@ from typing import Any
 
 import requests  # noqa
 
-from client.data import mTypes, sample_user_data
-from client.encryption import make_password_ready
-from client.endpoints import EndPoints
-from client.utils import LOGGER, admin_header_kwargs
+from data import mTypes, sample_user_data
+from encryption import make_password_ready
+from endpoints import EndPoints
+from utils import LOGGER, admin_header_kwargs
 
 
 def register_user(

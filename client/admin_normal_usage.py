@@ -1,8 +1,8 @@
 from pprint import pprint
 
-from client.admin_requests import get_info
-from client.data import mTypes
-from client.utils import admin_header_kwargs
+from admin_requests import get_info
+from data import mTypes
+from utils import admin_header_kwargs
 from moe_bot_auth_server.database_ops import utc_timestamp
 
 

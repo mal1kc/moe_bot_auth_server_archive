@@ -8,16 +8,16 @@ from typing import Any
 import requests
 from user_requests import login_user
 
-from client.data import (
+from data import (
     mTypes,
     pContentEnum,
     sample_package_content_data,
     sample_package_data,
     sample_user_data,
 )
-from client.encryption import make_password_ready
-from client.endpoints import EndPoints
-from client.utils import (
+from encryption import make_password_ready
+from endpoints import EndPoints
+from utils import (
     admin_header_kwargs,
     generate_random_sized_random_int_list,
     took_time_decorator_ns,
@@ -271,9 +271,10 @@ def test_everything():
     LOGGER.info("=" * 20 + "making random data phase" + "=" * 20)
     random_user_name = f"ext_test_user_{time.time_ns()}"
     random_package_name = f"ext_test_package_{time.time_ns()}"
-    random_content_values = generate_random_sized_random_int_list(
+    random_content_value_ids = generate_random_sized_random_int_list(
         max_int=len(list(pContentEnum))
     )
+
     # this enum is already created in the database with initdb command
     LOGGER.info("=" * 20 + "register phase" + "=" * 20)
     response_register_user = register_user(name=random_user_name)
@@ -283,12 +284,28 @@ def test_everything():
         return
     LOGGER.info("register user success")
     LOGGER.debug(f"response_register_user_dict: {response_register_user_dict}")
+    LOGGER.info("registering package contents")
+    # register one of each content_value
+    for content_value in pContentEnum:
+        response_register_package_content = register_package_content(
+            name=f"{random_package_name}_{content_value.name}",
+            content_value=content_value,
+        )
+        if not response_register_package_content[1]:
+            LOGGER.error(
+                f"register package_content failed: {response_register_package_content}"
+            )
+            return
+        LOGGER.info("register package_content success")
+        LOGGER.debug(
+            f"response_register_package_content: {response_register_package_content}"
+        )
     response_register_package = register_package(
         name=random_package_name,
         # needs to be id or new package content object
         #  [ 1 ,2 ,3 ,4, 5, 6 ]
         #  or [{ "name": "ext_test_package_content", "content_value": pContentEnum.??? }, ...]
-        package_contents=random_content_values,
+        package_contents=random_content_value_ids,
     )  # type: ignore
     response_register_package_dict = response_register_package[0]
     if not response_register_package[1]:
@@ -343,7 +360,7 @@ def test_everything():
     LOGGER.info("get package info success")
     LOGGER.debug(f"response_get_package_info: {response_get_package_info}")
     LOGGER.info("getting package_content info")
-    for package_content_id in random_content_values:
+    for package_content_id in random_content_value_ids:
         response_get_package_content_info = get_info(
             m_type=mTypes.package_content,
             m_id=package_content_id,
@@ -396,7 +413,7 @@ def test_everything():
     LOGGER.debug(f"response_update_package: {response_update_package}")
     # already created in initdb initial package contents, and can't be added new with accepted content_values
     # LOGGER.info("updating package_content")
-    # for package_content_id in random_content_values:
+    # for package_content_id in random_content_value_ids:
     #     response_update_package_content = update_package_content(
     #         package_content_id=package_content_id,
     #         name=f"{random_package_name}_updated",
@@ -444,7 +461,7 @@ def test_everything():
     LOGGER.info("get package info success")
     LOGGER.debug(f"response_get_package_info: {response_get_package_info}")
     LOGGER.info("getting package_content info")
-    for package_content_id in random_content_values:
+    for package_content_id in random_content_value_ids:
         response_get_package_content_info = get_info(
             m_type=mTypes.package_content,
             m_id=package_content_id,
@@ -519,10 +536,10 @@ if __name__ == "__main__":
             LOGGER.setLevel(logging.INFO)
         elif sys.argv[1] == "--debug":
             LOGGER.setLevel(logging.DEBUG)
-    # main()
-    response = requests.post(
-        EndPoints.ALogin,
-        **admin_header_kwargs,
-    )
-    print(response.json())
+    main()
+    # response = requests.post(
+    #     EndPoints.ALogin,
+    #     **admin_header_kwargs,
+    # )
+    # print(response.json())
     # print(response)

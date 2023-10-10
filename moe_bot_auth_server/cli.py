@@ -133,12 +133,12 @@ def initdb_command(recreate: bool = False, init: bool = True):
     # if (
     #     db_op_result := add_package(
     #         Package(
-    #             name="moe_gatherer+eksra_user",
-    #             package_contents=[
-#                 PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-#                 PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
-    #             ],
-    #             days=60,
+    #         name="moe_gatherer+eksra_user",
+    #         package_contents=[
+    #          PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
+    #          PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
+    #         ],
+    #         days=60,
     #         ),
     #     )
     #     != DBOperationResult.success
