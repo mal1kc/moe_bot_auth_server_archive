@@ -10,7 +10,7 @@ class pContentEnum(enum.StrEnum):
     moe_camp = enum.auto()
     moe_arena = enum.auto()
     moe_raid = enum.auto()
-    extra_user = enum.auto()
+    extra_session = enum.auto()
     discord = enum.auto()
 
 

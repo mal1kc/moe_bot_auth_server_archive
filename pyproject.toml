@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moe-bot-auth-server"
-version = "0.19.2"
+version = "0.20"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "LICENCE"

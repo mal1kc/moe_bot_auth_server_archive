@@ -79,8 +79,8 @@ class Config:
             "LOG_FILE_FOLDER": "logs",
             "SQLALCHEMY_DATABASE_URI": "sqlite:///../data/db.sqlite",
             "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-            "USER_SESSION_TIMEOUT": 4,  # in minutes
-            "USER_OLDEST_SESSION_TIMEOUT": 2,  # in days
+            "USER_SESSION_TIMEOUT": 30,  # in seconds
+            "USER_OLDEST_SESSION_TIMEOUT": 24,  # in hours
             "USER_IP_SESSION_LIMIT": 150,
             "SECRET_KEY": generate_secret_key(),
             "DATA_FOLDER": if_not_exists_make_dir("data", relative=True),

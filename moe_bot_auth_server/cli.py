@@ -136,7 +136,7 @@ def initdb_command(recreate: bool = False, init: bool = True):
     #         name="moe_gatherer+eksra_user",
     #         package_contents=[
     #          PackageContent.query.filter_by(name=pContentEnum.moe_gatherer).first(),
-    #          PackageContent.query.filter_by(name=pContentEnum.extra_user).first(),
+    #          PackageContent.query.filter_by(name=pContentEnum.extra_session).first(),
     #         ],
     #         days=60,
     #         ),

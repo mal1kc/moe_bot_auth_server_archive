@@ -965,7 +965,9 @@ def user_login() -> tuple[Response, int]:
             if isinstance(is_user, User):
                 LOGGER.debug(f"{req_id} - trying to login")
                 if (
-                    try_login_response := try_login(is_user, ip_addr=request.remote_addr)
+                    try_login_response := try_login(
+                        is_user, ip_addr=request.remote_addr, flsk_session=session
+                    )
                 ) is not None:
                     LOGGER.debug(f"{req_id} - login result : {try_login_response}")
                     if try_login_response is loginError.max_online_user:
@@ -987,6 +989,16 @@ def user_login() -> tuple[Response, int]:
                         return (
                             request_error_response("package_expired"),
                             410,
+                        )
+                    elif try_login_response is loginError.session_not_accessable:
+                        return (
+                            request_error_response("session_not_accessable"),
+                            403,
+                        )
+                    elif try_login_response is False:
+                        return (
+                            request_error_response("login_failed"),
+                            401,
                         )
                     elif try_login_response is True:
                         return (

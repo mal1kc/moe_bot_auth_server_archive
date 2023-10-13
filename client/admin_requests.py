@@ -417,7 +417,7 @@ def test_everything():
     #     response_update_package_content = update_package_content(
     #         package_content_id=package_content_id,
     #         name=f"{random_package_name}_updated",
-    #         content_value=pContentEnum.extra_user,
+    #         content_value=pContentEnum.extra_session,
     #     )
     #     if not response_update_package_content[1]:
     #         LOGGER.error(

@@ -5,6 +5,7 @@ from logging import getLogger
 from typing import Any, Callable, List
 from werkzeug.datastructures import ImmutableMultiDict
 from flask import current_app
+from flask.sessions import SessionMixin  # noqa
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
 from sqlalchemy import DateTime, Enum, ForeignKey, String
@@ -696,56 +697,76 @@ class User(Base):
         )
         schema.validate(data)
 
-    def open_session(self, inamedr: str) -> loginError | bool:
-        # self.sessions.sort(key=lambda x: x.end_date)
-        self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
-        u_package: U_Package = self.package
-        self.delete_old_sessions()
-        if u_package is not None:
-            if u_package.is_expired():
-                delete_model(u_package, db.session)
-                return loginError.user_package_expired
-            p_contents = u_package.base_package.package_contents
-            extra_user_quota = list(
-                filter(lambda x: x.content_value == pContentEnum.extra_user, p_contents)
-            )
-            max_sessions = 1 + len(extra_user_quota) if extra_user_quota is not None else 0
-            if len(self.u_accessible_sessions) >= 0:
-                same_ip_expired_sessions = list(
-                    filter(
-                        lambda x: x.ip == inamedr and x.is_expired(),
-                        self.u_accessible_sessions,
-                    )
-                    # get all expired sessions with same ip
+    def open_session(self, inamedr: str, flsk_session: "SessionMixin") -> loginError | bool:
+        if self.package is not None:
+            if self.package.is_expired():
+                delete_model(self.package, db.session)
+                db.session.commit()
+                return loginError.package_expired
+            max_session_quota = (
+                self.package.base_package.package_contents.count(
+                    lambda x: x.content_value == pContentEnum.extra_session
                 )
-                if len(same_ip_expired_sessions) > 0:
-                    same_ip_expired_sessions.sort(  # sort by end_date
-                        key=lambda x: x.end_date
-                    )  # first ->  most oldest session
-                    self._disable_multiple_sessions_acess(same_ip_expired_sessions)
-                    same_ip_expired_session = self._update_accessible_sessions_except(
-                        same_ip_expired_session_latest=same_ip_expired_sessions[0]
-                        if len(same_ip_expired_sessions) > 0
-                        else None
-                    )
-                    if same_ip_expired_session is not None:
-                        new_session = self._create_new_session(
-                            ip=inamedr, old_session=same_ip_expired_session
-                        )
-                        DB_LOGGER.debug("new_session: %s" % new_session)
-                else:
-                    new_session = self._create_new_session(ip=inamedr)
-                    DB_LOGGER.debug("new_session: %s" % new_session)
-                db.session.add(new_session)
-                self.u_accessible_sessions.append(new_session)
-                if len(self.u_accessible_sessions) > max_sessions:
-                    return loginError.max_online_user
-            db.session.commit()
-            DB_LOGGER.info(
-                "user oturum acildi: id:%s, name:%s, ip:%s" % (self.id, self.name, inamedr)
+                + 1
             )
-            return True
+            self.delete_old_sessions()
+            self.close_timedout_sessions()
+            self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
+
+            if flsk_session.get("session_id") is not None:
+                int_session_id = int(flsk_session.get("session_id"))
+                u_session = get_u_session_by_id(int_session_id)
+
+                if u_session is None:
+                    # If the session does not exist, remove the session ID from Flask session.
+                    flsk_session.pop("session_id")
+                    new_u_session = self._create_new_session(inamedr)
+                    self.sessions.append(new_u_session)
+                    db.session.add(new_u_session)
+                    db.session.commit()
+                    flsk_session["session_id"] = (
+                        db.session.query(U_Session).order_by(U_Session.id.desc()).first().id
+                    )
+                    return True
+                elif u_session.is_expired():
+                    # If the session is expired, extend the session and commit the change.
+                    u_session.extend_session()
+                    db.session.commit()
+                    flsk_session["session_id"] = u_session.id
+                    return True
+                elif u_session.access:
+                    return True
+                return loginError.session_not_accessable
+            elif len(self.u_accessible_sessions) > max_session_quota:
+                return loginError.max_online_user
+            else:
+                # If there is no existing session ID, create a new session.
+                new_u_session = self._create_new_session(inamedr)
+                self.sessions.append(new_u_session)
+                db.session.add(new_u_session)
+                db.session.commit()
+                flsk_session["session_id"] = (
+                    db.session.query(U_Session).order_by(U_Session.id.desc()).first().id
+                )
+                return True
         return loginError.user_not_have_package
+
+    def _create_new_session(self, inamedr: str) -> U_Session:
+        new_u_session = U_Session(
+            user_id=self.id,
+            start_date=datetime.utcnow(),
+            end_date=datetime.utcnow()
+            + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"]),
+            ip=inamedr,
+        )
+        return new_u_session
+
+    def close_timedout_sessions(self) -> None:
+        self.delete_old_sessions()
+        for u_session in self.sessions:
+            if u_session.is_expired():
+                u_session.access = False
+                db.session.commit()
 
     def delete_old_sessions(self) -> None:
         expired_sessions = filter_list(lambda x: x.is_expired(), self.sessions)
@@ -759,63 +780,6 @@ class User(Base):
         )
         for session in deleteble_sessions:
             delete_model(session, db.session)
-
-    def _update_accessible_sessions_except(
-        self, same_ip_expired_session_latest: U_Session | None = None
-    ) -> U_Session | None:
-        DB_LOGGER.debug(
-            "same_ip_expired_session_latest: %s" % same_ip_expired_session_latest
-        )
-        for session in self.u_accessible_sessions:
-            if same_ip_expired_session_latest is not None:
-                if session.id != same_ip_expired_session_latest.id:
-                    continue
-            if session.is_expired():
-                self._disable_session_access(session)
-            return session
-        return same_ip_expired_session_latest
-
-    def _create_new_session(
-        self,
-        ip: str | None = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-        old_session: U_Session | None = None,
-    ) -> U_Session:
-        """
-        create new session or update old session
-        """
-        if old_session is not None:
-            if old_session.is_expired():
-                self._disable_session_access(old_session)
-            else:
-                old_session.extend_session()
-                return old_session
-        if ip is None:
-            raise ValueError("in creating new session ip can not be None")
-        return U_Session(
-            user_id=self.id,
-            start_date=datetime.utcnow() if start_date is None else start_date,
-            end_date=datetime.utcnow()
-            + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
-            if end_date is None
-            else end_date,
-            ip=ip,
-        )
-
-    def _disable_session_access(self, oturum: U_Session) -> None:
-        oturum.access = False
-        DB_LOGGER.info("user oturum kapatildi: k_ad:%s  oturum:%s" % (self.id, oturum))
-        if oturum in self.u_accessible_sessions:
-            self.u_accessible_sessions.remove(oturum)
-        self.sessions.append(oturum)  # maybe cause error
-        db.session.commit()
-
-    def _disable_multiple_sessions_acess(self, oturumlar: List[U_Session]) -> None:
-        DB_LOGGER.debug("disable_multiple_sessions_acess: %s" % oturumlar)
-        if oturumlar is not None:
-            for oturum in oturumlar:
-                self._disable_session_access(oturum)
 
 
 class Admin(Base):
@@ -1072,11 +1036,13 @@ def get_u_session_by_id(id: int, session: scoped_session = db.session) -> U_Sess
     return session.query(U_Session).filter_by(id=id).first()
 
 
-def try_login(user: User, ip_addr: str | None) -> loginError | bool:
+def try_login(
+    user: User, ip_addr: str | None, flsk_session: "SessionMixin"
+) -> loginError | bool:
     if ip_addr is None:
         return loginError.not_found_client_ip
     if user is not None:
-        return user.open_session(ip_addr)
+        return user.open_session(ip_addr, flsk_session)
     return loginError.user_not_found
 
 

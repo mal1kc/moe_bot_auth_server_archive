@@ -145,7 +145,7 @@ def package_data() -> dict:
 
 @pytest.fixture
 def package_content_data() -> dict:
-    return {"name": "ext_test_package_content", "content_value": "extra_user"}
+    return {"name": "ext_test_package_content", "content_value": "extra_session"}
 
 
 @pytest.fixture
@@ -217,7 +217,7 @@ def update_sample_package_data() -> dict:
 def update_sample_package_content_data() -> dict:
     return {
         "name": "ext_test_package_content_updated",
-        "content_value": "extra_user",
+        "content_value": "extra_session",
     }
 
 

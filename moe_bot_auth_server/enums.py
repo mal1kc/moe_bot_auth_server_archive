@@ -40,7 +40,7 @@ class pContentEnum(enum.StrEnum):
     moe_camp = enum.auto()
     moe_arena = enum.auto()
     moe_raid = enum.auto()
-    extra_user = enum.auto()
+    extra_session = enum.auto()
     discord = enum.auto()  # TODO: discord api kullanım hakkı
 
 
@@ -51,6 +51,7 @@ class loginError(enum.Enum):
     user_not_have_package = enum.auto()
     user_package_expired = enum.auto()
     not_found_client_ip = enum.auto()
+    session_not_accessable = enum.auto()
 
 
 class DBOperationResult(enum.Enum):

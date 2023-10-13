@@ -2,12 +2,18 @@ import logging
 import sys
 from typing import Any
 
-import requests  # noqa
+import requests
+import functools
 
 from data import mTypes, sample_user_data
 from encryption import make_password_ready
 from endpoints import EndPoints
 from utils import LOGGER, admin_header_kwargs
+
+
+@functools.lru_cache(maxsize=1)
+def get_req_session():
+    return requests.Session()
 
 
 def register_user(
@@ -23,7 +29,7 @@ def register_user(
         f"registerinng user headers: {admin_header_kwargs}, url: {EndPoints.ARegister.format(m_type=mTypes.user)}, json: {request_json}"  # noqa
     )
 
-    response = requests.post(
+    response = get_req_session().post(
         EndPoints.ARegister.format(m_type=mTypes.user),
         json=request_json,
         **admin_header_kwargs,
@@ -34,17 +40,22 @@ def register_user(
 def login_user(
     name: str = "ext_test_user",
     ready_password: str = make_password_ready("ext_test_user"),
+    session: requests.Session = get_req_session(),
 ):
     "probably fail because of user has no package"
-    response = requests.post(EndPoints.ULogin, auth=(name, ready_password))
+    response = session.post(EndPoints.ULogin, auth=(name, ready_password))
 
     return response.json(), response.ok
 
 
-def get_user_info():
-    response = requests.get(
+def get_user_info(
+    name: str = "ext_test_user",
+    ready_password: str = make_password_ready("ext_test_user"),
+    session: requests.Session = get_req_session(),
+):
+    response = session.get(
         EndPoints.UInfo,
-        auth=(sample_user_data["name"], make_password_ready("ext_test_user")),
+        auth=(name, ready_password),
     )
     return response.json()
 
