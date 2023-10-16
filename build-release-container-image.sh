@@ -9,11 +9,21 @@ docker_cmd="docker"
 alt_docker_cmd="podman"
 active_docker_cmd=$docker_cmd
 img_name="$app_name"
-img_tag="dev$app_version"
+img_tag="$app_version"
 
 # first check if alt_docker_cmd is available and use it if it is otherwise use docker_cmd
-#
+
 # create new config file
+mk_config_file() {
+	cp ./config/config.toml.example ./config/config.toml
+
+	sed -i "s/DEBUG=true/DEBUG=false/g" ./config/config.toml
+	sed -i "s/LOG_LEVEL=\"DEBUG\"/LOG_LEVEL=\"INFO\"/g" ./config/config.toml
+
+	# remove SECRET_KEY from config file
+	sed -i "/SECRET_KEY/d" ./config/config.toml
+	cat ./config/config.toml
+}
 
 if command -v $alt_docker_cmd &>/dev/null; then
 	echo "$alt_docker_cmd is available using it"
@@ -41,8 +51,9 @@ fi
 echo "Building container image"
 echo "clean up git untracked files"
 git clean -df
-cp ./config/config.toml.example ./config/config.toml
+mk_config_file
 $active_docker_cmd build -t "$img_name:$img_tag" -f ./Dockerfile .
+$active_docker_cmd build -t "$img_name:latest" -f ./Dockerfile .
 echo "Container image built"
 git clean -df
 exit 0

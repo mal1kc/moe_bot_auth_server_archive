@@ -47,3 +47,4 @@ poetry/core/*
 .dir-locals.el
 *.sqlite3
 *.sqlite
+./config/config.toml

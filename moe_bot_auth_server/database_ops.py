@@ -717,8 +717,8 @@ class User(Base):
                 int_session_id = int(flsk_session.get("session_id"))
                 u_session = get_u_session_by_id(int_session_id)
 
+                # If the session does not exist, remove the session ID from Flask session.
                 if u_session is None:
-                    # If the session does not exist, remove the session ID from Flask session.
                     flsk_session.pop("session_id")
                     new_u_session = self._create_new_session(inamedr)
                     self.sessions.append(new_u_session)
