@@ -15,7 +15,7 @@
             <div class="user_package_detail">
                 {# try this later https://jsfiddle.net/amfphrqo/6/ #}
                 {% if user.package %}
-                {% set package_remaining_days = user.package.end_date - utc_now %}
+                {% set package_remaining_days = user.package.end_date - time_now %}
                 <button class="users_package_info toggle_info"
                     onclick="toggleDivDisplayById('user_package_info_{{ user.id }}')">
                     Ayrıntı Göster
@@ -47,7 +47,7 @@
                             <button class="edit_button info_button">Düzenle</button> </a>
                         <a class="button-holder"
                             href="{{ endpoints.ADelete.format(model_type=mTypeStr.package, model_id=user.package.base_package.id) }}">
-                            <button class="delete-button" data-item-name="Paketi">SİL</button>
+                            <button class="delete-button" data-item-name="Sepeti">SİL</button>
                         </a>
                         <p>
                             <b>Sepet Bilgisi:</b>

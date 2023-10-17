@@ -19,7 +19,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN touch README.md
 
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --no-root --only main
+RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --no-root --only main,mysql
 
 FROM python:3.12-slim-bookworm as runtime
 
@@ -38,8 +38,8 @@ COPY templates/ /app/templates/
 
 COPY static/ /app/static/
 
-COPY entrypoint.sh gunicorn.conf.py  /app/
+COPY entrypoint.sh gunicorn.conf.py create_server_db.py /app/
 
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/sh","./entrypoint.sh"]
+ENTRYPOINT ["/bin/sh","/app/entrypoint.sh"]

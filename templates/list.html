@@ -1,14 +1,14 @@
 {% extends 'admin_layout.html' %}
 {% block title %}
-    {{ mTypeCnt[model_type].capitalize() }}
+    {{ mTypeCnt[model_type] }}
 {% endblock title %}
 {% block body %}
-    <h2>{{ mTypeCnt[model_type].capitalize() }} Listesi</h2>
+    <h2>{{ mTypeCnt[model_type] }} Listesi</h2>
     <div class="list-container">
         <div class="add_model">
             <a class="button-holder"
                href="{{ endpoints.ACreate.format(model_type=model_type) }}">
-                <button class="button">{{mTypeCnt[model_type].capitalize()}} Ekle</button>
+                <button class="button">{{mTypeCnt[model_type]}} Ekle</button>
             </a>
         </div>
         {% include 'model_list/{model_type}_list.html'.format(model_type=model_type) %}

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import datetime
 from logging import getLogger
 from typing import Any, Callable, List
 from werkzeug.datastructures import ImmutableMultiDict
@@ -23,9 +23,8 @@ from .cryption import make_password_hash
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
-DB_LOGGER = getLogger("sqlalchemy_db")
 
-# DEVLOG -> serilize datetime as utc_timestamp
+DB_LOGGER = getLogger("sqlalchemy_db")
 
 
 pcontent_packages_conn_table = db.Table(
@@ -34,6 +33,14 @@ pcontent_packages_conn_table = db.Table(
     db.Column("package_content_id", db.Integer, db.ForeignKey("package_contents.id")),
     db.Column("package_id", db.Integer, db.ForeignKey("packages.id")),
 )
+
+
+def _create_database() -> None:
+    engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
+    conn = engine.connect()
+    conn.execute("commit")
+    conn.execute("create database %s" % current_app.config["SQLALCHEMY_DATABASE_NAME"])
+    conn.close()
 
 
 class PackageContent(Base):
@@ -257,10 +264,10 @@ class U_Package(Base):
     __tablename__ = "user_packages"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    start_date: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+    start_date: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.datetime.utcnow
     )
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
 
     base_package_id: Mapped[int] = mapped_column(ForeignKey("packages.id"), nullable=False)
     # delete u_package when package deleted
@@ -304,7 +311,7 @@ class U_Package(Base):
         base_package = get_package_by_id(data["base_package"])
         ret_u_package = {
             "base_package": base_package,
-            "start_date": utc_timestamp(data["start_date"], return_type=datetime),
+            "start_date": utc_timestamp(data["start_date"], return_type=datetime.datetime),
         }
         if base_package is None:
             raise SchemaError("base_package_not_found")
@@ -316,12 +323,12 @@ class U_Package(Base):
             ret_u_package["id"] = data["id"]
         if "end_date" in data.keys():
             ret_u_package["end_date"] = utc_timestamp(
-                data["end_date"], return_type=datetime
+                data["end_date"], return_type=datetime.datetime
             )
         else:
             ret_u_package["end_date"] = utc_timestamp(
-                data["start_date"], return_type=datetime
-            ) + timedelta(
+                data["start_date"], return_type=datetime.datetime
+            ) + datetime.timedelta(
                 days=base_package_days
             )  # type: ignore
 
@@ -363,14 +370,14 @@ class U_Package(Base):
                     raise SchemaError("not_valid_%s" % key)
             elif key in ["start_date", "end_date"]:
                 if isinstance(value, int):
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
-                elif isinstance(value, datetime):
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                elif isinstance(value, datetime.datetime):
                     mutable_data[key] = value
                 elif isinstance(value, str):
-                    value = datetime.strptime(
+                    value = datetime.datetime.strptime(
                         value, "%Y-%m-%dT%H:%M"
-                    )  # html5 datetime-local
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                    )  # html5 datetime.datetime-local
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
                 else:
                     raise SchemaError("not_valid_%s" % key)
 
@@ -386,8 +393,8 @@ class U_Package(Base):
                 raise SchemaError("base_package.days_not_found")
             base_package_days = base_package.days
             mutable_data["end_date"] = utc_timestamp(
-                mutable_data["start_date"], return_type=datetime
-            ) + timedelta(days=base_package_days)
+                mutable_data["start_date"], return_type=datetime.datetime
+            ) + datetime.timedelta(days=base_package_days)
 
         return U_Package(**mutable_data)
 
@@ -408,7 +415,9 @@ class U_Package(Base):
                     int,
                     Use(
                         lambda x: (
-                            x > data["start_date"] and x < utc_timestamp(datetime.utcnow())
+                            x > data["start_date"]
+                            and x
+                            < utc_timestamp(datetime.datetime.now(datetime.timezone.utc))
                         )
                     ),
                     error="not_valid_end_date",
@@ -421,7 +430,10 @@ class U_Package(Base):
         schema.validate(data)
 
     def is_expired(self) -> bool:
-        return self.end_date < datetime.utcnow()
+        # return self.end_date < datetime.datetime.now(datetime.timezone.utc)
+        return utc_timestamp(self.end_date, return_type=int) < utc_timestamp(
+            datetime.datetime.now(datetime.timezone.utc), return_type=int
+        )
 
 
 class U_Session(Base):
@@ -429,10 +441,10 @@ class U_Session(Base):
     __tablename__ = "user_sessions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+    start_date: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.datetime.utcnow
     )
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     ip: Mapped[str] = mapped_column(String(256), nullable=False)
     access: Mapped[bool] = mapped_column(nullable=False, default=True)
 
@@ -475,14 +487,14 @@ class U_Session(Base):
                     raise SchemaError("not_valid_%s" % key)
             elif key in ["start_date", "end_date"]:
                 if isinstance(value, int):
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
-                elif isinstance(value, datetime):
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                elif isinstance(value, datetime.datetime):
                     mutable_data[key] = value
                 elif isinstance(value, str):
-                    value = datetime.strptime(
+                    value = datetime.datetime.strptime(
                         value, "%Y-%m-%dT%H:%M"
-                    )  # html5 datetime-local
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime)
+                    )  # html5 datetime.datetime-local
+                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
                 else:
                     raise SchemaError("not_valid_%s" % key)
             elif key == "ip":
@@ -499,8 +511,8 @@ class U_Session(Base):
             mutable_data["access"] = False
         if "end_date" not in mutable_data.keys():
             mutable_data["end_date"] = utc_timestamp(
-                mutable_data["start_date"], return_type=datetime
-            ) + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
+                mutable_data["start_date"], return_type=datetime.datetime
+            ) + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
         return U_Session(**mutable_data)
 
     @staticmethod
@@ -517,7 +529,10 @@ class U_Session(Base):
                 "user_id": And(int, Use(_user_id_check), error="not_valid_user"),
                 "start_date": And(
                     int,
-                    Use(lambda x: x < utc_timestamp(datetime.utcnow())),
+                    Use(
+                        lambda x: x
+                        < utc_timestamp(datetime.datetime.now(datetime.timezone.utc))
+                    ),
                     error="not_valid_start_date",
                 ),
                 "end_date": And(
@@ -534,13 +549,15 @@ class U_Session(Base):
         """
         not commiting to db as feature
         """
-        self.end_date = datetime.utcnow() + timedelta(
+        self.end_date = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
             seconds=current_app.config["USER_SESSION_TIMEOUT"]
         )
         self.access = True
 
     def is_expired(self) -> bool:
-        return self.end_date < datetime.utcnow()
+        return utc_timestamp(self.end_date, return_type=int) < utc_timestamp(
+            datetime.datetime.now(datetime.timezone.utc), return_type=int
+        )
 
 
 class User(Base):
@@ -652,8 +669,9 @@ class User(Base):
             if org_user is not None:
                 new_u_package = U_Package(
                     base_package_id=mutable_data["base_package"],
-                    start_date=datetime.utcnow(),
-                    end_date=datetime.utcnow() + timedelta(days=base_package.days),
+                    start_date=datetime.datetime.now(datetime.timezone.utc),
+                    end_date=datetime.datetime.now(datetime.timezone.utc)
+                    + datetime.timedelta(days=base_package.days),
                     user_id=org_user.id,
                 )
 
@@ -662,8 +680,9 @@ class User(Base):
             else:
                 mutable_data["package"] = U_Package(
                     base_package_id=mutable_data["base_package"],
-                    start_date=datetime.utcnow(),
-                    end_date=datetime.utcnow() + timedelta(days=base_package.days),
+                    start_date=datetime.datetime.now(datetime.timezone.utc),
+                    end_date=datetime.datetime.now(datetime.timezone.utc)
+                    + datetime.timedelta(days=base_package.days),
                 )
             mutable_data.pop("base_package")
         return User(**mutable_data)
@@ -754,9 +773,9 @@ class User(Base):
     def _create_new_session(self, inamedr: str) -> U_Session:
         new_u_session = U_Session(
             user_id=self.id,
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow()
-            + timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"]),
+            start_date=datetime.datetime.now(datetime.timezone.utc),
+            end_date=datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"]),
             ip=inamedr,
         )
         return new_u_session
@@ -774,8 +793,8 @@ class User(Base):
         deleteble_sessions = filter_list(lambda x: not x.access, expired_sessions)
         deleteble_sessions = filter(
             lambda x: x.end_date
-            + timedelta(hours=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
-            < datetime.utcnow(),
+            + datetime.timedelta(hours=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
+            < datetime.datetime.now(datetime.timezone.utc),
             deleteble_sessions,
         )
         for session in deleteble_sessions:
@@ -815,21 +834,23 @@ class Admin(Base):
         schema.validate(data)
 
 
-def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | datetime:
+def utc_timestamp(
+    dt: datetime.datetime | int, return_type: type | None = None
+) -> int | datetime.datetime:
     """
-    toggle datetime to int timestamp
-    toggle int timestampt to datetime
+    toggle datetime.datetime to int timestamp
+    toggle int timestampt to datetime.datetime
     :param: dt
-    :param: return_type -> datetime | int | None (default None)
+    :param: return_type -> datetime.datetime | int | None (default None)
 
     note: i lose some presition but is it need to be that precise
     """
     # DB_LOGGER.debug(f"dt: {dt},return_type: {return_type}")
     if return_type is None:
-        if isinstance(dt, datetime):
+        if isinstance(dt, datetime.datetime):
             return int(dt.timestamp())
         if isinstance(dt, int):
-            return datetime.utcfromtimestamp(float(dt))
+            return datetime.datetime.fromtimestamp(float(dt), datetime.UTC)
     else:
         new_dt = utc_timestamp(dt, return_type=None)
         # DB_LOGGER.debug(f"new_dt: {new_dt}")
@@ -837,7 +858,7 @@ def utc_timestamp(dt: datetime | int, return_type: type | None = None) -> int | 
             if isinstance(new_dt, return_type):
                 return new_dt
             new_dt = utc_timestamp(new_dt, return_type=None)
-    raise RuntimeError("dt needs to be int or datetime.datetime object")
+    raise RuntimeError("dt needs to be int or datetime.datetime.datetime.datetime object")
 
 
 def add_db_model(

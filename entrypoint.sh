@@ -1,4 +1,8 @@
 #!/usr/bin/env sh
+#
+sleep 4 # wait for db to start
+
+python3 create_server_db.py
 
 flask -A moe_bot_auth_server cli initdb
 # # https serve

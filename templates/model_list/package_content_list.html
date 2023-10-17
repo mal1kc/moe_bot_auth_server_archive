@@ -3,7 +3,7 @@
         <th id="package_contents_id">ID</th>
         <th id="package_contents_name">Paket İçerik Adı</th>
         <th id="package_contents_content_value">İçerik Adı</th>
-        <th id="package_contents_content_type">Paketler</th>
+        <th id="package_contents_content_type">Sepetler</th>
         <th id="package_contents_actions">Aksiyonlar</th>
     </tr>
     {% for package_content in models %}
@@ -33,7 +33,7 @@
                         <button class="edit_button info_button">Düzenle</button> </a>
                     <a class="button-holder"
                         href="{{ endpoints.ADelete.format(model_type=mTypeStr.package, model_id=bpackage.id) }}">
-                        <button class="delete-button" data-item-name="Paketi">SİL</button>
+                        <button class="delete-button" data-item-name="Sepeti">SİL</button>
                     </a>
                 </li>
                 <hr class="table_row_inline_sep">

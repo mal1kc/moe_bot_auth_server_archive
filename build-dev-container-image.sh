@@ -42,7 +42,10 @@ echo "Building container image"
 echo "clean up git untracked files"
 git clean -df
 cp ./config/config.toml.example ./config/config.toml
-$active_docker_cmd build -t "$img_name:$img_tag" -f ./Dockerfile .
+$active_docker_cmd build -t "$img_name:$img_tag" -f ./Dockerfile-dev .
 echo "Container image built"
 git clean -df
+if [ -f ./config/config.toml ]; then
+	rm ./config/config.toml
+fi
 exit 0

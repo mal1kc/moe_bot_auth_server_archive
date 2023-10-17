@@ -28,11 +28,18 @@ class Config:
         "TEMPLATE_FOLDER",
         "ADMINS",
     )
+    OVERRIDE_FROM_ENV = True
 
     def __init__(self, **kwargs):
         """
         if want default values, give {} as kwargs
+        if want to override default values, give kwargs
+        override_from_env : if True, override values with env values
         """
+        if Config.OVERRIDE_FROM_ENV:
+            env_config = Config.from_env(_internal=True)
+            kwargs.update(env_config)
+
         for key in kwargs:
             if key not in self.__slots__:
                 raise ValueError("invalid config key : {}".format(key))
@@ -44,7 +51,7 @@ class Config:
                         raise ValueError("invalid config key : {}".format(key))
                     elif len(admin["password_hash"]) != 64:
                         raise ValueError("invalid config key : {}".format(key))
-            elif key == "SQLALCHEMY_DATABASE_URI" and kwargs[key].endswith("sqlite"):
+            elif key == "SQLALCHEMY_DATABASE_URI" and kwargs[key].endswith("sqlite3"):
                 parsed_to_fname = kwargs[key].split("///")[1]
                 if_not_exists_make_dir(os.path.dirname(parsed_to_fname))
                 setattr(self, key, kwargs[key])
@@ -54,15 +61,19 @@ class Config:
                 kwargs[key] = if_not_exists_make_dir(kwargs[key])
 
         for key, value in kwargs.items():
-            self.__setattr__(key, value)
+            if key in self.__slots__:
+                setattr(self, key, value)
 
         # check empty values
         # if empty, set default
         for key in self.__slots__:
             if getattr(self, key, None) is None:
+                env_config = {}
                 default_config = Config.from_defaults()
-                setattr(self, key, default_config[key])
-
+                if key in env_config:
+                    setattr(self, key, env_config[key])
+                else:
+                    setattr(self, key, default_config[key])
         self.configure_logging()
 
     def __repr__(self) -> str:
@@ -74,9 +85,9 @@ class Config:
         return {
             "DEBUG": False,
             "LOG_LEVEL": "INFO",
-            "LOG_FILE_MAX_SIZE": 1024 * 1024 * 100,  # 100 MB
-            "LOG_MAX_FILES": 10,
-            "LOG_FILE_FOLDER": "logs",
+            "LOG_FILE_MAX_SIZE": 1024 * 1024 * 10,  # 10 MB
+            "LOG_MAX_FILES": 3,
+            "LOG_FILE_FOLDER": "../logs",
             "SQLALCHEMY_DATABASE_URI": "sqlite:///../data/db.sqlite",
             "SQLALCHEMY_TRACK_MODIFICATIONS": False,
             "USER_SESSION_TIMEOUT": 30,  # in seconds
@@ -92,9 +103,8 @@ class Config:
                     "password_hash": "***REMOVED***",  # noqa : E501
                 },
                 {
-                    "username": "Yns",
-                    "password_hash": "***REMOVED***"  # noqa : E501
-                    # dDipdWwt4r
+                    "username": "ncmdn",
+                    "password_hash": "***REMOVED***",  # noqa : E501
                 },
             ],
         }
@@ -106,11 +116,13 @@ class Config:
         return Config(**config)
 
     @staticmethod
-    def from_env():
+    def from_env(_internal=False):
         config_dict = {}
         for key, value in os.environ.items():
             if key.startswith(ENV_PREFIX):
                 config_dict[key[len(ENV_PREFIX) :]] = value
+        if _internal:
+            return config_dict
         return Config(**config_dict)
 
     @staticmethod
@@ -126,6 +138,8 @@ class Config:
         return Config(**config_dict)
 
     def configure_logging(self):
+        if not os.path.exists(self.LOG_FILE_FOLDER):
+            os.makedirs(self.LOG_FILE_FOLDER)
         logging.config.dictConfig(
             {
                 "version": 1,
@@ -191,3 +205,10 @@ class Config:
                 },
             }
         )
+
+    def __iter__(self):
+        for key in self.__slots__:
+            yield key, getattr(self, key)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)

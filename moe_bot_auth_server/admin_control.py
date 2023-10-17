@@ -129,7 +129,7 @@ def admin_control_main(
             "mTypeStr": mTypeStr,
             "mTypeCnt": mTypeCnt,
             "endpoints": _create_formatible_admin_control_urls(),
-            "utc_now": datetime.datetime.utcnow(),
+            "time_now": datetime.datetime.now(),
             "users": users,
             "messages": parse_char_list_to_str_list(messages)
             if messages is not None
@@ -188,7 +188,7 @@ def admin_control_list(
             mTypeStr=mTypeStr,
             mTypeCnt=mTypeCnt,
             model_type=model_type,
-            utc_now=datetime.datetime.utcnow(),
+            time_now=datetime.datetime.now(),
         )
         if model_type == mTypeStr.user:
             users = get_all_users()
@@ -243,7 +243,7 @@ def admin_control_info(model_type: str, model_id: int) -> Any:
             form_method=form_method,
             form_action=form_action,
             form_type="update",
-            utc_now=datetime.datetime.utcnow(),
+            time_now=datetime.datetime.now(),
         )
         if model_type == mTypeStr.user:
             user = get_user_by_id(model_id)

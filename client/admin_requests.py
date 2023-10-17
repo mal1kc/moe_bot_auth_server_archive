@@ -109,7 +109,7 @@ def register_user_package(
 ) -> tuple[dict[str, Any], bool]:
     u_package_data = {
         "start_date": int(
-            datetime.datetime.utcnow().timestamp()
+            datetime.datetime.now(datetime.UTC).timestamp()
         ),  # IMPORTANT: this is in UTC and is int not float
         "user": user_id,
         "base_package": package_id,
@@ -215,7 +215,7 @@ def update_user_package(
 ) -> tuple[dict[str, Any], bool]:
     u_package_data = {
         "start_date": int(
-            datetime.datetime.utcnow().timestamp()
+            datetime.datetime.now(datetime.UTC).timestamp()
         ),  # IMPORTANT: this is in UTC and is int not float
         "user": user_id,
         "base_package": package_id,

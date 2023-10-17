@@ -2,7 +2,8 @@ import logging
 
 import click
 from flask import Blueprint, current_app
-
+from . import paths
+from .config import flask as conf_flask
 from moe_bot_auth_server.database_ops import (
     Admin,
     DBOperationResult,
@@ -14,6 +15,7 @@ from moe_bot_auth_server.database_ops import (
     add_package_content,  # noqa
     db,
     pContentEnum,  # noqa
+    add_user,
 )
 
 cli_blueprint = Blueprint("cli", __name__)
@@ -33,7 +35,7 @@ def initdb_command(recreate: bool = False, init: bool = True):
     from sqlalchemy import inspect
 
     LOGGER.info("veritabanı temel verisi oluşturuluyor")
-    if ("admins" not in inspect(db.get_engine()).get_table_names()) and (not recreate):
+    if ("admins" not in inspect(db.engine).get_table_names()) and (not recreate):
         db.drop_all()
 
         ask_for_confirmation = input(
@@ -53,7 +55,7 @@ def initdb_command(recreate: bool = False, init: bool = True):
     if init:
         LOGGER.info("veritabanı kontrol ediliyor")
         # inspect db is tables are correct
-        tables = inspect(db.get_engine()).get_table_names()
+        tables = inspect(db.engine).get_table_names()
         olmasi_gereken_tablolar = [
             "admins",
             "packages",
@@ -180,7 +182,7 @@ def inspect_db():
     from sqlalchemy import inspect
 
     LOGGER.info("veritabanı tabloları : ")
-    LOGGER.info(inspect(db.get_engine()).get_table_names())
+    LOGGER.info(inspect(db.engine).get_table_names())
     LOGGER.info("veritabanı içeriği : ")
     db_packageler = [package.__json__() for package in Package.query.all()]
     db_package_contentleri = [
@@ -192,3 +194,79 @@ def inspect_db():
     LOGGER.info("package İçerikleri -> {}".format(db_package_contentleri))
     LOGGER.info("kullanıcılar -> {}".format(db_kullanicilar))
     LOGGER.info("adminler -> {}".format(db_adminler))
+
+
+@cli_blueprint.cli.command("addadmin")
+@click.option("--username", help="admin username", required=True)
+@click.option(
+    "--password_hash",
+    help="admin password hash (use same hashing algorith in app)",
+    required=True,
+)
+def add_admin_command(username: str, password_hash: str):
+    """
+    add admin to database
+    """
+    LOGGER.info("cli: admin ekleniyor")
+    admin_ = Admin(
+        name=username,
+        password_hash=password_hash,
+    )
+    db_op_result = add_admin(admin_)
+    if db_op_result != DBOperationResult.success:
+        LOGGER.info(" ❌ admin eklenemedi ❌ ")
+        LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
+        return
+    LOGGER.info("cli: ☑ admin eklendi")
+    db.session.commit()
+    db_adminler = [admin.__json__() for admin in Admin.query.all()]
+    LOGGER.info("adminler -> {}".format(db_adminler))
+
+
+@cli_blueprint.cli.command("adduser")
+@click.option("--username", help="user username", required=True)
+@click.option("--password_hash", help="user password hash", required=True)
+def add_user_command(username: str, password_hash: str):
+    """
+    add user to database
+    """
+    LOGGER.info("cli: user ekleniyor")
+    user_ = User(
+        name=username,
+        password_hash=password_hash,
+    )
+    db_op_result = add_user(user_)
+    if db_op_result != DBOperationResult.success:
+        LOGGER.info(" ❌ user eklenemedi ❌ ")
+        LOGGER.info(" ❌ Hata: %s ❌ ", db_op_result)
+        return
+    LOGGER.info("cli: ☑ user eklendi")
+    db.session.commit()
+    db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
+    LOGGER.info("kullanıcılar -> {}".format(db_kullanicilar))
+
+
+@cli_blueprint.cli.command("load_config")
+@click.option("--config_path", help="config path", required=False)
+def load_config_command(config_path: str):
+    """
+    load config from toml file
+    """
+    if config_path is None:
+        config_path = paths.CONFIG_FILE_PATH
+    LOGGER.info("cli: config yükleniyor")
+    config = conf_flask.Config.from_toml(config_path)
+    LOGGER.info("cli: config yüklendi")
+    LOGGER.info("cli: config -> {}".format(config))
+    current_app.config.from_object(config)
+    LOGGER.info("cli: config current_app.config -> {}".format(current_app.config))
+    LOGGER.info("cli: config dosyası yüklendi")
+    # test config with 2 query to database
+    LOGGER.info("cli: config test ediliyor")
+    LOGGER.info("cli: config test ediliyor: adminler")
+    db_adminler = [admin.__json__() for admin in Admin.query.all()]
+    LOGGER.info("cli: config test ediliyor: adminler -> {}".format(db_adminler))
+    LOGGER.info("cli: config test ediliyor: kullanıcılar")
+    db_kullanicilar = [kullanici.__json__() for kullanici in User.query.all()]
+    LOGGER.info("cli: config test ediliyor: kullanıcılar -> {}".format(db_kullanicilar))
+    LOGGER.info("cli: config test edildi")

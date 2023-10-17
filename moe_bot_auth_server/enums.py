@@ -27,7 +27,7 @@ class mTypeCnt(enum.StrEnum):
     "model type StrEnum"
     user = "Kullanıcılar"
     package_content = "Paket İçeriği"
-    package = "Paket"
+    package = "Sepet"
     u_package = "Kullanıcı Paketi"
     u_session = "Kullanıcı Oturumu"
 

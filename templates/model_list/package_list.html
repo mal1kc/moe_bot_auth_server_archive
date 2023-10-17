@@ -1,8 +1,8 @@
 <table id="packages_table">
     <tr>
         <th id="packages_id">ID</th>
-        <th id="packages_name">Paket Adı</th>
-        <th id="packages_details">Paket Detayı</th>
+        <th id="packages_name">Sepet Adı</th>
+        <th id="packages_details">Sepet Detayı</th>
         <th id="packages_days">Süre</th>
         <th id="packages_contents">Sepet İçeriği</th>
         <th id="packages_u_packages">Sepete Bağlı Kullanıcı Paketleri</th>
@@ -29,7 +29,7 @@
                         <button class="edit_button info_button">Düzenle</button> </a>
                     <a class="button-holder"
                         href="{{ endpoints.ADelete.format(model_type=mTypeStr.package_content, model_id=p_content.id) }}">
-                        <button class="delete-button" data-item-name="Paketi">SİL</button>
+                        <button class="delete-button" data-item-name="Paket İçeriğini">SİL</button>
                     </a>
                     </li>
                     <hr class="table_row_inline_sep">
@@ -51,7 +51,7 @@
                     <button class="edit_button info_button">Düzenle</button> </a>
                 <a class="button-holder"
                     href="{{ endpoints.ADelete.format(model_type=mTypeStr.u_package, model_id=u_package.id) }}">
-                    <button class="delete-button" data-item-name="Paketi">SİL</button>
+                    <button class="delete-button" data-item-name="Kullanıcı">SİL</button>
                 </a>
                 </li>
                 <hr class="table_row_inline_sep">

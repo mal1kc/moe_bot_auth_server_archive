@@ -7,7 +7,7 @@ from .admin_control import admin_control_blueprint
 from .cli import cli_blueprint
 from .config import flask as conf_flask
 from .config import secret_key as conf_secret_key
-from .database_ops import db
+from .database_ops import db, _create_database
 from .err_handlrs import (
     bad_request,
     error_blueprint,
@@ -31,7 +31,14 @@ def _ensure_secret_key(app) -> None:
 def _ensure_db(app) -> None:
     """Ensure that a database exists."""
     LOGGER.debug("Ensuring database url %s", app.config["SQLALCHEMY_DATABASE_URI"])
-    db.create_all()
+    # chech if database exists
+    # if not create it
+    try:
+        db.create_all()
+    except Exception as e:
+        LOGGER.error("Error: {e} while creating tables try to create database".format(e=e))
+        _create_database()
+        LOGGER.debug("Database created")
 
 
 def create_app() -> Flask:
@@ -72,6 +79,9 @@ def register_modifications(app: Flask) -> None:
     LOGGER.debug("Registering modifications")
     app_config = conf_flask.Config.from_toml(paths.CONFIG_FILE_PATH)
     app.config.from_object(app_config)
+    if app_config.get("DEBUG", False):
+        app.logger.setLevel(logging.DEBUG)
+        app.debug = True
     LOGGER.debug("config loaded")
     LOGGER.debug("config -> {}".format(app.config))
 

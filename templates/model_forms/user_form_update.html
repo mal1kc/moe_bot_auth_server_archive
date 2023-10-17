@@ -47,7 +47,7 @@
 <span class="text" style="font-size: 1.8em;">Mevcut Kullanıcı Paketi :</span>
 <div class="user_package">
     {% if model.package %}
-    {% set package_remaining_days = model.package.end_date - utc_now %}
+    {% set package_remaining_days = model.package.end_date - time_now %}
     <button class="users_package_info toggle_info"
         onclick="toggleDivDisplayById('user_package_info_{{ model.id }}');return false;">
         Ayrıntı Göster
@@ -81,7 +81,7 @@
                 <button class="edit_button info_button">Düzenle</button> </a>
             <a class="button-holder"
                 href="{{ endpoints.ADelete.format(model_type=mTypeStr.package, model_id=model.package.base_package.id) }}">
-                <button class="delete-button" data-item-name="Paketi">SİL</button>
+                <button class="delete-button" data-item-name="Sepeti">SİL</button>
             </a>
             <p>
                 <b>Sepet Bilgisi:</b>
@@ -98,7 +98,7 @@
                     <button class="edit_button info_button">Düzenle</button> </a>
                 <a class="button-holder"
                     href="{{ endpoints.ADelete.format(model_type=mTypeStr.package_content,model_id=package_content.id) }}">
-                    <button class="delete-button" data-item-name="Paket içeriğini">SİL</button>
+                    <button class="delete-button" data-item-name="Paket İçeriğini">SİL</button>
                 </a>
                 <p>
                     <b>Paket İçeriği Bilgisi:</b>

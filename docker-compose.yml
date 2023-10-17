@@ -1,0 +1,40 @@
+version: "3.8"
+services:
+  moe_bot_auth_server:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "8080:8080"
+    container_name: moe_bot_auth_server
+    hostname: moe_bot_auth_server
+    # restart: unless-stopped
+    env_file:
+      ./envs/moe_bot_auth_server_prod.env
+    depends_on:
+      - db
+    networks:
+      - default
+      # - custom_external:
+      #   aliases:
+      #     - moe_bot_auth_server
+
+  db:
+    image: mariadb:latest
+    container_name: mariadb
+    env_file:
+      - ./envs/mariadb.env
+    ports:
+      - "3306:3306"
+    hostname: mariadb
+    restart: unless-stopped
+    networks:
+      - default
+      # - custom_external:
+      #   aliases:
+      #     - mariadb
+
+networks:
+  default:
+  custom_external:
+    external: true

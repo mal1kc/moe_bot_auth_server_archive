@@ -47,7 +47,7 @@ repos:
 
     - id: build-container-image
       name: build container image
-      entry: bash ./build-container-image.sh
+      entry: bash ./build-dev-container-image.sh
       language: system
       types: [dockerfile]
       files: ^Dockerfile$|^containerfile$

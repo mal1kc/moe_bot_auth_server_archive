@@ -74,10 +74,10 @@
     - [X] delete routelari
     - [X] routelar methodlarına göre ayrılacak - post,update,delete,put
     - [X] çok uzun fonksiyonları refaktörlemek lazim (admin_register, admin_update gibi)
-    - [-] html sayfası
-      - [-] listeleme (düzenleme , ekleme , silme)
-        - [-] listeleme
-          - [ ] geliştirilmeli -> alt itemleri
+    - [X] html sayfası
+      - [X] listeleme (düzenleme , ekleme , silme)
+        - [X] listeleme
+          - [X] geliştirilmeli -> alt itemleri
           - [X] sadece listeleme
           - [x] user
           - [X] package
@@ -104,9 +104,11 @@
           - [X] u_session
     - [ ] belli hata mesajı şemasına uygun hatalar (daha sonra)
     - [ ] daha anlaşılır loglama (daha sonra)
-    - [X] ayar 'config/config.toml' dosyasını okuması vs geliştirilmeli (çalışmıyor)
     - [X] dockerfile
       - [X] ayar dosyasını bulamıyor (container olarak çalışırken bulamıyor)
+    - [ ] config de en öncellik sıralaması
+       - env değişkenleri "MOE_AUTH_SERV_" öneki ile başlamalı
+       - > env-vars -> config.toml -> defaults
 ** muhtemel v2 özellikleri
 
 - flask -> fastapi

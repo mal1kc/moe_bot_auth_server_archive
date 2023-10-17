@@ -2,7 +2,7 @@
 
 set -e
 
-PORT=8080
+PORT=5000
 CONTAINER_NAME="moe_bot_auth_server"
 CONTAINER_TAG="dev$(poetry version --short)"
 CONTAINER_DEF_PORT=8080
@@ -28,7 +28,7 @@ fi
 # if image not exists call build script
 if ! $active_docker_cmd image inspect $CONTAINER_NAME:$CONTAINER_TAG >/dev/null; then
     echo "Container image not found, building it"
-    bash ./build-release-container.sh
+    bash ./build-dev-container-image.sh
 fi
 
 last_build_date=$($active_docker_cmd inspect -f '{{.Created}}' $CONTAINER_NAME:$CONTAINER_TAG)""
@@ -36,4 +36,3 @@ last_build_date=$($active_docker_cmd inspect -f '{{.Created}}' $CONTAINER_NAME:$
 echo "INFO: THIS IMAGE BUILT TIME IS :  $last_build_date"
 
 $active_docker_cmd run --rm --env PORT=$PORT -p $PORT:$CONTAINER_DEF_PORT --name $CONTAINER_NAME $CONTAINER_NAME:$CONTAINER_TAG
-#$active_docker_cmd run --rm --env PORT=$PORT -p $PORT:$CONTAINER_DEF_PORT --name $CONTAINER_NAME $CONTAINER_NAME:lastest

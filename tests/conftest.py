@@ -186,7 +186,7 @@ def u_package_data() -> dict:
     return {
         "user": 1,
         "base_package": 1,
-        "start_date": utc_timestamp(datetime.datetime.utcnow()),
+        "start_date": utc_timestamp(datetime.datetime.now(datetime.UTC)),
     }
 
 
@@ -226,7 +226,7 @@ def update_sample_u_package_data() -> dict:
     return {
         "user": 1,
         "base_package": 1,
-        "start_date": utc_timestamp(datetime.datetime.utcnow()),
+        "start_date": utc_timestamp(datetime.datetime.now(datetime.UTC)),
     }
 
 
@@ -408,7 +408,7 @@ def u_package_from_db(
         u_package_data["user"] = user_from_db.id
         u_package_data["base_package"] = package_from_db.id
         u_package_data["start_date"] = utc_timestamp(
-            datetime.datetime.utcnow(), return_type=int
+            datetime.datetime.now(datetime.UTC), return_type=int
         )
         db_u_package = U_Package.from_json(u_package_data)
         db.session.add(db_u_package)
@@ -432,7 +432,7 @@ def user_with_package_from_db(
         u_package_data["user"] = user_from_db.id
         u_package_data["base_package"] = package_with_random_contents_from_db.id
         u_package_data["start_date"] = utc_timestamp(
-            datetime.datetime.utcnow(), return_type=int
+            datetime.datetime.now(datetime.UTC), return_type=int
         )
         db_u_package = U_Package.from_json(u_package_data)
         db.session.add(db_u_package)
@@ -456,12 +456,12 @@ def u_session_from_db(
     with app_ctx:
         u_session_data = {
             "start_date": utc_timestamp(
-                datetime.datetime.utcnow(), return_type=datetime.datetime
+                datetime.datetime.now(datetime.UTC), return_type=datetime.datetime
             ),
             "user_id": user_from_db.id,
             "ip": "127.0.0.1",
             "end_date": utc_timestamp(
-                datetime.datetime.utcnow() + datetime.timedelta(minutes=20),
+                datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=20),
                 return_type=datetime.datetime,
             ),
         }
