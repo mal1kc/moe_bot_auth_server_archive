@@ -3,12 +3,12 @@ from __future__ import annotations
 import datetime
 from logging import getLogger
 from typing import Any, Callable, List
-from werkzeug.datastructures import ImmutableMultiDict
+
 from flask import current_app
 from flask.sessions import SessionMixin  # noqa
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, String, text
 from sqlalchemy.orm import (
     Mapped,
     declarative_base,
@@ -17,9 +17,10 @@ from sqlalchemy.orm import (
     scoped_session,
 )
 from sqlalchemy.orm.decl_api import DeclarativeMeta
+from werkzeug.datastructures import ImmutableMultiDict
 
-from .enums import DBOperationResult, loginError, pContentEnum
 from .cryption import make_password_hash
+from .enums import DBOperationResult, loginError, pContentEnum
 
 Base: DeclarativeMeta = declarative_base()
 db = SQLAlchemy(model_class=Base)
@@ -38,8 +39,10 @@ pcontent_packages_conn_table = db.Table(
 def _create_database() -> None:
     engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
     conn = engine.connect()
-    conn.execute("commit")
-    conn.execute("create database %s" % current_app.config["SQLALCHEMY_DATABASE_NAME"])
+    conn.execute(
+        text("create database %s" % current_app.config["SQLALCHEMY_DATABASE_NAME"])
+    )
+    conn.commit()
     conn.close()
 
 
@@ -212,10 +215,12 @@ class Package(Base):
 
     @staticmethod
     def from_req_form(
-        immutable_data: ImmutableMultiDict, org_package: Package = None, session=db.session
+        immutable_data: ImmutableMultiDict,
+        org_package: Package | None = None,
+        session=db.session,
     ) -> Package:
         mutable_data: dict = immutable_data.to_dict()
-        all_package_contents = PackageContent.query.all()
+        all_package_contents = session.query(PackageContent).all()
         possible_package_content_keys = [pcontent.name for pcontent in all_package_contents]
         possible_keys = ["id", "name", "days", "detail"] + possible_package_content_keys
         mutable_data["package_contents"] = []
@@ -721,7 +726,7 @@ class User(Base):
             if self.package.is_expired():
                 delete_model(self.package, db.session)
                 db.session.commit()
-                return loginError.package_expired
+                return loginError.user_package_expired
             max_session_quota = (
                 self.package.base_package.package_contents.count(
                     lambda x: x.content_value == pContentEnum.extra_session
@@ -733,8 +738,15 @@ class User(Base):
             self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
 
             if flsk_session.get("session_id") is not None:
-                int_session_id = int(flsk_session.get("session_id"))
-                u_session = get_u_session_by_id(int_session_id)
+                int_session_id = flsk_session.get("session_id")
+                # check if session id is not None if not none cast  to int
+                if int_session_id is not None:
+                    int_session_id = int(int_session_id)
+                u_session = (
+                    get_u_session_by_id(int_session_id)
+                    if isinstance(int_session_id, int)
+                    else None
+                )
 
                 # If the session does not exist, remove the session ID from Flask session.
                 if u_session is None:
@@ -744,7 +756,7 @@ class User(Base):
                     db.session.add(new_u_session)
                     db.session.commit()
                     flsk_session["session_id"] = (
-                        db.session.query(U_Session).order_by(U_Session.id.desc()).first().id
+                        db.session.query(U_Session).order_by(U_Session.id.desc()).first().id  # type: ignore # noqa: E501
                     )
                     return True
                 elif u_session.is_expired():
@@ -765,7 +777,7 @@ class User(Base):
                 db.session.add(new_u_session)
                 db.session.commit()
                 flsk_session["session_id"] = (
-                    db.session.query(U_Session).order_by(U_Session.id.desc()).first().id
+                    db.session.query(U_Session).order_by(U_Session.id.desc()).first().id  # type: ignore  # noqa: E501
                 )
                 return True
         return loginError.user_not_have_package

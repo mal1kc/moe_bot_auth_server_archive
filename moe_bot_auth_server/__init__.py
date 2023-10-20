@@ -15,6 +15,7 @@ from .err_handlrs import (
     not_found,
     unauthorized,
     unsupported_media_type,
+    internal_server_error,
 )
 from .main_app import main_blueprint
 
@@ -73,6 +74,7 @@ def register_error_handlers(app: Flask):
     app.register_error_handler(404, not_found)
     app.register_error_handler(415, unsupported_media_type)
     app.register_error_handler(405, method_not_allowed)
+    app.register_error_handler(500, internal_server_error)
 
 
 def register_modifications(app: Flask) -> None:

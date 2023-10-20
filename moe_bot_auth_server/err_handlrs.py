@@ -39,6 +39,12 @@ def method_not_allowed(error=None) -> tuple[Response, int]:
     return request_error_response("method_not_allowed"), 405
 
 
+@error_blueprint.errorhandler(500)
+def internal_server_error(error=None) -> tuple[Response, int]:
+    _ = error
+    return request_error_response("internal_server_error"), 500
+
+
 @error_blueprint.route("/404")
 def not_found_error() -> tuple[Response, int]:
     return not_found()

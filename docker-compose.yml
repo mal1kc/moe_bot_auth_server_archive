@@ -1,9 +1,18 @@
-version: "3.8"
+version: "3.3"
 services:
+  db:
+    image: mariadb:latest
+    container_name: mariadb
+    env_file:
+      - ./envs/mariadb.env
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    hostname: mariadb
+    restart: unless-stopped
   moe_bot_auth_server:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    image: localhost/moe_bot_auth_server:latest
     ports:
       - "8080:8080"
     container_name: moe_bot_auth_server
@@ -13,28 +22,5 @@ services:
       ./envs/moe_bot_auth_server_prod.env
     depends_on:
       - db
-    networks:
-      - default
-      # - custom_external:
-      #   aliases:
-      #     - moe_bot_auth_server
-
-  db:
-    image: mariadb:latest
-    container_name: mariadb
-    env_file:
-      - ./envs/mariadb.env
-    ports:
-      - "3306:3306"
-    hostname: mariadb
-    restart: unless-stopped
-    networks:
-      - default
-      # - custom_external:
-      #   aliases:
-      #     - mariadb
-
-networks:
-  default:
-  custom_external:
-    external: true
+volumes:
+  db_data:
