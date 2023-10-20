@@ -22,12 +22,12 @@ if __name__ == "__main__":
                 .split("@")[0],
                 "charset": sqlalchemy_database_uri.split("?")[-1].split("=")[1],
             }
-            table_name = sqlalchemy_database_uri.split("/")[-1].split("?")[0]
+            db_name = sqlalchemy_database_uri.split("/")[-1].split("?")[0]
             print("detect mysql")
             print(connection_info)
             conn = pymysql.connect(**connection_info)
             conn.cursor().execute(
-                "CREATE DATABASE IF NOT EXISTS " + table_name + " CHARACTER SET utf8mb4"
+                "CREATE DATABASE IF NOT EXISTS " + db_name + " CHARACTER SET utf8mb4"
             )
             conn.cursor().close()
             conn.close()
@@ -42,9 +42,9 @@ if __name__ == "__main__":
             connection_info = {}
             print("detect postgresql")
             print(connection_info)
-            table_name = uri.split("/")[-1]
+            db_name = uri.split("/")[-1]
             conn = psycopg2.connect(**connection_info)
-            conn.cursor().execute("CREATE DATABASE IF NOT EXISTS " + table_name)
+            conn.cursor().execute("CREATE DATABASE IF NOT EXISTS " + db_name)
             conn.cursor().close()
             conn.close()
             print("OK: finish creating database")

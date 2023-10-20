@@ -39,9 +39,8 @@ pcontent_packages_conn_table = db.Table(
 def _create_database() -> None:
     engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
     conn = engine.connect()
-    conn.execute(
-        text("create database %s" % current_app.config["SQLALCHEMY_DATABASE_NAME"])
-    )
+    db_name = current_app.config["SQLALCHEMY_DATABASE_URI"].split("/")[-1].split("?")[0]
+    conn.execute(text("create database %s" % db_name))
     conn.commit()
     conn.close()
 
