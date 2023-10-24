@@ -53,7 +53,6 @@ git clean -df
 mk_config_file
 $active_docker_cmd build -t "$img_name:$img_tag" -f ./Dockerfile .
 $active_docker_cmd build -t "$img_name:latest" -f ./Dockerfile .
-$active_docker_cmd build -t "$img_name:mariadb" -f ./Dockerfile .
 echo "Container image built"
 git clean -df
 if [ -f ./config/config.toml ]; then

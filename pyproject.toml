@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "moe-bot-auth-server"
-version = "0.22.4"
+version = "0.22.5"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["mal1kc <mal1kc@www.com>"]
 license = "LICENCE"
 readme = "readme.org"
 packages = [{include = "moe_bot_auth_server"}]
