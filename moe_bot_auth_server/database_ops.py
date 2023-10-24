@@ -9,6 +9,7 @@ from flask.sessions import SessionMixin  # noqa
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
 from sqlalchemy import DateTime, Enum, ForeignKey, String, text
+from sqlalchemy.exc import ProgrammingError as sqlProgrammingError
 from sqlalchemy.orm import (
     Mapped,
     declarative_base,
@@ -37,12 +38,17 @@ pcontent_packages_conn_table = db.Table(
 
 
 def _create_database() -> None:
-    engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
-    conn = engine.connect()
-    db_name = current_app.config["SQLALCHEMY_DATABASE_URI"].split("/")[-1].split("?")[0]
-    conn.execute(text("create database %s" % db_name))
-    conn.commit()
-    conn.close()
+    try:
+        engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
+        conn = engine.connect()
+        db_name = current_app.config["SQLALCHEMY_DATABASE_URI"].split("/")[-1].split("?")[0]
+        conn.execute(text("create database %s" % db_name))
+        conn.commit()
+        conn.close()
+    except sqlProgrammingError as e:
+        DB_LOGGER.debug("database already exists: %s" % e)
+    except Exception as e:
+        DB_LOGGER.error("error while creating database: %s" % e)
 
 
 class PackageContent(Base):
