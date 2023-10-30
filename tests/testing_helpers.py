@@ -3,7 +3,7 @@ import logging
 import random
 
 import moe_bot_auth_server.config.endpoints as app_config_endpoints
-from moe_bot_auth_server.database_ops import utc_timestamp  # noqa
+from moe_bot_auth_server.database_ops import timezone_timestamp  # noqa
 from moe_bot_auth_server.database_ops import Admin, Package, PackageContent, User
 from moe_bot_auth_server.enums import mType, pContentEnum  # noqa
 

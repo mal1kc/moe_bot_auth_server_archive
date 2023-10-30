@@ -9,7 +9,7 @@ from moe_bot_auth_server.cryption import (
     simple_dencrypt,
 )
 from moe_bot_auth_server.enums import mType
-from tests.testing_helpers import LOGGER, URLS, show_db_data, utc_timestamp
+from tests.testing_helpers import LOGGER, URLS, show_db_data, timezone_timestamp
 
 # all of function arguments are fixtures from conftest.py
 
@@ -488,8 +488,8 @@ def test_register_user_package(
     user_package_data["base_package"] = response.json["package"]["id"]
 
     LOGGER.debug("test_register_user_package: registering user_package")
-    user_package_data["start_date"] = utc_timestamp(
-        datetime.datetime.now(), return_type=int
+    user_package_data["start_date"] = timezone_timestamp(
+        datetime.datetime.now(), return_type=float
     )
     request_json = {"model": user_package_data}
     response = client.post(

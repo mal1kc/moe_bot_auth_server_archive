@@ -6,7 +6,6 @@ from . import paths
 from .admin_control import admin_control_blueprint
 from .cli import cli_blueprint
 from .config import flask as conf_flask
-from .config import secret_key as conf_secret_key
 from .database_ops import db, _create_database
 from .err_handlrs import (
     bad_request,
@@ -25,7 +24,7 @@ LOGGER = logging.getLogger("app")
 def _ensure_secret_key(app) -> None:
     if app.config["SECRET_KEY"] is None:
         LOGGER.debug("Generating secret key")
-        app.config["SECRET_KEY"] = conf_secret_key.generate_secret_key()
+        app.config["SECRET_KEY"] = "no-so-secret-key1235120m98c2123*9zxı"
         LOGGER.debug("Secret key generated")
 
 

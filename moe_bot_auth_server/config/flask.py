@@ -3,7 +3,6 @@ import os
 import tomllib
 import logging.config
 
-from moe_bot_auth_server.config.secret_key import generate_secret_key
 from moe_bot_auth_server.paths import if_not_exists_make_dir, if_not_exists_make_file
 
 
@@ -88,12 +87,14 @@ class Config:
             "LOG_FILE_MAX_SIZE": 1024 * 1024 * 10,  # 10 MB
             "LOG_MAX_FILES": 3,
             "LOG_FILE_FOLDER": "../logs",
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///../data/db.sqlite",
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///{data_folder}/db.sqlite3".format(
+                data_folder=if_not_exists_make_dir("data", relative=True)
+            ),
             "SQLALCHEMY_TRACK_MODIFICATIONS": False,
             "USER_SESSION_TIMEOUT": 30,  # in seconds
             "USER_OLDEST_SESSION_TIMEOUT": 24,  # in hours
             "USER_IP_SESSION_LIMIT": 150,
-            "SECRET_KEY": generate_secret_key(),
+            "SECRET_KEY": "no-so-secret-key1235120m98c2123*9zxı",
             "DATA_FOLDER": if_not_exists_make_dir("data", relative=True),
             "STATIC_FOLDER": if_not_exists_make_dir("static", relative=True),
             "TEMPLATE_FOLDER": if_not_exists_make_dir("templates", relative=True),

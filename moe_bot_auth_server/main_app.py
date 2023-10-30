@@ -969,38 +969,44 @@ def user_login() -> tuple[Response, int]:
                         is_user, ip_addr=request.remote_addr, flsk_session=session
                     )
                 ) is not None:
-                    LOGGER.debug(f"{req_id} - login result : {try_login_response}")
                     if try_login_response is loginError.max_online_user:
+                        LOGGER.debug(f"{req_id} - max online user")
                         return (
                             request_error_response("max_online_user"),
                             401,
                         )
                     elif try_login_response is loginError.user_not_found:
+                        LOGGER.debug(f"{req_id} - user not found")
                         return (
                             request_error_response("user_not_found"),
                             404,
                         )
                     elif try_login_response is loginError.user_not_have_package:
+                        LOGGER.debug(f"{req_id} - user not have package")
                         return (
                             request_error_response("package_not_found"),
                             404,
                         )
                     elif try_login_response is loginError.user_package_expired:
+                        LOGGER.debug(f"{req_id} - package expired")
                         return (
                             request_error_response("package_expired"),
                             410,
                         )
                     elif try_login_response is loginError.session_not_accessable:
+                        LOGGER.debug(f"{req_id} - session not accessable")
                         return (
                             request_error_response("session_not_accessable"),
                             403,
                         )
                     elif try_login_response is False:
+                        LOGGER.debug(f"{req_id} - login failed")
                         return (
                             request_error_response("login_failed"),
                             401,
                         )
                     elif try_login_response is True:
+                        LOGGER.debug(f"{req_id} - login success")
                         return (
                             request_success_response(
                                 "login_success", extra={"user": is_user.__json__()}
@@ -1008,7 +1014,10 @@ def user_login() -> tuple[Response, int]:
                             200,
                         )
         except Exception as e:
-            LOGGER.debug(f"{req_id} - catched unknown error : -> {type(e)=} ,{e=} ")
+            # write error with line number
+            LOGGER.debug(
+                f"{req_id} - catched unknown error -> {type(e)=} ,{e=} at {e.__traceback__.tb_lineno}"  # noqa
+            )
             if type(e) is UnsupportedMediaType:
                 return unsupported_media_type()
             return jsonify({"status": "error", "message": "login_failed"}), 400

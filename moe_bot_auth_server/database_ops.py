@@ -9,7 +9,6 @@ from flask.sessions import SessionMixin  # noqa
 from flask_sqlalchemy import SQLAlchemy
 from schema import And, Optional, Or, Schema, SchemaError, Use
 from sqlalchemy import DateTime, Enum, ForeignKey, String, text
-from sqlalchemy.exc import ProgrammingError as sqlProgrammingError
 from sqlalchemy.orm import (
     Mapped,
     declarative_base,
@@ -38,17 +37,14 @@ pcontent_packages_conn_table = db.Table(
 
 
 def _create_database() -> None:
-    try:
-        engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
-        conn = engine.connect()
-        db_name = current_app.config["SQLALCHEMY_DATABASE_URI"].split("/")[-1].split("?")[0]
+    engine = db.create_engine(current_app.config["SQLALCHEMY_DATABASE_URI"])
+    conn = engine.connect()
+    db_name = current_app.config["SQLALCHEMY_DATABASE_URI"].split("/")[-1].split("?")[0]
+    # check database uri type
+    if not current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
         conn.execute(text("create database %s" % db_name))
         conn.commit()
-        conn.close()
-    except sqlProgrammingError as e:
-        DB_LOGGER.debug("database already exists: %s" % e)
-    except Exception as e:
-        DB_LOGGER.error("error while creating database: %s" % e)
+    conn.close()
 
 
 class PackageContent(Base):
@@ -62,7 +58,9 @@ class PackageContent(Base):
     )
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
     packages: Mapped[List[Package]] = relationship(
-        "Package", secondary=pcontent_packages_conn_table, back_populates="package_contents"
+        "Package",
+        secondary=pcontent_packages_conn_table,
+        back_populates="package_contents",
     )
 
     def __repr__(self):
@@ -153,7 +151,9 @@ class Package(Base):
     )
 
     package_contents: Mapped[List[PackageContent]] = relationship(
-        "PackageContent", back_populates="packages", secondary=pcontent_packages_conn_table
+        "PackageContent",
+        back_populates="packages",
+        secondary=pcontent_packages_conn_table,
     )
 
     u_packages: Mapped[List[U_Package]] = relationship(
@@ -275,7 +275,7 @@ class U_Package(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     start_date: Mapped[datetime.datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.datetime.utcnow
+        DateTime, nullable=False, default=datetime.datetime.now
     )
     end_date: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
 
@@ -302,16 +302,16 @@ class U_Package(Base):
             {
                 "id": self.id,
                 "base_package": self.base_package.__json__(),
-                "start_date": utc_timestamp(self.start_date),
-                "end_date": utc_timestamp(self.end_date),
+                "start_date": timezone_timestamp(self.start_date),
+                "end_date": timezone_timestamp(self.end_date),
                 "user": self.user.__json__(package_incld=False),
             }
             if user_incld
             else {
                 "id": self.id,
                 "base_package": self.base_package.__json__(),
-                "start_date": utc_timestamp(self.start_date),
-                "end_date": utc_timestamp(self.end_date),
+                "start_date": timezone_timestamp(self.start_date),
+                "end_date": timezone_timestamp(self.end_date),
             }
         )
 
@@ -321,7 +321,9 @@ class U_Package(Base):
         base_package = get_package_by_id(data["base_package"])
         ret_u_package = {
             "base_package": base_package,
-            "start_date": utc_timestamp(data["start_date"], return_type=datetime.datetime),
+            "start_date": timezone_timestamp(
+                data["start_date"], return_type=datetime.datetime
+            ),
         }
         if base_package is None:
             raise SchemaError("base_package_not_found")
@@ -332,11 +334,11 @@ class U_Package(Base):
         if "id" in data.keys():
             ret_u_package["id"] = data["id"]
         if "end_date" in data.keys():
-            ret_u_package["end_date"] = utc_timestamp(
+            ret_u_package["end_date"] = timezone_timestamp(
                 data["end_date"], return_type=datetime.datetime
             )
         else:
-            ret_u_package["end_date"] = utc_timestamp(
+            ret_u_package["end_date"] = timezone_timestamp(
                 data["start_date"], return_type=datetime.datetime
             ) + datetime.timedelta(
                 days=base_package_days
@@ -380,14 +382,18 @@ class U_Package(Base):
                     raise SchemaError("not_valid_%s" % key)
             elif key in ["start_date", "end_date"]:
                 if isinstance(value, int):
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                    mutable_data[key] = timezone_timestamp(
+                        value, return_type=datetime.datetime
+                    )
                 elif isinstance(value, datetime.datetime):
                     mutable_data[key] = value
                 elif isinstance(value, str):
                     value = datetime.datetime.strptime(
                         value, "%Y-%m-%dT%H:%M"
                     )  # html5 datetime.datetime-local
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                    mutable_data[key] = timezone_timestamp(
+                        value, return_type=datetime.datetime
+                    )
                 else:
                     raise SchemaError("not_valid_%s" % key)
 
@@ -402,7 +408,7 @@ class U_Package(Base):
             if not hasattr(base_package, "days"):
                 raise SchemaError("base_package.days_not_found")
             base_package_days = base_package.days
-            mutable_data["end_date"] = utc_timestamp(
+            mutable_data["end_date"] = timezone_timestamp(
                 mutable_data["start_date"], return_type=datetime.datetime
             ) + datetime.timedelta(days=base_package_days)
 
@@ -420,14 +426,13 @@ class U_Package(Base):
                     error="not_valid_id",
                 ),
                 "base_package": And(int, Use(_package_id_check), error="not_valid_package"),
-                "start_date": And(int, error="not_valid_start_date"),
+                "start_date": Or(float, int, error="not_valid_start_date"),
                 Optional("end_date"): And(
                     int,
                     Use(
                         lambda x: (
                             x > data["start_date"]
-                            and x
-                            < utc_timestamp(datetime.datetime.now(datetime.timezone.utc))
+                            and x < timezone_timestamp(datetime.datetime.now())
                         )
                     ),
                     error="not_valid_end_date",
@@ -440,19 +445,22 @@ class U_Package(Base):
         schema.validate(data)
 
     def is_expired(self) -> bool:
-        # return self.end_date < datetime.datetime.now(datetime.timezone.utc)
-        return utc_timestamp(self.end_date, return_type=int) < utc_timestamp(
-            datetime.datetime.now(datetime.timezone.utc), return_type=int
-        )
+        return timezone_timestamp(
+            self.end_date, return_type=datetime.datetime
+        ) < timezone_timestamp(datetime.datetime.now(), return_type=datetime.datetime)
 
 
 class U_Session(Base):
-    __slots__ = ["u_package", "u_accessible_sessions"]
+    __slots__ = [
+        "u_package",
+    ]
     __tablename__ = "user_sessions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     start_date: Mapped[datetime.datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.datetime.utcnow
+        DateTime,
+        nullable=False,
+        default=datetime.datetime.now,
     )
     end_date: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     ip: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -473,8 +481,8 @@ class U_Session(Base):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "start_date": utc_timestamp(self.start_date),
-            "end_date": utc_timestamp(self.end_date),
+            "start_date": timezone_timestamp(self.start_date),
+            "end_date": timezone_timestamp(self.end_date),
             "ip": self.ip,
             "access": self.access,
         }
@@ -497,14 +505,18 @@ class U_Session(Base):
                     raise SchemaError("not_valid_%s" % key)
             elif key in ["start_date", "end_date"]:
                 if isinstance(value, int):
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                    mutable_data[key] = timezone_timestamp(
+                        value, return_type=datetime.datetime
+                    )
                 elif isinstance(value, datetime.datetime):
                     mutable_data[key] = value
                 elif isinstance(value, str):
                     value = datetime.datetime.strptime(
                         value, "%Y-%m-%dT%H:%M"
                     )  # html5 datetime.datetime-local
-                    mutable_data[key] = utc_timestamp(value, return_type=datetime.datetime)
+                    mutable_data[key] = timezone_timestamp(
+                        value, return_type=datetime.datetime
+                    )
                 else:
                     raise SchemaError("not_valid_%s" % key)
             elif key == "ip":
@@ -520,7 +532,7 @@ class U_Session(Base):
         else:
             mutable_data["access"] = False
         if "end_date" not in mutable_data.keys():
-            mutable_data["end_date"] = utc_timestamp(
+            mutable_data["end_date"] = timezone_timestamp(
                 mutable_data["start_date"], return_type=datetime.datetime
             ) + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
         return U_Session(**mutable_data)
@@ -539,14 +551,13 @@ class U_Session(Base):
                 "user_id": And(int, Use(_user_id_check), error="not_valid_user"),
                 "start_date": And(
                     int,
-                    Use(
-                        lambda x: x
-                        < utc_timestamp(datetime.datetime.now(datetime.timezone.utc))
-                    ),
+                    Use(lambda x: x < timezone_timestamp(datetime.datetime.now())),
                     error="not_valid_start_date",
                 ),
                 "end_date": And(
-                    int, Use(lambda x: (x > data["start_date"])), error="not_valid_end_date"
+                    int,
+                    Use(lambda x: (x > data["start_date"])),
+                    error="not_valid_end_date",
                 ),
                 "ip": And(str, len, error="not_valid_ip"),
                 "accesible": And(bool, error="not_valid_accesible"),
@@ -559,15 +570,15 @@ class U_Session(Base):
         """
         not commiting to db as feature
         """
-        self.end_date = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+        self.end_date = datetime.datetime.now() + datetime.timedelta(
             seconds=current_app.config["USER_SESSION_TIMEOUT"]
         )
         self.access = True
 
     def is_expired(self) -> bool:
-        return utc_timestamp(self.end_date, return_type=int) < utc_timestamp(
-            datetime.datetime.now(datetime.timezone.utc), return_type=int
-        )
+        now = timezone_timestamp(datetime.datetime.now(), return_type=datetime.datetime)
+        end_date = timezone_timestamp(self.end_date, return_type=datetime.datetime)
+        return end_date < now
 
 
 class User(Base):
@@ -679,8 +690,8 @@ class User(Base):
             if org_user is not None:
                 new_u_package = U_Package(
                     base_package_id=mutable_data["base_package"],
-                    start_date=datetime.datetime.now(datetime.timezone.utc),
-                    end_date=datetime.datetime.now(datetime.timezone.utc)
+                    start_date=datetime.datetime.now(),
+                    end_date=datetime.datetime.now()
                     + datetime.timedelta(days=base_package.days),
                     user_id=org_user.id,
                 )
@@ -690,8 +701,8 @@ class User(Base):
             else:
                 mutable_data["package"] = U_Package(
                     base_package_id=mutable_data["base_package"],
-                    start_date=datetime.datetime.now(datetime.timezone.utc),
-                    end_date=datetime.datetime.now(datetime.timezone.utc)
+                    start_date=datetime.datetime.now(),
+                    end_date=datetime.datetime.now()
                     + datetime.timedelta(days=base_package.days),
                 )
             mutable_data.pop("base_package")
@@ -726,46 +737,55 @@ class User(Base):
         )
         schema.validate(data)
 
-    def open_session(self, inamedr: str, flsk_session: "SessionMixin") -> loginError | bool:
-        if self.package is not None:
+    def open_session(self, inamedr: str, flsk_session: "SessionMixin") -> bool | loginError:
+        DB_LOGGER.debug(f"call open_session from {inamedr}")
+        self.close_timedout_sessions()
+        if self.package:
             if self.package.is_expired():
+                DB_LOGGER.debug(f"in open_session from {inamedr} package expired")
                 delete_model(self.package, db.session)
                 db.session.commit()
                 return loginError.user_package_expired
+
+            DB_LOGGER.debug(f"in open_session from {inamedr} package not expired")
+
             max_session_quota = (
                 self.package.base_package.package_contents.count(
                     lambda x: x.content_value == pContentEnum.extra_session
                 )
                 + 1
             )
-            self.delete_old_sessions()
-            self.close_timedout_sessions()
-            self.u_accessible_sessions = list(filter(lambda x: x.access, self.sessions))
 
-            if flsk_session.get("session_id") is not None:
-                int_session_id = flsk_session.get("session_id")
-                # check if session id is not None if not none cast  to int
-                if int_session_id is not None:
-                    int_session_id = int(int_session_id)
+            DB_LOGGER.debug(
+                f"in open_session from {inamedr} max_session_quota: {max_session_quota}"
+            )
+
+            session_id = flsk_session.get("session_id")
+
+            if session_id is not None:
+                DB_LOGGER.debug(
+                    f"in open_session from {inamedr} flsk_session: {flsk_session}"
+                )
+                int_session_id = int(session_id) if session_id is not None else None
                 u_session = (
                     get_u_session_by_id(int_session_id)
                     if isinstance(int_session_id, int)
                     else None
                 )
 
-                # If the session does not exist, remove the session ID from Flask session.
                 if u_session is None:
+                    DB_LOGGER.debug(f"in open_session from {inamedr} u_session is None")
                     flsk_session.pop("session_id")
                     new_u_session = self._create_new_session(inamedr)
                     self.sessions.append(new_u_session)
                     db.session.add(new_u_session)
                     db.session.commit()
-                    flsk_session["session_id"] = (
+                    new_session_id = (
                         db.session.query(U_Session).order_by(U_Session.id.desc()).first().id  # type: ignore # noqa: E501
                     )
+                    flsk_session["session_id"] = new_session_id
                     return True
                 elif u_session.is_expired():
-                    # If the session is expired, extend the session and commit the change.
                     u_session.extend_session()
                     db.session.commit()
                     flsk_session["session_id"] = u_session.id
@@ -773,26 +793,38 @@ class User(Base):
                 elif u_session.access:
                     return True
                 return loginError.session_not_accessable
-            elif len(self.u_accessible_sessions) > max_session_quota:
+
+            u_accessible_sessions = [
+                u_session for u_session in self.sessions if u_session.access
+            ]
+            DB_LOGGER.debug(
+                f"in open_session from {inamedr} u_accessible_sessions: {u_accessible_sessions}"  # noqa: E501
+            )
+
+            if len(u_accessible_sessions) >= max_session_quota:
                 return loginError.max_online_user
-            else:
-                # If there is no existing session ID, create a new session.
-                new_u_session = self._create_new_session(inamedr)
-                self.sessions.append(new_u_session)
-                db.session.add(new_u_session)
-                db.session.commit()
-                flsk_session["session_id"] = (
-                    db.session.query(U_Session).order_by(U_Session.id.desc()).first().id  # type: ignore  # noqa: E501
-                )
-                return True
+
+            new_u_session = self._create_new_session(inamedr)
+            self.sessions.append(new_u_session)
+            db.session.add(new_u_session)
+            db.session.commit()
+            new_session_id = (
+                db.session.query(U_Session).order_by(U_Session.id.desc()).first().id  # type: ignore # noqa: E501
+            )
+            flsk_session["session_id"] = new_session_id
+            print(f"self.sessions : {[sess.is_expired() for sess in self.sessions]}")
+            return True
+
         return loginError.user_not_have_package
 
     def _create_new_session(self, inamedr: str) -> U_Session:
         new_u_session = U_Session(
             user_id=self.id,
-            start_date=datetime.datetime.now(datetime.timezone.utc),
-            end_date=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"]),
+            start_date=datetime.datetime.now(),
+            end_date=(
+                datetime.datetime.now()
+                + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
+            ),
             ip=inamedr,
         )
         return new_u_session
@@ -801,20 +833,28 @@ class User(Base):
         self.delete_old_sessions()
         for u_session in self.sessions:
             if u_session.is_expired():
+                DB_LOGGER.debug(
+                    f"in close_timedout_sessions u_session: {u_session} is disabled"
+                )
                 u_session.access = False
-                db.session.commit()
+        db.session.commit()
 
     def delete_old_sessions(self) -> None:
-        expired_sessions = filter_list(lambda x: x.is_expired(), self.sessions)
-        DB_LOGGER.debug("expired_sessions: %s" % expired_sessions)
-        deleteble_sessions = filter_list(lambda x: not x.access, expired_sessions)
-        deleteble_sessions = filter(
-            lambda x: x.end_date
-            + datetime.timedelta(hours=current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
-            < datetime.datetime.now(datetime.timezone.utc),
-            deleteble_sessions,
-        )
-        for session in deleteble_sessions:
+        expired_sessions = [session for session in self.sessions if session.is_expired()]
+        deletable_sessions = [session for session in expired_sessions if not session.access]
+
+        oldest_timeout = current_app.config["USER_OLDEST_SESSION_TIMEOUT"]
+        deletable_sessions = [
+            session
+            for session in deletable_sessions
+            if timezone_timestamp(
+                session.end_date + datetime.timedelta(hours=oldest_timeout),
+                return_type=float,
+            )
+            < timezone_timestamp(datetime.datetime.now(), return_type=float)
+        ]
+
+        for session in deletable_sessions:
             delete_model(session, db.session)
 
 
@@ -851,31 +891,28 @@ class Admin(Base):
         schema.validate(data)
 
 
-def utc_timestamp(
-    dt: datetime.datetime | int, return_type: type | None = None
-) -> int | datetime.datetime:
+def timezone_timestamp(
+    dt: datetime.datetime | float, return_type: type | None = None
+) -> float | datetime.datetime:
     """
-    toggle datetime.datetime to int timestamp
-    toggle int timestampt to datetime.datetime
+    toggle datetime.datetime to float timestamp
+    toggle float timestampt to datetime.datetime
     :param: dt
-    :param: return_type -> datetime.datetime | int | None (default None)
+    :param: return_type -> datetime.datetime | float | None (default None)
 
-    note: i lose some presition but is it need to be that precise
     """
-    # DB_LOGGER.debug(f"dt: {dt},return_type: {return_type}")
     if return_type is None:
         if isinstance(dt, datetime.datetime):
-            return int(dt.timestamp())
-        if isinstance(dt, int):
-            return datetime.datetime.fromtimestamp(float(dt), datetime.UTC)
+            return dt.timestamp()
+        if isinstance(dt, float):
+            return datetime.datetime.fromtimestamp(dt)
     else:
-        new_dt = utc_timestamp(dt, return_type=None)
-        # DB_LOGGER.debug(f"new_dt: {new_dt}")
+        new_dt = timezone_timestamp(dt, return_type=None)
         for _ in range(2):
             if isinstance(new_dt, return_type):
                 return new_dt
-            new_dt = utc_timestamp(new_dt, return_type=None)
-    raise RuntimeError("dt needs to be int or datetime.datetime.datetime.datetime object")
+            new_dt = timezone_timestamp(new_dt, return_type=None)
+    raise RuntimeError("dt needs to be float or datetime.datetime object")
 
 
 def add_db_model(
@@ -1201,7 +1238,9 @@ def update_package_content(
 
 
 def update_package(
-    old_package: int | Package, new_package: Package, session: scoped_session = db.session
+    old_package: int | Package,
+    new_package: Package,
+    session: scoped_session = db.session,
 ):
     try:
         if isinstance(old_package, int):

@@ -42,3 +42,35 @@ def test_login_with_u_package(
     assert "user" in response.json.keys()
     assert response.status_code == 200
     LOGGER.debug("test_login_with_u_package: logging in user: OK")
+
+
+def test_multiple_login_without_extra_session(
+    client,
+    user_data_auth,
+    user_with_moe_gthr_package,
+):
+    LOGGER.debug("test_multiple_login_without_extra_session: logging in user")
+    response = client.post(
+        URLS.ULogin,
+        auth=user_data_auth,
+    )
+    assert response.json["message"] == "login_success", response.json
+    assert response.json["status"] == "success"
+    assert "user" in response.json.keys()
+    assert response.status_code == 200
+    # clear sessin data
+    with client.session_transaction() as sess:
+        sess.clear()
+    LOGGER.debug("test_multiple_login_without_extra_session: logging in user: OK")
+
+    response = client.post(
+        URLS.ULogin,
+        auth=user_data_auth,
+    )
+    assert response.json["message"] == "max_online_user", response.json
+    assert response.json["status"] == "error"
+    assert response.status_code == 401
+    LOGGER.debug(
+        "test_multiple_login_without_extra_session: logging in user: OK: response_json %s",
+        response.json,
+    )

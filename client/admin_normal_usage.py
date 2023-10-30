@@ -3,7 +3,7 @@ from pprint import pprint
 from admin_requests import get_info
 from data import mTypes
 from utils import admin_header_kwargs
-from moe_bot_auth_server.database_ops import utc_timestamp
+from moe_bot_auth_server.database_ops import timezone_timestamp
 
 
 def main():
@@ -18,8 +18,8 @@ def main():
         print(
             "Session id: {}, start_date: {}, end_date: {}".format(
                 session["id"],
-                utc_timestamp(session["start_date"]),
-                utc_timestamp(session["end_date"]),
+                timezone_timestamp(session["start_date"]),
+                timezone_timestamp(session["end_date"]),
             )
         )
 

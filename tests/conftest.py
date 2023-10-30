@@ -16,7 +16,7 @@ from moe_bot_auth_server.database_ops import (
     add_admin,
     db,
     pContentEnum,
-    utc_timestamp,
+    timezone_timestamp,
 )
 from tests.testing_helpers import LOGGER, generate_random_sized_random_package_content_list
 
@@ -186,7 +186,7 @@ def u_package_data() -> dict:
     return {
         "user": 1,
         "base_package": 1,
-        "start_date": utc_timestamp(datetime.datetime.now(datetime.UTC)),
+        "start_date": timezone_timestamp(datetime.datetime.now()),
     }
 
 
@@ -226,7 +226,7 @@ def update_sample_u_package_data() -> dict:
     return {
         "user": 1,
         "base_package": 1,
-        "start_date": utc_timestamp(datetime.datetime.now(datetime.UTC)),
+        "start_date": timezone_timestamp(datetime.datetime.now()),
     }
 
 
@@ -407,8 +407,8 @@ def u_package_from_db(
     with app_ctx:
         u_package_data["user"] = user_from_db.id
         u_package_data["base_package"] = package_from_db.id
-        u_package_data["start_date"] = utc_timestamp(
-            datetime.datetime.now(datetime.UTC), return_type=int
+        u_package_data["start_date"] = float(
+            int(timezone_timestamp(datetime.datetime.now(), return_type=float))
         )
         db_u_package = U_Package.from_json(u_package_data)
         db.session.add(db_u_package)
@@ -431,8 +431,8 @@ def user_with_package_from_db(
     with app_ctx:
         u_package_data["user"] = user_from_db.id
         u_package_data["base_package"] = package_with_random_contents_from_db.id
-        u_package_data["start_date"] = utc_timestamp(
-            datetime.datetime.now(datetime.UTC), return_type=int
+        u_package_data["start_date"] = float(
+            int(timezone_timestamp(datetime.datetime.now(), return_type=float))
         )
         db_u_package = U_Package.from_json(u_package_data)
         db.session.add(db_u_package)
@@ -455,13 +455,13 @@ def u_session_from_db(
     LOGGER.debug("u_session_from_db")
     with app_ctx:
         u_session_data = {
-            "start_date": utc_timestamp(
-                datetime.datetime.now(datetime.UTC), return_type=datetime.datetime
+            "start_date": timezone_timestamp(
+                datetime.datetime.now(), return_type=datetime.datetime
             ),
             "user_id": user_from_db.id,
             "ip": "127.0.0.1",
-            "end_date": utc_timestamp(
-                datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=20),
+            "end_date": timezone_timestamp(
+                datetime.datetime.now() + datetime.timedelta(minutes=20),
                 return_type=datetime.datetime,
             ),
         }
@@ -489,4 +489,30 @@ def user_with_package_and_session_from_db(
         user_with_package_from_db.sessions.append(u_session_from_db)
         db.session.commit()
         yield user_with_package_from_db
+        db.session.remove()
+
+
+@pytest.fixture
+def user_with_moe_gthr_package(
+    app_ctx,
+    user_from_db,
+    package_from_db,
+    u_package_data,
+):
+    LOGGER.debug("user_with_moe_gthr_package")
+    with app_ctx:
+        u_package_data["user"] = user_from_db.id
+        u_package_data["base_package"] = package_from_db.id
+        u_package_data["start_date"] = float(
+            int(timezone_timestamp(datetime.datetime.now(), return_type=float))
+        )
+        db_u_package = U_Package.from_json(u_package_data)
+        db.session.add(db_u_package)
+        db.session.commit()
+        db_query_u_package = U_Package.query.filter(
+            U_Package.user == user_from_db, U_Package.base_package == package_from_db
+        ).first()
+        user_from_db.package = db_query_u_package
+        db.session.commit()
+        yield user_from_db
         db.session.remove()
