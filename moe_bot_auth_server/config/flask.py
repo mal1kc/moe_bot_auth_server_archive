@@ -94,18 +94,18 @@ class Config:
             "USER_SESSION_TIMEOUT": 30,  # in seconds
             "USER_OLDEST_SESSION_TIMEOUT": 24,  # in hours
             "USER_IP_SESSION_LIMIT": 150,
-            "SECRET_KEY": "no-so-secret-key1235120m98c2123*9zxı",
+            "SECRET_KEY": "  ",
             "DATA_FOLDER": if_not_exists_make_dir("data", relative=True),
             "STATIC_FOLDER": if_not_exists_make_dir("static", relative=True),
             "TEMPLATE_FOLDER": if_not_exists_make_dir("templates", relative=True),
             "ADMINS": [
                 {
                     "username": "mstafa",
-                    "password_hash": "***REMOVED***",  # noqa : E501
+                    "password_hash": "  ",  # noqa : E501
                 },
                 {
                     "username": "ncmdn",
-                    "password_hash": "***REMOVED***",  # noqa : E501
+                    "password_hash": "  ",  # noqa : E501
                 },
             ],
         }

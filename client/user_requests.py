@@ -43,7 +43,11 @@ def login_user(
     session: requests.Session = get_req_session(),
 ):
     "probably fail because of user has no package"
-    response = session.post(EndPoints.ULogin, auth=(name, ready_password))
+    response = session.post(
+        EndPoints.ULogin,
+        # "http://127.0.0.1:8080/api/v1/user/login",
+        auth=(name, ready_password),
+    )
 
     return response.json(), response.ok
 

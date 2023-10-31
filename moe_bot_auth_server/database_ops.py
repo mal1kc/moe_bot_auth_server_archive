@@ -534,7 +534,7 @@ class U_Session(Base):
         if "end_date" not in mutable_data.keys():
             mutable_data["end_date"] = timezone_timestamp(
                 mutable_data["start_date"], return_type=datetime.datetime
-            ) + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
+            ) + datetime.timedelta(seconds=int(current_app.config["USER_SESSION_TIMEOUT"]))
         return U_Session(**mutable_data)
 
     @staticmethod
@@ -571,7 +571,7 @@ class U_Session(Base):
         not commiting to db as feature
         """
         self.end_date = datetime.datetime.now() + datetime.timedelta(
-            seconds=current_app.config["USER_SESSION_TIMEOUT"]
+            seconds=int(current_app.config["USER_SESSION_TIMEOUT"])
         )
         self.access = True
 
@@ -823,7 +823,9 @@ class User(Base):
             start_date=datetime.datetime.now(),
             end_date=(
                 datetime.datetime.now()
-                + datetime.timedelta(seconds=current_app.config["USER_SESSION_TIMEOUT"])
+                + datetime.timedelta(
+                    seconds=int(current_app.config["USER_SESSION_TIMEOUT"])
+                )
             ),
             ip=inamedr,
         )
@@ -843,7 +845,7 @@ class User(Base):
         expired_sessions = [session for session in self.sessions if session.is_expired()]
         deletable_sessions = [session for session in expired_sessions if not session.access]
 
-        oldest_timeout = current_app.config["USER_OLDEST_SESSION_TIMEOUT"]
+        oldest_timeout = float(current_app.config["USER_OLDEST_SESSION_TIMEOUT"])
         deletable_sessions = [
             session
             for session in deletable_sessions

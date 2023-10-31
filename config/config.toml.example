@@ -1,0 +1,34 @@
+DEBUG=false
+
+LOG_LEVEL="DEBUG"
+LOG_FILE_MAX_SIZE=104857600 # in bytes
+LOG_MAX_FILES=10
+LOG_FILE_FOLDER="logs"
+
+SQLALCHEMY_DATABASE_URI="sqlite:///data/db.sqlite3" # working perfect
+
+# SQLALCHEMY_DATABASE_URI="postgresql://postgres:  @localhost:5432/moe_bot_auth_server" # broken not working
+# SQLALCHEMY_DATABASE_URI="mariadb+pymysql://root:  @localhost:3306/moe_bot_auth_server?charset=utf8mb4"
+#
+# docker run --hostname=97599cadfabc --mac-address=02:42:ac:11:00:02 --env=MARIADB_USER=sql_user 
+# --env=MARIADB_PASSWORD=  
+# --env=MARIADB_ROOT_PASSWORD= 
+#
+SQLALCHEMY_TRACK_MODIFICATIONS=false
+
+USER_SESSION_TIMEOUT=30 # in seconds
+USER_OLDEST_SESSION_TIMEOUT=24 # in hours
+# 0.1 -> 6 min in hours
+# not implemented
+USER_IP_SESSION_LIMIT=260 # as count
+
+# if empty, a random key will be generated (for every worker)
+SECRET_KEY="  " # default -> make_password_hash(" ")
+
+DATA_FOLDER="data"
+STATIC_FOLDER="static"
+ADMINS = [
+   { username = "mstafa", password_hash = " " }
+   ,{username = "ncmdn", password_hash = " "},
+    # {username = "admin", password_hash = " "}
+   ]

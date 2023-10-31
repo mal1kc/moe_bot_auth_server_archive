@@ -12,23 +12,23 @@ alt_docker_cmd="podman"
 active_docker_cmd="$docker_cmd"
 
 if ! command -v $docker_cmd >/dev/null; then
-    echo "$docker_cmd could not be found, trying $alt_docker_cmd"
-    active_docker_cmd=$alt_docker_cmd
+  echo "$docker_cmd could not be found, trying $alt_docker_cmd"
+  active_docker_cmd=$alt_docker_cmd
 fi
 if ! command -v $alt_docker_cmd >/dev/null; then
-    echo "$docker_cmd and $alt_docker_cmd could not be found exiting with error"
-    exit 1
+  echo "$docker_cmd and $alt_docker_cmd could not be found exiting with error"
+  exit 1
 fi
 
 if [ -z "$CONTAINER_TAG" ]; then
-    echo "Could not get container tag exiting with error"
-    exit 1
+  echo "Could not get container tag exiting with error"
+  exit 1
 fi
 
 # if image not exists call build script
 if ! $active_docker_cmd image inspect $CONTAINER_NAME:$CONTAINER_TAG >/dev/null; then
-    echo "Container image not found, building it"
-    bash ./build-dev-container-image.sh
+  echo "Container image not found, building it"
+  bash ./build-dev-container-image.sh
 fi
 
 last_build_date=$($active_docker_cmd inspect -f '{{.Created}}' $CONTAINER_NAME:$CONTAINER_TAG)""
