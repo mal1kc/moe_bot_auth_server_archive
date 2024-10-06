@@ -1,3 +1,7 @@
+* about
+ - this a app web app to check with some kind of auth system this projects no longer get new commits this is a archive repo
+ - this a part of moe_bot project [../moe_bot_archive]
+
 * özellikler
 
 ** sorunlar
